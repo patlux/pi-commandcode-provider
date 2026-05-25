@@ -21,6 +21,7 @@
   "files": [
     "index.ts",
     "src/",
+    "models.json",
     "README.md",
     "CHANGELOG.md",
     "CONTRIBUTING.md",
@@ -38,7 +39,8 @@
     "test:abort": "tsx tests/test-abort.ts",
     "test:stream": "tsx tests/test-stream.ts",
     "test:pi-local": "node tests/test-pi-local.mjs",
-    "test:smoke": "node tests/test-smoke.mjs"
+    "test:smoke": "node tests/test-smoke.mjs",
+    "extract-models": "tsx scripts/extract-models.ts"
   },
   "pi": {
     "extensions": [

@@ -105,7 +105,34 @@ Any query will then use the Command Code API. You can list available models with
 /models
 ```
 
+<<<<<<< HEAD
 ## Model discovery
+=======
+## Update models
+
+The model list (`models.json`) is extracted from the [command-code](https://www.npmjs.com/package/command-code) npm package's dist file. When Command Code releases a new version with updated models, regenerate it:
+
+```sh
+npm run extract-models
+```
+
+This runs `scripts/extract-models.ts`, which:
+
+1. Downloads the latest `command-code` tarball from npm (`npm pack command-code`)
+2. Parses the minified `dist/index.mjs` to extract provider definitions, model metadata, and pricing
+3. Fills in `contextWindow` and `maxOutputTokens` with sensible defaults where the CLI omits them
+4. Writes the result to `models.json`
+
+To use a specific version or local dist file:
+
+```sh
+npx tsx scripts/extract-models.ts /path/to/command-code/dist/index.mjs
+```
+
+`models.json` is committed to the repo and included in the npm package.
+
+## Publish
+>>>>>>> 960d0d1 (feat: extract models from command-code dist, load via models.json)
 
 On startup, the provider fetches:
 
