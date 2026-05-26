@@ -50,6 +50,7 @@ function hasCommandCodeAuth() {
   return (
     !!process.env.COMMANDCODE_API_KEY ||
     existsSync(join(homedir(), ".commandcode", "auth.json")) ||
+    existsSync(join(homedir(), ".omp", "agent", "auth.json")) ||
     existsSync(join(homedir(), ".pi", "agent", "auth.json"))
   )
 }

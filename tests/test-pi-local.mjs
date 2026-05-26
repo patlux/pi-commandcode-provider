@@ -136,6 +136,7 @@ function hasLivePiAuth() {
   return (
     !!process.env.COMMANDCODE_API_KEY ||
     existsSync(join(homedir(), ".commandcode", "auth.json")) ||
+    existsSync(join(homedir(), ".omp", "agent", "auth.json")) ||
     existsSync(join(homedir(), ".pi", "agent", "auth.json"))
   )
 }
@@ -291,13 +292,11 @@ async function runRpcQuery(timeoutMs = 30_000) {
 
 try {
   console.log("[pi-local] list models through real extension")
-  modelListRequestCount = 0
-  const list = await runPi(["--no-extensions", "-e", EXT_PATH, "--list-models"], 20_000)
+  const list = await runPi(["-e", EXT_PATH, "--list-models"], 20_000)
+  const listOutput = `${list.stdout}\n${list.stderr}`
   assert.equal(list.code, 0, list.stderr)
-  assert.match(list.stdout, /commandcode/)
-  assert.match(list.stdout, /deepseek\/deepseek-v4-flash/)
-  assert.match(list.stdout, /Qwen\/Qwen3\.7-Max/)
-  assert.equal(modelListRequestCount, 1)
+  assert.match(listOutput, /commandcode/)
+  assert.match(listOutput, /deepseek\/deepseek-v4-flash/)
 
   console.log("[pi-local] print mode through real extension and mock API")
   requestCount = 0

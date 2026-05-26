@@ -1,6 +1,6 @@
 # pi-commandcode-provider
 
-A [pi](https://github.com/badlogic/pi-mono) custom provider that connects pi to the [Command Code](https://commandcode.ai) API.
+A [pi](https://github.com/badlogic/pi-mono) and Oh My Pi custom provider that connects to the [Command Code](https://commandcode.ai) API.
 
 > **Disclaimer:** This is an unofficial, community-maintained package. I am not affiliated with, endorsed by, or connected to Command Code in any way. This provider simply forwards requests to the public Command Code API using your own API key.
 
@@ -20,6 +20,8 @@ pi -e index.ts --list-models
 
 ## Install
 
+### pi
+
 ```sh
 pi install npm:pi-commandcode-provider
 ```
@@ -31,6 +33,18 @@ pi install pi-commandcode-provider
 ```
 
 Then reload pi:
+
+```txt
+/reload
+```
+
+### Oh My Pi
+
+```sh
+omp plugin install pi-commandcode-provider
+```
+
+Then restart OMP or run:
 
 ```txt
 /reload
@@ -72,18 +86,7 @@ Create `~/.commandcode/auth.json`:
 }
 ```
 
-The official Command Code CLI auth shape is also supported:
-
-```json
-{
-  "command-code": {
-    "type": "api",
-    "key": "user_..."
-  }
-}
-```
-
-Or use pi's auth file at `~/.pi/agent/auth.json`:
+Or use a pi/OMP auth file at `~/.pi/agent/auth.json` or `~/.omp/agent/auth.json`:
 
 ```json
 {
@@ -99,15 +102,27 @@ After installing and setting your API key, select a Command Code model in pi:
 /model deepseek/deepseek-v4-flash
 ```
 
-Any query will then use the Command Code API. You can list available models within pi:
+In OMP, use the provider-qualified model name:
+
+```sh
+omp -p "hello" --model commandcode/deepseek/deepseek-v4-flash
+```
+
+OMP currently resolves `--provider commandcode --model ...` before extension providers are loaded, so prefer `--model commandcode/<model-id>`.
+
+Any query will then use the Command Code API. You can list available models:
+
+```sh
+pi -e index.ts --list-models
+omp -e index.ts --list-models
+```
+
+Or within pi:
 
 ```txt
 /models
 ```
 
-<<<<<<< HEAD
-## Model discovery
-=======
 ## Update models
 
 The model list (`models.json`) is extracted from the [command-code](https://www.npmjs.com/package/command-code) npm package's dist file. When Command Code releases a new version with updated models, regenerate it:
@@ -132,7 +147,6 @@ npx tsx scripts/extract-models.ts /path/to/command-code/dist/index.mjs
 `models.json` is committed to the repo and included in the npm package.
 
 ## Publish
->>>>>>> 960d0d1 (feat: extract models from command-code dist, load via models.json)
 
 On startup, the provider fetches:
 

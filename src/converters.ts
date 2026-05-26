@@ -39,7 +39,11 @@ export function numberValue(value: unknown): number | undefined {
 }
 
 function defaultAuthPaths(home: string): string[] {
-  return [join(home, ".commandcode", "auth.json"), join(home, ".pi", "agent", "auth.json")]
+  return [
+    join(home, ".commandcode", "auth.json"),
+    join(home, ".omp", "agent", "auth.json"),
+    join(home, ".pi", "agent", "auth.json"),
+  ]
 }
 
 function apiKeyFromCredentialRecord(value: unknown): string | undefined {
@@ -96,6 +100,27 @@ export function textContent(message: { content?: unknown }): string {
     .filter((part) => part.type === "text")
     .map((part) => stringValue(part.text) ?? "")
     .join("\n")
+}
+
+function promptPartToText(value: unknown): string {
+  if (typeof value === "string") return value
+  if (Array.isArray(value)) return value.map(promptPartToText).filter(Boolean).join("\n")
+  if (!isRecord(value)) return ""
+
+  const text = stringValue(value.text)
+  if (text) return text
+
+  const content = promptPartToText(value.content)
+  if (content) return content
+
+  return ""
+}
+
+export function systemPromptToText(value: unknown): string {
+  if (value === undefined || value === null) return ""
+  if (typeof value === "string") return value
+  if (Array.isArray(value)) return value.map(promptPartToText).filter(Boolean).join("\n\n")
+  return promptPartToText(value)
 }
 
 export function getEnvironmentInfo(): string {

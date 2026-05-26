@@ -17,6 +17,7 @@ import {
   parseStreamEventLine,
   recordOrEmpty,
   stringValue,
+  systemPromptToText,
   toolsToJson,
 } from "./converters.ts"
 import type {
@@ -149,7 +150,7 @@ export function createStreamCommandCode(deps: CoreDependencies) {
           usage: defaultUsage(),
           stopReason: "error",
           errorMessage:
-            "No Command Code API key. Run /login and select Command Code, set COMMANDCODE_API_KEY env var, or configure ~/.commandcode/auth.json or ~/.pi/agent/auth.json.",
+            "No Command Code API key. Run /login and select Command Code, set COMMANDCODE_API_KEY env var, or configure ~/.commandcode/auth.json, ~/.omp/agent/auth.json, or ~/.pi/agent/auth.json.",
           timestamp: now(),
         }
         stream.push({ type: "error", reason: "error", error: msg })
@@ -355,9 +356,8 @@ export function createStreamCommandCode(deps: CoreDependencies) {
             model: model.id,
             messages: messagesToCC(context.messages),
             tools: toolsToJson(context.tools),
-            system: context.systemPrompt ?? "",
-            max_tokens: generateMaxTokens(model, options),
-            temperature: 0.3,
+            system: systemPromptToText(context.systemPrompt),
+            max_tokens: Math.min(options?.maxTokens ?? model.maxTokens, 200_000),
             stream: true,
           },
           threadId,
