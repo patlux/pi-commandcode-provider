@@ -102,49 +102,21 @@ After installing and setting your API key, select a Command Code model in pi:
 /model deepseek/deepseek-v4-flash
 ```
 
-In OMP, use the provider-qualified model name:
-
-```sh
-omp -p "hello" --model commandcode/deepseek/deepseek-v4-flash
-```
-
-OMP currently resolves `--provider commandcode --model ...` before extension providers are loaded, so prefer `--model commandcode/<model-id>`.
-
-Any query will then use the Command Code API. You can list available models:
-
-```sh
-pi -e index.ts --list-models
-omp -e index.ts --list-models
-```
-
-Or within pi:
+Any query will then use the Command Code API. You can list available models within pi:
 
 ```txt
 /models
 ```
 
-## Update models
+## Model discovery
 
-The model list (`models.json`) is extracted from the [command-code](https://www.npmjs.com/package/command-code) npm package's dist file. When Command Code releases a new version with updated models, regenerate it:
+On startup, the provider fetches:
 
-```sh
-npm run extract-models
+```txt
+https://api.commandcode.ai/provider/v1/models
 ```
 
-This runs `scripts/extract-models.ts`, which:
-
-1. Downloads the latest `command-code` tarball from npm (`npm pack command-code`)
-2. Parses the minified `dist/index.mjs` to extract provider definitions, model metadata, and pricing
-3. Fills in `contextWindow` and `maxOutputTokens` with sensible defaults where the CLI omits them
-4. Writes the result to `models.json`
-
-To use a specific version or local dist file:
-
-```sh
-npx tsx scripts/extract-models.ts /path/to/command-code/dist/index.mjs
-```
-
-`models.json` is committed to the repo and included in the npm package.
+For tests or local mocks, override it with `COMMANDCODE_MODELS_URL`.
 
 ## Publish
 
