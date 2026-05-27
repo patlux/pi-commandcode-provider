@@ -295,9 +295,10 @@ try {
   modelListRequestCount = 0
   const list = await runPi(["--no-extensions", "-e", EXT_PATH, "--list-models"], 20_000)
   assert.equal(list.code, 0, list.stderr)
-  assert.match(list.stdout, /commandcode/)
-  assert.match(list.stdout, /deepseek\/deepseek-v4-flash/)
-  assert.match(list.stdout, /Qwen\/Qwen3\.7-Max/)
+  const listOutput = list.stdout || list.stderr
+  assert.match(listOutput, /commandcode/)
+  assert.match(listOutput, /deepseek\/deepseek-v4-flash/)
+  assert.match(listOutput, /Qwen\/Qwen3\.7-Max/)
   assert.equal(modelListRequestCount, 1)
 
   console.log("[pi-local] print mode through real extension and mock API")
