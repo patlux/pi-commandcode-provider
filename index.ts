@@ -15,15 +15,19 @@
 import { calculateCost, createAssistantMessageEventStream } from "@mariozechner/pi-ai"
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent"
 
-import { COMMAND_CODE_CLI_VERSION, createStreamCommandCode, DEFAULT_API_BASE } from "./src/core.ts"
+import { createStreamCommandCode, DEFAULT_API_BASE } from "./src/core.ts"
 import { DEFAULT_MODELS_URL, fetchCommandCodeModels } from "./src/models.ts"
 import { getApiKey, login, refreshToken } from "./src/oauth.ts"
 
 const API_BASE = process.env.COMMANDCODE_API_BASE ?? DEFAULT_API_BASE
 const MODELS_URL = process.env.COMMANDCODE_MODELS_URL ?? DEFAULT_MODELS_URL
 
+// ---------------------------------------------------------------------------
+// Stream factory
+// ---------------------------------------------------------------------------
+
 const streamCommandCode = createStreamCommandCode({
-  createStream: createAssistantMessageEventStream,
+  createStream: () => new AssistantMessageEventStream(),
   calculateCost,
   apiBase: API_BASE,
 })

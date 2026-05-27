@@ -77,13 +77,25 @@ describe("getApiKey()", () => {
     }
   })
 
-  it("uses injected homeDir for default auth paths", () => {
+  it("uses injected homeDir for pi default auth paths", () => {
     const dir = mkdtempSync(join(tmpdir(), "cc-home-"))
     try {
       const authDir = join(dir, ".pi", "agent")
       mkdirSync(authDir, { recursive: true })
       writeFileSync(join(authDir, "auth.json"), JSON.stringify({ commandcode: "pi-key" }))
       assert.equal(getApiKey({ env: {}, homeDir: () => dir }), "pi-key")
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it("uses injected homeDir for OMP default auth paths", () => {
+    const dir = mkdtempSync(join(tmpdir(), "cc-omp-home-"))
+    try {
+      const authDir = join(dir, ".omp", "agent")
+      mkdirSync(authDir, { recursive: true })
+      writeFileSync(join(authDir, "auth.json"), JSON.stringify({ commandcode: "omp-key" }))
+      assert.equal(getApiKey({ env: {}, homeDir: () => dir }), "omp-key")
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
