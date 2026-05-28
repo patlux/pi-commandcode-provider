@@ -1,14 +1,11 @@
 rules:
-  # ──────────────────────────────────────────────────────────
-  # Category: Exfiltration — sending secrets to remote servers
-  # ──────────────────────────────────────────────────────────
+  # ────────────────────────────────────────────────────────────────────────
+  # Exfiltration: sending secrets to remote servers
+  # ────────────────────────────────────────────────────────────────────────
 
   - id: pi-extension-data-exfiltration-fetch
-    pattern-either:
-      - pattern: |
-          fetch($URL, ...)
-      - pattern: |
-          $X.fetch($URL, ...)
+    patterns:
+      - pattern: fetch($URL, ...)
     message: >
       Data exfiltration risk: sending data to $URL via fetch.
       Verify the destination is not an attacker-controlled server.
@@ -16,14 +13,12 @@ rules:
     languages: [javascript, typescript]
     paths:
       include:
-        - "src/**"
-        - "index.ts"
+        - "**/*.ts"
+        - "**/index.ts"
     focus-metavariable: $URL
 
   - id: pi-extension-data-exfiltration-xmlhttprequest
-    patterns:
-      - pattern: |
-          new XMLHttpRequest()
+    pattern: new XMLHttpRequest()
     message: >
       Suspicious XMLHttpRequest usage in provider code.
       Could exfiltrate data to external servers.
@@ -31,11 +26,11 @@ rules:
     languages: [javascript, typescript]
     paths:
       include:
-        - "src/**"
+        - "**/*.ts"
 
-  # ──────────────────────────────────────────────────────────
-  # Category: Secret leakage — logging / sending API keys
-  # ──────────────────────────────────────────────────────────
+  # ────────────────────────────────────────────────────────────────────────
+  # Secret leakage: logging / sending API keys
+  # ────────────────────────────────────────────────────────────────────────
 
   - id: pi-extension-logging-secrets
     patterns:
@@ -43,7 +38,7 @@ rules:
           - pattern: console.log(...)
           - pattern: console.error(...)
           - pattern: console.warn(...)
-      - pattern-regex: api[kK]ey|API_KEY|COMMANDCODE|Bearer|auth[Pp]ath
+      - pattern-regex: "api[kK]ey|API_KEY|COMMANDCODE|Bearer|authPath"
     message: >
       Potential secret logging: log statement includes an API key, auth token,
       or auth file path pattern. Do not log secrets.
@@ -51,14 +46,13 @@ rules:
     languages: [javascript, typescript]
     paths:
       include:
-        - "src/**"
-        - "index.ts"
+        - "**/*.ts"
+        - "**/index.ts"
 
   - id: pi-extension-secret-in-error-message
     patterns:
-      - pattern: |
-          Error($MSG)
-      - pattern-regex: (api[kK]ey|API_KEY|COMMANDCODE|Bearer)
+      - pattern: Error($MSG)
+      - pattern-regex: "api[kK]ey|API_KEY|COMMANDCODE|Bearer"
     message: >
       Possible secret leak in error message: $MSG.
       Error messages surfaced to pi may leak credentials.
@@ -67,26 +61,24 @@ rules:
     languages: [javascript, typescript]
     paths:
       include:
-        - "src/**"
-        - "index.ts"
+        - "**/*.ts"
+        - "**/index.ts"
 
-  # ──────────────────────────────────────────────────────────
-  # Category: URL hijacking — changing API base endpoints
-  # ──────────────────────────────────────────────────────────
+  # ────────────────────────────────────────────────────────────────────────
+  # URL hijacking: changing API base endpoints
+  # ────────────────────────────────────────────────────────────────────────
 
   - id: pi-extension-api-base-override
     patterns:
       - pattern-either:
-          - pattern: |
-              $VAR = "..."
-          - pattern: |
-              $VAR = process.env.$ENV_VAR ?? "..."
+          - pattern: $VAR = "..."
+          - pattern: $VAR = process.env.$ENV_VAR ?? "..."
       - metavariable-regex:
           metavariable: $VAR
-          regex: (?i).*(api_?base|api_base_url|base_url|host|endpoint|models_url).*
+          regex: "(?i).*(api_?base|api_base_url|base_url|host|endpoint|models_url).*"
       - metavariable-regex:
           metavariable: $ENV_VAR
-          regex: (?i).*API.*BASE.*
+          regex: "(?i).*API.*BASE.*"
     message: >
       API base URL override: $ENV_VAR can redirect all requests including auth
       headers to any server. Review any change to how this variable is set.
@@ -94,15 +86,12 @@ rules:
     languages: [javascript, typescript]
     paths:
       include:
-        - "src/**"
-        - "index.ts"
+        - "**/*.ts"
+        - "**/index.ts"
 
   - id: pi-extension-auth-header-manipulation
     patterns:
-      - pattern: |
-          ...options?.headers
-      - pattern-not: |
-          ...options?.headers,
+      - pattern: ...options?.headers
     message: >
       Auth header manipulation risk: options.headers spread before Authorization
       header. A contributor could override the Authorization header.
@@ -112,17 +101,16 @@ rules:
       include:
         - "src/core.ts"
 
-  # ──────────────────────────────────────────────────────────
-  # Category: Supply chain — dependency injection
-  # ──────────────────────────────────────────────────────────
+  # ────────────────────────────────────────────────────────────────────────
+  # Supply chain: dependency injection
+  # ────────────────────────────────────────────────────────────────────────
 
   - id: pi-extension-untrusted-dynamic-require
     patterns:
-      - pattern: |
-          require($MODULE)
+      - pattern: require($MODULE)
       - metavariable-regex:
           metavariable: $MODULE
-          regex: ^(?!['"]((\.[\/\\])|node:?|@earendil-works\/))['"]
+          regex: "^(?!['\"](\\.[/\\\\]|node:?|@earendil-works/))['\"]"
     message: >
       Dynamic require() of non-local, non-standard-library module: $MODULE.
       External contributors could introduce malicious packages this way.
@@ -130,13 +118,12 @@ rules:
     languages: [javascript, typescript]
     paths:
       include:
-        - "src/**"
-        - "index.ts"
+        - "**/*.ts"
+        - "**/index.ts"
 
   - id: pi-extension-postinstall-script
     patterns:
-      - pattern: |
-          "postinstall": $SCRIPT
+      - pattern: '"postinstall": "$SCRIPT"'
     message: >
       postinstall script detected: $SCRIPT. Install-time scripts can execute
       arbitrary code on user machines. Must be reviewed with extreme care.
@@ -146,20 +133,19 @@ rules:
       include:
         - "package.json"
 
-  # ──────────────────────────────────────────────────────────
-  # Category: File system — reading auth files / ~/.pi
-  # ──────────────────────────────────────────────────────────
+  # ────────────────────────────────────────────────────────────────────────
+  # File system: reading auth files / ~/.pi
+  # ────────────────────────────────────────────────────────────────────────
 
   - id: pi-extension-auth-path-traversal
     patterns:
-      - pattern: |
-          join($HOME, $PATH)
+      - pattern: join($HOME, $PATH)
       - metavariable-regex:
           metavariable: $HOME
-          regex: homedir|homeDir|HOME|process\.env\.HOME
+          regex: "homedir|homeDir|HOME|process\\.env\\.HOME"
       - metavariable-regex:
           metavariable: $PATH
-          regex: '["\'].*\.\.\/.*["\']'
+          regex: "['\"].*\\.\\./.*['\"]"
     message: >
       Auth path traversal: $HOME / $PATH could read outside the intended auth
       directory. Path must stay within ~/.commandcode, ~/.pi/agent, ~/.omp/agent.
@@ -167,17 +153,15 @@ rules:
     languages: [javascript, typescript]
     paths:
       include:
-        - "src/**"
+        - "**/*.ts"
 
   - id: pi-extension-readfile-sensitive-paths
     patterns:
-      - pattern: |
-          readFileSync($PATH, ...)
-      - pattern-not: |
-          readFileSync($PATH, "utf-8")
+      - pattern: readFileSync($PATH, ...)
+      - pattern-not: readFileSync($PATH, "utf-8")
       - metavariable-regex:
           metavariable: $PATH
-          regex: (auth\.json|credentials|\.env|id_rsa|ssh|\.netrc|netrc|\.npmrc)
+          regex: "(auth\\.json|credentials|\\.env|id_rsa|ssh|\\.netrc|netrc|\\.npmrc)"
     message: >
       Suspicious file read: $PATH. Auth files or credentials being read with
       potentially unsafe encoding. Review carefully.
@@ -185,25 +169,18 @@ rules:
     languages: [javascript, typescript]
     paths:
       include:
-        - "src/**"
+        - "**/*.ts"
 
-  # ──────────────────────────────────────────────────────────
-  # Category: Network — unexpected fetch calls
-  # ──────────────────────────────────────────────────────────
+  # ────────────────────────────────────────────────────────────────────────
+  # Network: unexpected fetch calls
+  # ────────────────────────────────────────────────────────────────────────
 
   - id: pi-extension-unexpected-fetch
     patterns:
-      - pattern: |
-          fetch(...)
-      - pattern-not-inside: |
-          fetchImpl(...)
-      - pattern-not-inside: |
-          $DEP.fetchImpl(...)
-      - pattern-not-inside: |
-          $DEP.fetch($URL, ...)
-      - metavariable-regex:
-          metavariable: $URL
-          regex: .*
+      - pattern: fetch(...)
+      - pattern-not-inside: fetchImpl(...)
+      - pattern-not-inside: $DEP.fetchImpl(...)
+      - pattern-not-inside: $DEP.fetch($URL, ...)
     message: >
       Unexpected direct fetch() call in provider code. Prefer injected
       fetchImpl for testability. Review what URL is being contacted.
@@ -211,35 +188,23 @@ rules:
     languages: [javascript, typescript]
     paths:
       include:
-        - "src/**"
-        - "index.ts"
-    focus-metavariable: $URL
+        - "**/*.ts"
+        - "**/index.ts"
 
-  # ──────────────────────────────────────────────────────────
-  # Category: Shell execution
-  # ──────────────────────────────────────────────────────────
+  # ────────────────────────────────────────────────────────────────────────
+  # Shell execution
+  # ────────────────────────────────────────────────────────────────────────
 
   - id: pi-extension-shell-execution
     patterns:
       - pattern-either:
-          - pattern: |
-              child_process.exec(...)
-          - pattern: |
-              child_process.execSync(...)
-          - pattern: |
-              child_process.spawn(...)
-          - pattern: |
-              child_process.spawnSync(...)
-          - pattern: |
-              child_process.fork(...)
-          - pattern: |
-              exec($SCRIPT)
-          - pattern: |
-              execSync($SCRIPT)
-      - pattern-not-inside: |
-          tests/**/*.mjs
-      - pattern-not-inside: |
-          tests/**/*.ts
+          - pattern: child_process.exec(...)
+          - pattern: child_process.execSync(...)
+          - pattern: child_process.spawn(...)
+          - pattern: child_process.spawnSync(...)
+          - pattern: child_process.fork(...)
+          - pattern: exec($SCRIPT)
+          - pattern: execSync($SCRIPT)
     message: >
       Shell execution: $SCRIPT. External contributors should not add
       child_process calls to provider source code.
@@ -247,23 +212,21 @@ rules:
     languages: [javascript, typescript]
     paths:
       include:
-        - "src/**"
-        - "index.ts"
+        - "**/*.ts"
+        - "**/index.ts"
 
-  # ──────────────────────────────────────────────────────────
-  # Category: Malicious import patterns
-  # ──────────────────────────────────────────────────────────
+  # ────────────────────────────────────────────────────────────────────────
+  # Malicious import patterns
+  # ────────────────────────────────────────────────────────────────────────
 
   - id: pi-extension-unusual-import
     patterns:
       - pattern-either:
-          - pattern: |
-              import $X from "..."
-          - pattern: |
-              const $X = require("...")
+          - pattern: "import $X from \"...\""
+          - pattern: "const $X = require(\"...\")"
       - metavariable-regex:
           metavariable: $X
-          regex: (compression|pako|zlib|tar|stream|archiver|request|axios|needle|got|superagent|node-fetch|undici)
+          regex: "(compression|pako|zlib|tar|stream|archiver|request|axios|needle|got|superagent|node-fetch|undici)"
     message: >
       Suspicious import of $X in provider source. Network or compression
       libraries could be used for data exfiltration.
@@ -271,18 +234,16 @@ rules:
     languages: [javascript, typescript]
     paths:
       include:
-        - "src/**"
-        - "index.ts"
+        - "**/*.ts"
+        - "**/index.ts"
 
   - id: pi-extension-eval-like
     patterns:
       - pattern-either:
           - pattern: eval(...)
-          - pattern: Function(...)
+          - pattern: new Function(...)
           - pattern: setTimeout($X, ...)
           - pattern: setInterval($X, ...)
-      - pattern-not-inside: |
-          // Intentional security trigger
     message: >
       Code injection risk: eval, Function constructor, or eval-like setTimeout
       detected. These can execute arbitrary code.
@@ -290,20 +251,19 @@ rules:
     languages: [javascript, typescript]
     paths:
       include:
-        - "src/**"
-        - "index.ts"
+        - "**/*.ts"
+        - "**/index.ts"
 
-  # ──────────────────────────────────────────────────────────
-  # Category: Process environment — reading secrets
-  # ──────────────────────────────────────────────────────────
+  # ────────────────────────────────────────────────────────────────────────
+  # Process environment: reading secrets
+  # ────────────────────────────────────────────────────────────────────────
 
   - id: pi-extension-env-leak
     patterns:
-      - pattern: |
-          process.env.$VAR
+      - pattern: process.env.$VAR
       - metavariable-regex:
           metavariable: $VAR
-          regex: (?!COMMANDCODE_|NODE_|PATH|HOME|SHELL|USER|LANG|LC_|TERM|TMPDIR|NIX_).*
+          regex: "(?!COMMANDCODE_|NODE_|PATH|HOME|SHELL|USER|LANG|LC_|TERM|TMPDIR|NIX_).*"
     message: >
       Reading unexpected environment variable $VAR. Provider should only
       read COMMANDCODE_* variables.
@@ -311,20 +271,19 @@ rules:
     languages: [javascript, typescript]
     paths:
       include:
-        - "src/**"
-        - "index.ts"
+        - "**/*.ts"
+        - "**/index.ts"
 
-  # ──────────────────────────────────────────────────────────
-  # Category: OAuth flow manipulation
-  # ──────────────────────────────────────────────────────────
+  # ────────────────────────────────────────────────────────────────────────
+  # OAuth flow manipulation
+  # ────────────────────────────────────────────────────────────────────────
 
   - id: pi-extension-oauth-callback-hardcode
     patterns:
-      - pattern: |
-          resolveCallback($DATA)
+      - pattern: resolveCallback($DATA)
       - metavariable-regex:
           metavariable: $DATA
-          regex: (?s).*apiKey.*
+          regex: "(?s).*apiKey.*"
     message: >
       OAuth callback potentially resolves credentials. Verify that the
       credentials originate from the Command Code website, not user input.

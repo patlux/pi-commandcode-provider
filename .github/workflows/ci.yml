@@ -125,14 +125,36 @@ jobs:
   # Postinstall script check — prevents install-time malware
   # ──────────────────────────────────────────────────────────
   check-scripts:
-    name: Check install scripts
+    name: Check lifecycle scripts
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: |
-          echo "Checking for install scripts in dependencies..."
-          npx -y can-i-ignore-scripts@latest 2>&1 || true
-        continue-on-error: true
+      - name: Check for malicious lifecycle scripts
+        run: |
+          echo "::group::package.json scripts"
+          node -e "
+            const pkg = require('./package.json');
+            const dangerous = ['preinstall','install','postinstall','prepublish','prepare'];
+            const found = dangerous.filter(s => pkg.scripts && pkg.scripts[s]);
+            if (found.length) {
+              found.forEach(s => console.log('WARNING: package.json has "' + s + '":', pkg.scripts[s]));
+              process.exit(1);
+            } else {
+              console.log('No dangerous lifecycle scripts in package.json');
+            }
+          "
+          echo "::endgroup::"
+          echo "::group::dependency scripts (top-level)"
+          npm query '.scripts' --all 2>/dev/null | node -e "
+            const d = require('fs').readFileSync('/dev/stdin','utf8');
+            if (!d.trim()) { console.log('No dependency scripts found'); process.exit(0); }
+            const pkgs = JSON.parse(d);
+            const withScripts = pkgs.filter(p => p.pkgid && p.scripts);
+            withScripts.forEach(p => {
+              const dangerous = ['preinstall','install','postinstall','prepublish','prepare'];
+              const has = Object.keys(p.scripts || {}).filter(s => dangerous.includes(s));
+              if (has.length) console.log('⚠', p.pkgid, 'has scripts:', Object.keys(p.scripts));
+            });
+            if (withScripts.length === 0) console.log('No dependency lifecycle scripts');
+          " 2>&1 || true
+          echo "::endgroup::"
