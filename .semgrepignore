@@ -1,0 +1,7 @@
+# Semgrep ignore patterns
+# Exclude test files and build artifacts
+
+tests/
+node_modules/
+dist/
+coverage/

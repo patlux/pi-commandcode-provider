@@ -58,6 +58,9 @@ jobs:
   semgrep:
     name: Semgrep — pi extension audit
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     container:
       image: semgrep/semgrep:latest
     steps:

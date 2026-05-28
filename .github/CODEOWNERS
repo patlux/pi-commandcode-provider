@@ -1,0 +1,21 @@
+# Code ownership for security-sensitive paths
+# These files require maintainer review on every PR
+
+# Security-critical: auth, secrets, OAuth flow
+/src/auth-server.ts @patlux
+/src/oauth.ts @patlux
+/src/converters.ts @patlux
+
+# CI/CD pipeline
+.github/workflows/ @patlux
+
+# Dependencies
+package.json @patlux
+package-lock.json @patlux
+
+# Security tooling
+.semgrep/ @patlux
+.gitleaks.toml @patlux
+
+# This file itself
+.github/CODEOWNERS @patlux

@@ -176,14 +176,11 @@ rules:
   # ────────────────────────────────────────────────────────────────────────
 
   - id: pi-extension-unexpected-fetch
-    patterns:
-      - pattern: fetch(...)
-      - pattern-not-inside: fetchImpl(...)
-      - pattern-not-inside: $DEP.fetchImpl(...)
-      - pattern-not-inside: $DEP.fetch($URL, ...)
+    pattern: fetch(...)
     message: >
-      Unexpected direct fetch() call in provider code. Prefer injected
-      fetchImpl for testability. Review what URL is being contacted.
+      Direct fetch() call detected. Provider code should use injected
+      fetchImpl for testability and security. If this is intentional,
+      add a // nosemgrep comment on the line above.
     severity: WARNING
     languages: [javascript, typescript]
     paths:
