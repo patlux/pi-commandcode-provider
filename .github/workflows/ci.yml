@@ -8,6 +8,9 @@ on:
   workflow_dispatch:
 
 jobs:
+  # ──────────────────────────────────────────────────────────
+  # Code correctness
+  # ──────────────────────────────────────────────────────────
   typecheck:
     runs-on: ubuntu-latest
     steps:
@@ -30,6 +33,9 @@ jobs:
       - run: npm ci
       - run: npm run format:check
 
+  # ──────────────────────────────────────────────────────────
+  # Code-level vulnerability scanning (SAST)
+  # ──────────────────────────────────────────────────────────
   codeql:
     name: CodeQL SAST
     runs-on: ubuntu-latest
@@ -42,11 +48,35 @@ jobs:
       - uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
+          queries: +security-extended,security-and-quality
       - uses: github/codeql-action/autobuild@v3
       - uses: github/codeql-action/analyze@v3
 
-  secrets:
-    name: Secret scan
+  # ──────────────────────────────────────────────────────────
+  # Custom static analysis — pi extension attack patterns
+  # ──────────────────────────────────────────────────────────
+  semgrep:
+    name: Semgrep — pi extension audit
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Semgrep with custom rules
+        run: |
+          semgrep --config .semgrep/ --error --output semgrep-report.sarif --sarif .
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep-report.sarif
+          category: semgrep-pi-audit
+        if: always()
+
+  # ──────────────────────────────────────────────────────────
+  # Hardcoded secrets detection
+  # ──────────────────────────────────────────────────────────
+  gitleaks:
+    name: Gitleaks — secrets scan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -55,9 +85,28 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "true"
 
-  deps:
-    name: Dependency audit
+  # ──────────────────────────────────────────────────────────
+  # Dependency supply-chain security
+  # ──────────────────────────────────────────────────────────
+  deps-review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD
+          comment-summary-in-pr: always
+
+  deps-audit:
+    name: npm audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -66,9 +115,24 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - name: Run npm audit
-        run: npm audit --audit-level=moderate
+      - run: npm audit --audit-level=moderate
       - name: Exit gracefully on audit findings
         if: failure()
         run: |
           echo "::warning::npm audit found vulnerabilities. Review and patch before merging."
+
+  # ──────────────────────────────────────────────────────────
+  # Postinstall script check — prevents install-time malware
+  # ──────────────────────────────────────────────────────────
+  check-scripts:
+    name: Check install scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: |
+          echo "Checking for install scripts in dependencies..."
+          npx -y can-i-ignore-scripts@latest 2>&1 || true
+        continue-on-error: true

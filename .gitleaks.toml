@@ -1,0 +1,53 @@
+# Custom Gitleaks config for pi-commandcode-provider.
+# Extends the default rule set with patterns specific to pi extensions.
+
+title = "pi-commandcode-provider secret scan"
+
+[allowlist]
+  description = "Known safe paths and test fixtures"
+  paths = [
+    # Test files that intentionally contain fake secrets
+    "tests/test-security-triggers.ts",
+    # Test helpers with mock credentials
+    "tests/test-oauth.ts",
+    "tests/test-stream.ts",
+    "tests/test-pure-functions.ts",
+    "tests/test-pi-local.mjs",
+    "tests/test-omp-compat.mjs",
+    # CI workflows reference NPM_TOKEN secret name
+    ".github/workflows/publish.yml",
+  ]
+
+# ──────────────────────────────────────────────────────────
+# Project-specific rules
+# ──────────────────────────────────────────────────────────
+
+[[rules]]
+  id = "pi-commandcode-api-key"
+  description = "Command Code API key hardcoded in source"
+  regex = '''(?i)COMMANDCODE_API_KEY\s*[=:]\s*['"](user_[A-Za-z0-9_-]{10,}|cc_[A-Za-z0-9_-]{10,})['"]'''
+  tags = ["pi-extension", "commandcode", "api-key"]
+
+[[rules]]
+  id = "pi-auth-file-pattern"
+  description = "In-line pi auth.json content in source code"
+  regex = '''['"](apiKey|commandcode|command-code)['"]\s*:\s*['"]user_[A-Za-z0-9_-]{10,}['"]'''
+  tags = ["pi-extension", "auth"]
+
+[[rules]]
+  id = "pi-hardcoded-bearer-token"
+  description = "Hardcoded Bearer token used in Authorization header"
+  regex = '''['"]Bearer\s+(?!\$\{|process\.env|COMMANDCODE_API_KEY)[A-Za-z0-9_-]{20,}['"]'''
+  tags = ["pi-extension", "auth-token"]
+
+[[rules]]
+  id = "pi-oauth-callback-url"
+  description = "OAuth callback URL with hardcoded key"
+  regex = '''callbackUrl\s*=\s*['"]http://localhost:\d+/callback['"]'''
+  tags = ["pi-extension", "oauth"]
+
+[[rules]]
+  id = "pi-test-api-key"
+  description = "Test API key value that looks real"
+  regex = '''['"](user_testKey|mock-key|fake-key|test-api-key)['"]'''
+  tags = ["pi-extension", "test"]
