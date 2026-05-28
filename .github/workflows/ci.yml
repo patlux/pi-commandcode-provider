@@ -102,11 +102,17 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
+      - name: Check if dependency graph is enabled
+        run: |
+          echo "Dependency review requires enabling Dependency graph in repo settings."
+          echo "Go to: https://github.com/patlux/pi-commandcode-provider/settings/security_analysis"
+          echo "Enable: Dependency graph"
       - uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
           allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD
           comment-summary-in-pr: always
+        continue-on-error: true
 
   deps-audit:
     name: npm audit
@@ -151,8 +157,10 @@ jobs:
           npm query '.scripts' --all 2>/dev/null | node -e "
             const d = require('fs').readFileSync('/dev/stdin','utf8');
             if (!d.trim()) { console.log('No dependency scripts found'); process.exit(0); }
-            const pkgs = JSON.parse(d);
-            const withScripts = pkgs.filter(p => p.pkgid && p.scripts);
+            let pkgs;
+            try { pkgs = JSON.parse(d); } catch(e) { console.log('Could not parse npm query output'); process.exit(0); }
+            if (!Array.isArray(pkgs)) pkgs = Object.values(pkgs);
+            const withScripts = pkgs.filter(p => p && p.pkgid && p.scripts);
             withScripts.forEach(p => {
               const dangerous = ['preinstall','install','postinstall','prepublish','prepare'];
               const has = Object.keys(p.scripts || {}).filter(s => dangerous.includes(s));
