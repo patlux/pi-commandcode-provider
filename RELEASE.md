@@ -7,7 +7,8 @@ Recommended flow:
 - publish prereleases with the `next` dist-tag
 - smoke-test the npm package directly in pi
 - publish stable releases with the `latest` dist-tag
-- commit and tag the stable release
+- commit the release on a branch, open a PR, and merge after CI passes
+- tag the stable release on `main` after merge
 - comment on the related PR or issue after shipping
 
 ## Prerelease flow
@@ -144,12 +145,32 @@ npm pack --dry-run
 git diff --check
 ```
 
-Commit and tag:
+Commit on a release branch and open a PR:
 
 ```sh
+git checkout -b release/0.1.1
 git add .
 git commit -m "Release 0.1.1"
+git push origin release/0.1.1
+gh pr create --title "chore(release): publish 0.1.1" --base main
+```
+
+`main` is branch-protected. The release must go through a PR with passing CI.
+
+Once CI passes, approve and merge:
+
+```sh
+gh pr review <number> --approve
+gh pr merge <number> --squash --delete-branch
+```
+
+After merge, pull `main` and tag locally:
+
+```sh
+git checkout main
+git pull origin main
 git tag -a v0.1.1 -m "Release 0.1.1"
+git push origin v0.1.1
 ```
 
 Publish stable:
@@ -171,13 +192,6 @@ Expected:
 
 - `latest` points to the stable version
 - the stable version exists on npm
-
-Push commit and tag:
-
-```sh
-git push origin main
-git push origin v0.1.1
-```
 
 ## GitHub follow-up
 
