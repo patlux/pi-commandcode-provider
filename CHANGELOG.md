@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1 - 2026-05-29
+
+- Bump CLI version header to `0.29.0` for Command Code API parity.
+- Harden PR security pipeline CI configuration.
+
 ## 0.3.0 - 2026-05-28
 
 - Add OMP (Oh My Pi) provider compatibility: support `~/.omp/agent/auth.json` auth path, handle OMP's env-var-name-as-apiKey quirk, convert OMP system prompt arrays to text.
