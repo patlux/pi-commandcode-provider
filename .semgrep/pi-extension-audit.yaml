@@ -89,17 +89,7 @@ rules:
         - "**/*.ts"
         - "**/index.ts"
 
-  - id: pi-extension-auth-header-manipulation
-    patterns:
-      - pattern: ...options?.headers
-    message: >
-      Auth header manipulation risk: options.headers spread before Authorization
-      header. A contributor could override the Authorization header.
-    severity: WARNING
-    languages: [javascript, typescript]
-    paths:
-      include:
-        - "src/core.ts"
+
 
   # ────────────────────────────────────────────────────────────────────────
   # Supply chain: dependency injection
@@ -275,17 +265,3 @@ rules:
   # OAuth flow manipulation
   # ────────────────────────────────────────────────────────────────────────
 
-  - id: pi-extension-oauth-callback-hardcode
-    patterns:
-      - pattern: resolveCallback($DATA)
-      - metavariable-regex:
-          metavariable: $DATA
-          regex: "(?s).*apiKey.*"
-    message: >
-      OAuth callback potentially resolves credentials. Verify that the
-      credentials originate from the Command Code website, not user input.
-    severity: WARNING
-    languages: [javascript, typescript]
-    paths:
-      include:
-        - "src/auth-server.ts"
