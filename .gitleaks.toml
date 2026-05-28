@@ -6,8 +6,6 @@ title = "pi-commandcode-provider secret scan"
 [allowlist]
   description = "Known safe paths and test fixtures"
   paths = [
-    # Test files that intentionally contain fake secrets
-    "tests/test-security-triggers.ts",
     # Test helpers with mock credentials
     "tests/test-oauth.ts",
     "tests/test-stream.ts",
@@ -36,8 +34,8 @@ title = "pi-commandcode-provider secret scan"
 
 [[rules]]
   id = "pi-hardcoded-bearer-token"
-  description = "Hardcoded Bearer token used in Authorization header"
-  regex = '''['"]Bearer\s+(?!\$\{|process\.env|COMMANDCODE_API_KEY)[A-Za-z0-9_-]{20,}['"]'''
+  description = "Hardcoded Bearer token (20+ chars) in Authorization header"
+  regex = '''Bearer [A-Za-z0-9_.\-]{20,}'''
   tags = ["pi-extension", "auth-token"]
 
 [[rules]]
@@ -49,5 +47,5 @@ title = "pi-commandcode-provider secret scan"
 [[rules]]
   id = "pi-test-api-key"
   description = "Test API key value that looks real"
-  regex = '''['"](user_testKey|mock-key|fake-key|test-api-key)['"]'''
+  regex = '''(user_testKey|mock-key|fake-key|test-api-key)'''
   tags = ["pi-extension", "test"]
