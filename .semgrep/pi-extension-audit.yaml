@@ -231,6 +231,12 @@ rules:
           - pattern: new Function(...)
           - pattern: setTimeout($X, ...)
           - pattern: setInterval($X, ...)
+      - pattern-not: setTimeout(() => ..., ...)
+      - pattern-not: setTimeout(function(...) {...}, ...)
+      - pattern-not: setTimeout(function $F(...) {...}, ...)
+      - pattern-not: setInterval(() => ..., ...)
+      - pattern-not: setInterval(function(...) {...}, ...)
+      - pattern-not: setInterval(function $F(...) {...}, ...)
     message: >
       Code injection risk: eval, Function constructor, or eval-like setTimeout
       detected. These can execute arbitrary code.
