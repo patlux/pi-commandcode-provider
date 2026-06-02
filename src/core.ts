@@ -42,6 +42,37 @@ export const DEFAULT_API_BASE = "https://api.commandcode.ai"
 export const COMMAND_CODE_CLI_VERSION = "0.29.0"
 
 const DEFAULT_GENERATE_MAX_TOKENS = 64_000
+const DEFAULT_MAX_RETRIES = 2
+const DEFAULT_MAX_RETRY_DELAY_MS = 60_000
+const BASE_RETRY_DELAY_MS = 500
+
+function isRetryableStatus(status: number): boolean {
+  return status === 429 || (status >= 500 && status < 600)
+}
+
+function parseRetryAfterSeconds(value: string | null): number | undefined {
+  if (!value) return undefined
+  const seconds = Number(value)
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds
+  const date = Date.parse(value)
+  if (!Number.isNaN(date)) return Math.max(0, (date - Date.now()) / 1000)
+  return undefined
+}
+
+function retryDelayMs(
+  attempt: number,
+  retryAfterHeader: string | null,
+  maxDelayMs: number,
+): number {
+  const retryAfterMs = parseRetryAfterSeconds(retryAfterHeader)
+  if (retryAfterMs !== undefined) {
+    if (retryAfterMs * 1000 > maxDelayMs) return -1
+    return retryAfterMs * 1000
+  }
+  const exponential = BASE_RETRY_DELAY_MS * 2 ** attempt
+  const jitter = exponential * 0.2 * Math.random()
+  return Math.min(exponential + jitter, maxDelayMs)
+}
 
 function defaultUsage(): Usage {
   return {
@@ -104,6 +135,22 @@ export function createStreamCommandCode(deps: CoreDependencies) {
   const cwd = deps.cwd ?? (() => process.cwd())
   const now = deps.now ?? (() => Date.now())
   const uuid = deps.uuid ?? (() => randomUUID())
+  const delay =
+    deps.delay ??
+    ((ms: number, signal: AbortSignal) => {
+      if (signal.aborted) return Promise.reject(abortError())
+      return new Promise<void>((resolve, reject) => {
+        const id = setTimeout(() => {
+          signal.removeEventListener("abort", onAbort)
+          resolve()
+        }, ms)
+        const onAbort = () => {
+          clearTimeout(id)
+          reject(abortError())
+        }
+        signal.addEventListener("abort", onAbort, { once: true })
+      })
+    })
 
   function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
     if (signal.aborted) return Promise.reject(abortError())
@@ -386,24 +433,73 @@ export function createStreamCommandCode(deps: CoreDependencies) {
         )
         if (nextBody !== undefined) body = nextBody
 
-        const response = await raceAbort(
-          fetchImpl(`${apiBase}/alpha/generate`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${apiKey}`,
-              "x-command-code-version": COMMAND_CODE_CLI_VERSION,
-              "x-cli-environment": "production",
-              "x-project-slug": projectSlugFromPath(workingDir),
-              "x-taste-learning": "true",
-              "x-co-flag": "false",
-              ...options?.headers,
-            },
-            body: JSON.stringify(body),
-            signal: controller.signal,
-          }),
-          controller.signal,
-        )
+        const maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES
+        const maxRetryDelayMs = options?.maxRetryDelayMs ?? DEFAULT_MAX_RETRY_DELAY_MS
+        const timeoutMs = options?.timeoutMs
+        const requestHeaders = {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+          "x-command-code-version": COMMAND_CODE_CLI_VERSION,
+          "x-cli-environment": "production",
+          "x-project-slug": projectSlugFromPath(workingDir),
+          "x-taste-learning": "true",
+          "x-co-flag": "false",
+          ...options?.headers,
+        }
+        const bodyStr = JSON.stringify(body)
+
+        let response!: Response
+        for (let attempt = 0; ; attempt++) {
+          const attemptController = new AbortController()
+          let attemptTimeoutId: ReturnType<typeof setTimeout> | undefined
+          if (timeoutMs !== undefined) {
+            attemptTimeoutId = setTimeout(() => attemptController.abort(), timeoutMs)
+          }
+          const onOuterAbort = () => attemptController.abort()
+          controller.signal.addEventListener("abort", onOuterAbort, { once: true })
+
+          try {
+            response = await fetchImpl(`${apiBase}/alpha/generate`, {
+              method: "POST",
+              headers: requestHeaders,
+              body: bodyStr,
+              signal: attemptController.signal,
+            })
+          } catch (fetchError: unknown) {
+            if (controller.signal.aborted) throw abortError("Aborted")
+            if (
+              timeoutMs !== undefined &&
+              attemptController.signal.aborted &&
+              attempt < maxRetries
+            ) {
+              continue
+            }
+            throw fetchError
+          } finally {
+            controller.signal.removeEventListener("abort", onOuterAbort)
+            if (attemptTimeoutId !== undefined) clearTimeout(attemptTimeoutId)
+          }
+
+          if (response.ok || !isRetryableStatus(response.status) || attempt >= maxRetries) {
+            break
+          }
+
+          const retryAfter = response.headers.get("retry-after")
+          const waitMs = retryDelayMs(attempt, retryAfter, maxRetryDelayMs)
+          if (waitMs < 0) {
+            const requestedSeconds = parseRetryAfterSeconds(retryAfter) ?? 0
+            throw new Error(
+              `Retry-After delay ${requestedSeconds}s exceeds max ${maxRetryDelayMs}ms`,
+            )
+          }
+
+          // Drain the error body so the connection can be reused.
+          await response.text().catch(() => "")
+
+          if (waitMs > 0) {
+            await delay(waitMs, controller.signal)
+          }
+        }
 
         await raceAbort(
           Promise.resolve(

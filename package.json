@@ -28,7 +28,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "npm run typecheck && tsx tests/test-pure-functions.ts && tsx tests/test-models.ts && tsx tests/test-pricing.ts && tsx tests/test-oauth.ts && tsx tests/test-abort.ts && tsx tests/test-stream.ts && node tests/test-pi-local.mjs && node tests/test-omp-compat.mjs",
+    "test": "npm run typecheck && tsx tests/test-pure-functions.ts && tsx tests/test-models.ts && tsx tests/test-pricing.ts && tsx tests/test-oauth.ts && tsx tests/test-abort.ts && tsx tests/test-stream.ts && tsx tests/test-retry.ts && node tests/test-pi-local.mjs && node tests/test-omp-compat.mjs",
     "typecheck": "tsc --noEmit",
     "format:check": "prettier --check '**/*.{ts,mjs,json,md}'",
     "format": "prettier --write '**/*.{ts,mjs,json,md}'",
@@ -38,6 +38,7 @@
     "test:oauth": "tsx tests/test-oauth.ts",
     "test:abort": "tsx tests/test-abort.ts",
     "test:stream": "tsx tests/test-stream.ts",
+    "test:retry": "tsx tests/test-retry.ts",
     "test:pi-local": "node tests/test-pi-local.mjs",
     "test:smoke": "node tests/test-smoke.mjs"
   },

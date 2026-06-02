@@ -89,6 +89,23 @@ export interface StreamOptions {
   maxTokens?: number
   onPayload?: (payload: unknown, model: ModelLike) => unknown | Promise<unknown>
   onResponse?: (response: ProviderResponseInfo, model: ModelLike) => void | Promise<void>
+  /**
+   * HTTP request timeout in milliseconds.
+   * Applied per-attempt; on timeout the request is retried if retries remain.
+   */
+  timeoutMs?: number
+  /**
+   * Maximum retry attempts for transient HTTP errors (429, 5xx).
+   * Default: 2.
+   */
+  maxRetries?: number
+  /**
+   * Maximum delay in milliseconds to wait for a retry when the server requests
+   * a long wait via Retry-After. If the server's requested delay exceeds this
+   * value, the request fails immediately. Default: 60000 (60 seconds).
+   * Set to 0 to disable the cap.
+   */
+  maxRetryDelayMs?: number
 }
 
 export type AssistantMessageEvent =
@@ -153,4 +170,6 @@ export interface CoreDependencies {
   now?: () => number
   uuid?: () => string
   homeDir?: () => string
+  /** Injectable delay for retry backoff. Defaults to setTimeout. */
+  delay?: (ms: number, signal: AbortSignal) => Promise<void>
 }
