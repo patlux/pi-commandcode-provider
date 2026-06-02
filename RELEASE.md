@@ -173,13 +173,13 @@ git tag -a v0.1.1 -m "Release 0.1.1"
 git push origin v0.1.1
 ```
 
-Publish stable:
+Publish stable locally:
 
 ```sh
 npm publish --tag latest --access public
 ```
 
-If npm asks for browser or OTP auth, run the publish command manually and complete the npm prompt.
+Publishing is intentionally manual/local; there is no GitHub Actions publish workflow. If npm asks for browser or OTP auth, complete the npm prompt locally.
 
 Verify npm:
 

@@ -8,8 +8,6 @@ title = "pi-commandcode-provider secret scan"
   paths = [
     # Test fixtures use intentionally fake credentials.
     "^tests/",
-    # CI workflows reference NPM_TOKEN secret name
-    ".github/workflows/publish.yml",
   ]
 
 # ──────────────────────────────────────────────────────────
