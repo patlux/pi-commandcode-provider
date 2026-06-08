@@ -83,7 +83,7 @@ export default async function (pi: ExtensionAPI) {
   pi.registerProvider("commandcode", {
     name: "Command Code",
     baseUrl: API_BASE,
-    apiKey: "COMMANDCODE_API_KEY",
+    apiKey: "$COMMANDCODE_API_KEY",
     authHeader: true,
     api: "commandcode-custom",
     streamSimple: streamCommandCode,
