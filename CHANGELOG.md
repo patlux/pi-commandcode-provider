@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.4.1 - 2026-06-16
+
+- Use the explicit `$COMMANDCODE_API_KEY` provider registration syntax expected by newer pi versions, removing the startup deprecation warning while keeping legacy placeholder compatibility.
+- Refresh development dependency lockfile entries to resolve npm audit findings for `tsx`/`esbuild` and `protobufjs`.
+
 ## 0.4.0 - 2026-06-02
 
 - Add retry mechanism for transient HTTP errors (429, 5xx) and stream-level errors, configurable via pi `settings.json` `retry.provider` fields (`timeoutMs`, `maxRetries`, `maxRetryDelayMs`). Supports exponential backoff with jitter and `Retry-After` header.
