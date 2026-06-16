@@ -7,6 +7,12 @@
 - Use the explicit `$COMMANDCODE_API_KEY` provider registration syntax expected by newer pi versions, removing the startup deprecation warning while keeping legacy placeholder compatibility.
 - Refresh development dependency lockfile entries to resolve npm audit findings for `tsx`/`esbuild` and `protobufjs`.
 
+### Contributors
+
+- @plumj-am — fixed the pi provider `apiKey` deprecation warning.
+- @cad0p — reported retry/deprecation-related issues that helped validate the current behavior.
+- @bl4zee1g — reported provider availability concerns that prompted additional local/live validation.
+
 ## 0.4.0 - 2026-06-02
 
 - Add retry mechanism for transient HTTP errors (429, 5xx) and stream-level errors, configurable via pi `settings.json` `retry.provider` fields (`timeoutMs`, `maxRetries`, `maxRetryDelayMs`). Supports exponential backoff with jitter and `Retry-After` header.
