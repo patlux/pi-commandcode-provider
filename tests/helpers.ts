@@ -79,6 +79,7 @@ export function makeModel(overrides: Partial<ModelLike> = {}): ModelLike {
     api: "commandcode-custom",
     provider: "commandcode",
     maxTokens: 384_000,
+    cost: { input: 0.14, output: 0.28, cacheRead: 0.028, cacheWrite: 0 },
     ...overrides,
   }
 }

@@ -50,11 +50,19 @@ export interface AssistantMessageLike {
   timestamp: number
 }
 
+export interface ModelCost {
+  input: number
+  output: number
+  cacheRead: number
+  cacheWrite: number
+}
+
 export interface ModelLike {
   id: string
   api: unknown
   provider: string
   maxTokens: number
+  cost: ModelCost
 }
 
 export interface MessageLike {

@@ -16,7 +16,7 @@ import { AssistantMessageEventStream } from "@earendil-works/pi-ai"
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent"
 
 import { COMMAND_CODE_CLI_VERSION, createStreamCommandCode, DEFAULT_API_BASE } from "./src/core.ts"
-import type { ModelLike, Usage } from "./src/types.ts"
+import { calculateCommandCodeCost } from "./src/cost.ts"
 import { DEFAULT_MODELS_URL, fetchCommandCodeModels } from "./src/models.ts"
 import { getApiKey, login, refreshToken } from "./src/oauth.ts"
 
@@ -66,15 +66,6 @@ const MODEL_COSTS: Record<string, CommandCodeModelCost> = {
   "stepfun/Step-3.5-Flash": { input: 0.1, output: 0.3, cacheRead: 0.02, cacheWrite: 0 },
   "xiaomi/mimo-v2.5-pro": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   "xiaomi/mimo-v2.5": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-}
-
-function calculateCommandCodeCost(model: ModelLike, usage: Usage): void {
-  usage.cost.input = (model.cost.input / 1_000_000) * usage.input
-  usage.cost.output = (model.cost.output / 1_000_000) * usage.output
-  usage.cost.cacheRead = (model.cost.cacheRead / 1_000_000) * usage.cacheRead
-  usage.cost.cacheWrite = (model.cost.cacheWrite / 1_000_000) * usage.cacheWrite
-  usage.cost.total =
-    usage.cost.input + usage.cost.output + usage.cost.cacheRead + usage.cost.cacheWrite
 }
 
 const streamCommandCode = createStreamCommandCode({
