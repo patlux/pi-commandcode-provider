@@ -2,7 +2,14 @@
 
 ## Unreleased
 
+## 0.4.2 - 2026-07-05
+
 - Fix Oh My Pi extension validation by avoiding the missing `calculateCost` export from OMP's legacy `pi-ai` shim.
+- Add a regression test that locks the local Command Code cost calculation to pi-ai's upstream `calculateCost` behavior.
+
+### Contributors
+
+- @CoderTCY — reported the Oh My Pi installation failure.
 
 ## 0.4.1 - 2026-06-16
 
