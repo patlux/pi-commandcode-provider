@@ -12,10 +12,11 @@
  * Models are fetched from Command Code's Provider API at startup.
  */
 
-import { AssistantMessageEventStream, calculateCost } from "@earendil-works/pi-ai"
+import { AssistantMessageEventStream } from "@earendil-works/pi-ai"
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent"
 
 import { COMMAND_CODE_CLI_VERSION, createStreamCommandCode, DEFAULT_API_BASE } from "./src/core.ts"
+import type { ModelLike, Usage } from "./src/types.ts"
 import { DEFAULT_MODELS_URL, fetchCommandCodeModels } from "./src/models.ts"
 import { getApiKey, login, refreshToken } from "./src/oauth.ts"
 
@@ -67,9 +68,18 @@ const MODEL_COSTS: Record<string, CommandCodeModelCost> = {
   "xiaomi/mimo-v2.5": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 }
 
+function calculateCommandCodeCost(model: ModelLike, usage: Usage): void {
+  usage.cost.input = (model.cost.input / 1_000_000) * usage.input
+  usage.cost.output = (model.cost.output / 1_000_000) * usage.output
+  usage.cost.cacheRead = (model.cost.cacheRead / 1_000_000) * usage.cacheRead
+  usage.cost.cacheWrite = (model.cost.cacheWrite / 1_000_000) * usage.cacheWrite
+  usage.cost.total =
+    usage.cost.input + usage.cost.output + usage.cost.cacheRead + usage.cost.cacheWrite
+}
+
 const streamCommandCode = createStreamCommandCode({
   createStream: () => new AssistantMessageEventStream(),
-  calculateCost,
+  calculateCost: calculateCommandCodeCost,
   apiBase: API_BASE,
 })
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix Oh My Pi extension validation by avoiding the missing `calculateCost` export from OMP's legacy `pi-ai` shim.
+
 ## 0.4.1 - 2026-06-16
 
 - Use the explicit `$COMMANDCODE_API_KEY` provider registration syntax expected by newer pi versions, removing the startup deprecation warning while keeping legacy placeholder compatibility.
