@@ -421,6 +421,16 @@ export function createStreamCommandCode(deps: CoreDependencies) {
         const workingDir = cwd()
         const threadId = uuid()
 
+        // pi passes the resolved thinking level as options.reasoning ("off".."max").
+        // Resolve the effort map from whichever field the host version uses:
+        // pi-ai <=0.75.5 attaches `thinkingLevelMap`; OMP 17.2.x attaches
+        // `thinking.effortMap`. Then forward as reasoning_effort. Omit when the
+        // level is "off" or maps to null (unsupported) so the upstream default applies.
+        const piLevel = options?.reasoning
+        const effortMap = model.thinking?.effortMap ?? model.thinkingLevelMap
+        const entry = piLevel && piLevel !== "off" ? effortMap?.[piLevel] : undefined
+        const reasoningEffort = entry && entry !== "off" ? entry : undefined
+
         let body: unknown = {
           config: {
             workingDir,
@@ -444,6 +454,7 @@ export function createStreamCommandCode(deps: CoreDependencies) {
             max_tokens: generateMaxTokens(model, options),
             temperature: 0.3,
             stream: true,
+            ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
           },
           threadId,
         }

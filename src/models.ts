@@ -20,6 +20,93 @@ export interface CommandCodeModel {
   maxTokens: number
 }
 
+/**
+ * Per-model reasoning effort levels supported by Command Code's /alpha/generate.
+ *
+ * Extracted from the official command-code CLI (1.7.0) catalog. The Provider API
+ * (/provider/v1/models) exposes no effort metadata, so this static table is the
+ * only source. Unknown model ids fall back to no thinkingLevelMap, preserving
+ * pi's default off..high tiers.
+ */
+export const MODEL_EFFORTS: Readonly<Record<string, readonly string[]>> = {
+  "claude-fable-5": ["low", "medium", "high", "xhigh", "max"],
+  "claude-haiku-4-5-20251001": ["low", "medium", "high", "xhigh", "max"],
+  "claude-opus-4-7": ["low", "medium", "high", "xhigh", "max"],
+  "claude-opus-4-8": ["low", "medium", "high", "xhigh", "max"],
+  "claude-opus-5": ["low", "medium", "high", "xhigh", "max"],
+  "claude-sonnet-4-6": ["low", "medium", "high", "xhigh", "max"],
+  "claude-sonnet-5": ["low", "medium", "high", "xhigh", "max"],
+  "deepseek/deepseek-v4-flash": ["high", "max"],
+  "deepseek/deepseek-v4-pro": ["high", "max"],
+  "gpt-5.3-codex": ["low", "medium", "high", "xhigh"],
+  "gpt-5.4": ["low", "medium", "high", "xhigh"],
+  "gpt-5.4-mini": ["low", "medium", "high"],
+  "gpt-5.5": ["low", "medium", "high", "xhigh"],
+  "gpt-5.6-luna": ["low", "medium", "high", "xhigh", "max"],
+  "gpt-5.6-sol": ["low", "medium", "high", "xhigh", "max"],
+  "gpt-5.6-terra": ["low", "medium", "high", "xhigh", "max"],
+  "google/gemini-3.1-flash-lite": ["low", "medium", "high"],
+  "google/gemini-3.5-flash": ["low", "medium", "high"],
+  "google/gemini-3.5-flash-lite": ["low", "medium", "high"],
+  "google/gemini-3.6-flash": ["low", "medium", "high"],
+  "meta/muse-spark-1.1": ["low", "medium", "high"],
+  "moonshotai/Kimi-K2.5": ["high", "max"],
+  "moonshotai/Kimi-K2.6": ["high", "max"],
+  "sakana/fugu-ultra": ["high", "xhigh"],
+  "tencent/hy3-paid": ["low", "medium", "high"],
+  "xai/grok-4.5": ["low", "medium", "high"],
+  "zai-org/GLM-5.2": ["high", "max"],
+}
+
+/** pi thinking levels in increasing order (mirrors pi-ai ThinkingLevel). */
+const PI_THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const
+
+/**
+ * Build a pi ThinkingLevelMap from a Command Code effort list. Supported levels
+ * map to their upstream effort string; unsupported levels are explicitly `null`
+ * so pi-ai's getSupportedThinkingLevels hides them and clampThinkingLevel snaps
+ * to the nearest supported level. `off` always maps to itself.
+ */
+export function thinkingLevelMapForEfforts(
+  efforts: readonly string[],
+): Record<string, string | null> {
+  const map: Record<string, string | null> = { off: "off" }
+  for (const level of PI_THINKING_LEVELS) {
+    if (level === "off") continue
+    map[level] = efforts.includes(level) ? level : null
+  }
+  return map
+}
+
+export type ThinkingMetadata = {
+  thinkingLevelMap: Record<string, string | null>
+  thinking: {
+    effortMap: Record<string, string | null>
+    efforts: string[]
+    defaultLevel: string
+  }
+}
+
+/**
+ * Resolve per-model thinking metadata for provider registration. Models absent
+ * from MODEL_EFFORTS get no map, preserving pi's default off..high tiers.
+ * Emits both `thinkingLevelMap` (pi-ai <=0.75.5) and `thinking.effortMap`
+ * (OMP 17.2.x) so the plugin works across host versions.
+ */
+export function thinkingMetadataForModel(modelId: string): ThinkingMetadata | undefined {
+  const efforts = MODEL_EFFORTS[modelId]
+  if (!efforts) return undefined
+  const effortMap = thinkingLevelMapForEfforts(efforts)
+  return {
+    thinkingLevelMap: effortMap,
+    thinking: {
+      effortMap,
+      efforts: [...efforts],
+      defaultLevel: efforts[efforts.length - 2] ?? efforts[0],
+    },
+  }
+}
+
 interface FetchCommandCodeModelsOptions {
   url?: string
   fetchImpl?: typeof fetch

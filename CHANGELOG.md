@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Expose per-model thinking tiers and forward the selected level as `reasoning_effort`. Each model now registers a `thinkingLevelMap` built from its supported efforts (extracted from the official command-code CLI catalog into `MODEL_EFFORTS`), so pi/OMP expose exactly the tiers each model supports and send the selected level to `/alpha/generate` as `params.reasoning_effort`. Previously all Command Code models registered `reasoning: true` with no `thinkingLevelMap`, so pi hid the `xhigh` and `max` tiers and silently clamped them to `high`. The `off` level and unsupported tiers are omitted from the request. Models absent from `MODEL_EFFORTS` fall back to pi's default `off` → `high` tiers.
+- Resolve `COMMANDCODE_MODELS_URL` and `COMMANDCODE_MODELS_CACHE` inside the entry function so overrides are honored at call time (were fixed at module load).
 - Allow pi to start when model discovery is unavailable. The provider now caches the last successfully fetched model catalog so previously discovered Command Code models remain selectable offline; a first offline start without a cache keeps Command Code unavailable until `/reload` succeeds.
 
 ### Contributors

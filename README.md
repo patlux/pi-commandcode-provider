@@ -18,6 +18,14 @@ You can list the current Command Code models with:
 pi -e index.ts --list-models
 ```
 
+## Thinking levels
+
+Each model registers a `thinkingLevelMap` built from its supported reasoning efforts, so pi/OMP expose exactly the tiers the model supports — and forward the selected level as `reasoning_effort` in the `/alpha/generate` request body.
+
+**Per-model efforts.** The supported levels vary by model (e.g. DeepSeek V4 Flash supports only `high` and `max`; Claude Sonnet 5 supports `low` through `max`). These are extracted from the official command-code CLI catalog (`MODEL_EFFORTS` in `src/models.ts`), because the Provider API exposes no effort metadata. Selecting an unsupported tier is hidden from the UI. Models absent from the table get no map, preserving pi's default `off` → `high` tiers.
+
+**Real passthrough.** The selected thinking level is sent to Command Code as `params.reasoning_effort` (e.g. `"max"`), matching the official CLI. The `off` level has no upstream equivalent and is omitted, so the model's default reasoning applies.
+
 ## Install
 
 ```sh

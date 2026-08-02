@@ -18,13 +18,17 @@ import { join } from "node:path"
 
 import { COMMAND_CODE_CLI_VERSION, createStreamCommandCode, DEFAULT_API_BASE } from "./src/core.ts"
 import { calculateCommandCodeCost } from "./src/cost.ts"
-import { DEFAULT_MODELS_URL, loadCommandCodeModels } from "./src/models.ts"
+import {
+  DEFAULT_MODELS_URL,
+  loadCommandCodeModels,
+  thinkingMetadataForModel,
+} from "./src/models.ts"
 import { getApiKey, login, refreshToken } from "./src/oauth.ts"
 
 const API_BASE = process.env.COMMANDCODE_API_BASE ?? DEFAULT_API_BASE
-const MODELS_URL = process.env.COMMANDCODE_MODELS_URL ?? DEFAULT_MODELS_URL
-const MODELS_CACHE_PATH =
-  process.env.COMMANDCODE_MODELS_CACHE ?? join(getAgentDir(), "commandcode-models.json")
+// NOTE: COMMANDCODE_MODELS_URL / COMMANDCODE_MODELS_CACHE are resolved inside the
+// entry function so tests (and callers) can override them per-invocation via the
+// process environment.
 
 type CommandCodeModelCost = {
   input: number
@@ -71,6 +75,17 @@ const MODEL_COSTS: Record<string, CommandCodeModelCost> = {
   "xiaomi/mimo-v2.5": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 }
 
+// ---------------------------------------------------------------------------
+// Thinking level metadata
+// ---------------------------------------------------------------------------
+//
+// Command Code's /alpha/generate accepts a reasoning_effort parameter whose
+// supported values vary per model (extracted from the official command-code CLI
+// catalog into MODEL_EFFORTS). We build a per-model reasoningEffortMap from that
+// list so pi exposes exactly the tiers the upstream supports — and forwards the
+// selected level as reasoning_effort in the request body (see core.ts).
+// Models absent from MODEL_EFFORTS get no map, preserving pi's default tiers.
+
 const streamCommandCode = createStreamCommandCode({
   createStream: () => new AssistantMessageEventStream(),
   calculateCost: calculateCommandCodeCost,
@@ -82,9 +97,12 @@ const streamCommandCode = createStreamCommandCode({
 // ---------------------------------------------------------------------------
 
 export default async function (pi: ExtensionAPI) {
+  const modelsUrl = process.env.COMMANDCODE_MODELS_URL ?? DEFAULT_MODELS_URL
+  const modelsCachePath =
+    process.env.COMMANDCODE_MODELS_CACHE ?? join(getAgentDir(), "commandcode-models.json")
   const { models, warning } = await loadCommandCodeModels({
-    url: MODELS_URL,
-    cachePath: MODELS_CACHE_PATH,
+    url: modelsUrl,
+    cachePath: modelsCachePath,
   })
 
   if (warning) console.warn(`[commandcode] ${warning}`)
@@ -106,14 +124,20 @@ export default async function (pi: ExtensionAPI) {
       refreshToken,
       getApiKey,
     },
-    models: models.map((model) => ({
-      id: model.id,
-      name: model.name,
-      reasoning: model.reasoning,
-      input: ["text"] as const,
-      cost: MODEL_COSTS[model.id] ?? ZERO_MODEL_COST,
-      contextWindow: model.contextWindow,
-      maxTokens: model.maxTokens,
-    })),
+    models: models.map((model) => {
+      const thinking = thinkingMetadataForModel(model.id)
+      return {
+        id: model.id,
+        name: model.name,
+        reasoning: model.reasoning,
+        // OMP 17.2.x reads model.thinking.effortMap; pi-ai <=0.75.5 reads
+        // model.thinkingLevelMap. Emit both so the plugin works across versions.
+        ...(thinking ?? {}),
+        input: ["text"] as const,
+        cost: MODEL_COSTS[model.id] ?? ZERO_MODEL_COST,
+        contextWindow: model.contextWindow,
+        maxTokens: model.maxTokens,
+      }
+    }),
   })
 }
