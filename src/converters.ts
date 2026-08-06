@@ -95,6 +95,39 @@ export function getApiKey(
   return undefined
 }
 
+/**
+ * Convert pi image content blocks ({ type: "image", data, mimeType }) into
+ * the Command Code / Anthropic-style image parts the alpha/generate API
+ * expects: { type: "image", source: { type: "base64", media_type, data } }.
+ */
+export function imageParts(message: { content?: unknown }): unknown[] {
+  const parts: unknown[] = []
+  for (const part of recordArray(message.content)) {
+    if (part.type === "image") {
+      const data = stringValue(part.data)
+      const mediaType = stringValue(part.mimeType) ?? "image/png"
+      if (data) {
+        parts.push({
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: mediaType,
+            data,
+          },
+        })
+      }
+    }
+  }
+  return parts
+}
+
+/**
+ * True when the message content carries at least one image block.
+ */
+export function hasImages(message: { content?: unknown }): boolean {
+  return recordArray(message.content).some((part) => part.type === "image")
+}
+
 export function textContent(message: { content?: unknown }): string {
   return recordArray(message.content)
     .filter((part) => part.type === "text")
@@ -216,20 +249,25 @@ export function messagesToCC(messages?: readonly MessageLike[]): unknown[] {
 
   for (const message of messages ?? []) {
     if (message.role === "user") {
-      out.push({
-        role: "user",
-        content: typeof message.content === "string" ? message.content : message.content,
-      })
+      const content = typeof message.content === "string" ? message.content : message.content
+      out.push({ role: "user", content })
+      // Preserve image blocks embedded directly in user content (e.g. pasted screenshots).
+      const images = imageParts(message)
+      if (images.length > 0) {
+        out.push({ role: "user", content: images })
+      }
     } else if (message.role === "assistant") {
       const parts: unknown[] = []
       for (const content of recordArray(message.content)) {
         if (content.type === "text") {
           parts.push({ type: "text", text: stringValue(content.text) ?? "" })
         } else if (content.type === "thinking") {
-          parts.push({
-            type: "reasoning",
-            text: stringValue(content.thinking) ?? "",
-          })
+          // Drop reasoning blocks from assistant history. Live testing against
+          // the Command Code API showed that when the conversation history
+          // contains a reasoning block, the upstream stops producing new
+          // reasoning in the next turn (it treats past reasoning as the answer
+          // to the follow-up question). Sending only text + tool calls keeps
+          // thinking enabled reliably turn after turn.
         } else if (content.type === "toolCall") {
           const toolCallId = stringValue(content.id) ?? ""
           if (!pairedToolCallIds.has(toolCallId)) continue
@@ -257,6 +295,17 @@ export function messagesToCC(messages?: readonly MessageLike[]): unknown[] {
           },
         ],
       })
+      // Tool results may carry image attachments (e.g. the read tool on an image
+      // file). The alpha/generate API only accepts images in user-role content,
+      // so surface them as a follow-up user message, mirroring the built-in
+      // openai-completions api behavior.
+      const images = imageParts(message)
+      if (images.length > 0) {
+        out.push({
+          role: "user",
+          content: [{ type: "text", text: "Attached image(s) from tool result:" }, ...images],
+        })
+      }
     }
   }
   return out

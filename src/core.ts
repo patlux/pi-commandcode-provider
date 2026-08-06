@@ -448,6 +448,12 @@ export function createStreamCommandCode(deps: CoreDependencies) {
             max_tokens: generateMaxTokens(model, options),
             temperature: 0.3,
             stream: true,
+            // pi thinking level → upstream thinking toggle. Without this the
+            // API decides on its own and deepseek traces appear/disappear
+            // depending on conversation history.
+            ...(options?.reasoning && options.reasoning !== "off"
+              ? { thinking: { type: "enabled" } }
+              : {}),
           },
           threadId,
         }

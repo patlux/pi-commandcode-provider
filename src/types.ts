@@ -95,6 +95,11 @@ export interface StreamOptions {
   signal?: AbortSignal
   headers?: Record<string, string>
   maxTokens?: number
+  /**
+   * pi thinking level ("off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max").
+   * Undefined/"off" means thinking is disabled; any other value enables it.
+   */
+  reasoning?: string
   onPayload?: (payload: unknown, model: ModelLike) => unknown | Promise<unknown>
   onResponse?: (response: ProviderResponseInfo, model: ModelLike) => void | Promise<void>
   /**

@@ -3,6 +3,9 @@
 ## Unreleased
 
 - Use the host-provided `pi-ai` and `pi-coding-agent` core packages instead of installing private runtime copies, including for local and out-of-store development checkouts.
+- Forward pi's thinking level to the Command Code API via `params.thinking = { type: "enabled" }` so reasoning traces are produced reliably instead of depending on upstream's own decision.
+- Stop echoing reasoning blocks from assistant history back to the API; upstream treats past reasoning as the answer to later questions and stops thinking in subsequent turns.
+- Convert pi image content blocks and tool-result image attachments into base64 image parts the `alpha/generate` API accepts, so pasted screenshots and image tool results are sent as user-role images.
 
 ## 0.4.4 - 2026-08-03
 

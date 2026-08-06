@@ -13,6 +13,7 @@ import {
   getApiKey,
   getEnvironmentInfo,
   mapFinishReason,
+  imageParts,
   messagesToCC,
   parseStreamEventLine,
   projectSlugFromPath,
@@ -244,8 +245,11 @@ describe("messagesToCC()", () => {
 
     assert.equal(objectAt(result, ["0", "role"]), "user")
     assert.equal(objectAt(result, ["1", "role"]), "assistant")
-    assert.equal(objectAt(result, ["1", "content", "0", "type"]), "reasoning")
-    assert.equal(objectAt(result, ["1", "content", "2", "type"]), "tool-call")
+    // Reasoning blocks are dropped from assistant history so the upstream does
+    // not stop thinking in later turns (see src/converters.ts).
+    assert.equal(objectAt(result, ["1", "content", "0", "type"]), "text")
+    assert.equal(objectAt(result, ["1", "content", "1", "type"]), "tool-call")
+    assert.equal(objectAt(result, ["1", "content", "2"]), undefined)
     assert.equal(objectAt(result, ["2", "role"]), "tool")
     assert.equal(objectAt(result, ["2", "content", "0", "output", "value"]), "hello\nworld")
   })
@@ -274,6 +278,63 @@ describe("messagesToCC()", () => {
 
   it("handles empty conversations", () => {
     assert.deepEqual(messagesToCC([]), [])
+  })
+
+  it("converts image blocks in user messages to base64 image parts", () => {
+    const result = messagesToCC([
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "look at this" },
+          { type: "image", data: "aGVsbG8=", mimeType: "image/png" },
+        ],
+      },
+    ])
+    assert.equal(objectAt(result, ["0", "role"]), "user")
+    assert.equal(objectAt(result, ["1", "role"]), "user")
+    assert.deepEqual(objectAt(result, ["1", "content", "0"]), {
+      type: "image",
+      source: { type: "base64", media_type: "image/png", data: "aGVsbG8=" },
+    })
+  })
+
+  it("surfaces images from tool results as follow-up user messages", () => {
+    const result = messagesToCC([
+      { role: "user", content: "read image" },
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "toolCall",
+            id: "c1",
+            name: "read",
+            arguments: { path: "x.png" },
+          },
+        ],
+      },
+      {
+        role: "toolResult",
+        toolCallId: "c1",
+        toolName: "read",
+        content: [
+          { type: "text", text: "here" },
+          { type: "image", data: "aW1n", mimeType: "image/png" },
+        ],
+      },
+    ])
+    const followUp = [...result]
+      .reverse()
+      .find(
+        (m) =>
+          (m as { role?: string }).role === "user" &&
+          Array.isArray((m as { content?: unknown }).content),
+      ) as
+      | { role: string; content: Array<{ type?: string; source?: { type?: string } }> }
+      | undefined
+    assert.ok(followUp, "expected follow-up user message")
+    assert.equal(followUp.content[0]?.type, "text")
+    assert.equal(followUp.content[1]?.type, "image")
+    assert.equal(followUp.content[1]?.source?.type, "base64")
   })
 })
 

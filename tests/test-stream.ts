@@ -226,6 +226,38 @@ describe("streamCommandCode — successful streams", () => {
     assert.ok(server.responseClosedBeforeEnd(), "client should cancel the still-open response body")
   })
 
+  it("sends thinking enabled when reasoning is set", async () => {
+    server.mockResponse({
+      type: "success",
+      events: [
+        JSON.stringify({ type: "reasoning-start" }),
+        JSON.stringify({ type: "reasoning-delta", text: "think" }),
+        JSON.stringify({ type: "reasoning-end" }),
+        JSON.stringify({ type: "finish", finishReason: "stop" }),
+      ],
+    })
+    const { streamCommandCode } = createTestDeps({ apiBase: server.baseUrl() })
+    await collectEvents(
+      streamCommandCode(makeModel(), makeContext(), {
+        apiKey: "mock-key",
+        reasoning: "high",
+      }),
+    )
+    const body = server.lastRequestBody() as { params?: Record<string, unknown> }
+    assert.deepEqual(body.params?.thinking, { type: "enabled" })
+  })
+
+  it("omits thinking when reasoning is off or unset", async () => {
+    server.mockResponse({
+      type: "success",
+      events: [JSON.stringify({ type: "finish", finishReason: "stop" })],
+    })
+    const { streamCommandCode } = createTestDeps({ apiBase: server.baseUrl() })
+    await collectEvents(streamCommandCode(makeModel(), makeContext(), { apiKey: "mock-key" }))
+    const body = server.lastRequestBody() as { params?: Record<string, unknown> }
+    assert.equal(body.params?.thinking, undefined)
+  })
+
   it("emits reasoning and tool-call blocks in order", async () => {
     server.mockResponse({
       type: "success",

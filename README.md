@@ -100,6 +100,14 @@ For non-interactive OMP requests, use a provider-qualified model ID shown by `om
 omp -p "hello" --model commandcode/deepseek/deepseek-v4-flash
 ```
 
+## Thinking and images
+
+pi's thinking level is forwarded to the Command Code API as `params.thinking = { type: "enabled" }` whenever the selected model supports reasoning and the level is not `off`. Without this the API decides on its own whether to emit a reasoning trace, which makes traces appear and disappear depending on conversation history.
+
+Reasoning blocks from previous assistant turns are not echoed back to the API. The Command Code backend treats past reasoning as the answer to later follow-up questions and stops producing new reasoning, so the provider sends only text and tool calls from history while still showing the current turn's thinking live.
+
+Image content blocks in user messages and image attachments on tool results are converted to base64 image parts the `alpha/generate` API accepts, so pasted screenshots and image tool results are sent as user-role images.
+
 ## Model discovery and offline behavior
 
 The provider fetches the current model catalog from:
