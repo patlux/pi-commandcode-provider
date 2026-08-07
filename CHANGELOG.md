@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.5.0 - 2026-08-07
+
 - Stop replaying completed assistant reasoning traces to Command Code while preserving visible text and completed tool calls in follow-up request history.
 - Add `/commandcode-refresh` and `/commandcode-status` commands for safe model-catalog refreshes and redacted diagnostics.
 - Bound model discovery to a configurable 10-second timeout so a slow Provider API cannot block pi startup; timed-out discovery uses the validated cache when available.
@@ -11,10 +13,11 @@
 - Add repository commands for testing the current checkout either in a logged-out, automatically cleaned-up pi environment or with existing credentials and only Command Code models enabled.
 - Refresh display pricing for the current Command Code model catalog, remove expired Qwen promotional rates, add current free and discounted models, and require review when temporary prices expire.
 - Use the host-provided `pi-ai` and `pi-coding-agent` core packages instead of installing private runtime copies, including for local and out-of-store development checkouts.
-
-## 0.4.4 - 2026-08-03
-
 - Fix cached input tokens being counted twice.
+
+### Contributors
+
+- @IfkumRfnl — fixed cached input token accounting.
 
 ## 0.4.3 - 2026-08-02
 
