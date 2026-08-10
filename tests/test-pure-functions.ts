@@ -11,7 +11,6 @@ import { describe, it } from "node:test"
 
 import {
   assertTextOnlyMessages,
-  COMMAND_CODE_INPUT_TYPES,
   getApiKey,
   getEnvironmentInfo,
   mapFinishReason,
@@ -118,11 +117,7 @@ describe("projectSlugFromPath()", () => {
 })
 
 describe("text-only image handling", () => {
-  it("does not advertise image input capability", () => {
-    assert.deepEqual(COMMAND_CODE_INPUT_TYPES, ["text"])
-  })
-
-  it("rejects image content instead of dropping it", () => {
+  it("rejects image content for models without image support", () => {
     assert.throws(
       () =>
         assertTextOnlyMessages([
@@ -131,7 +126,7 @@ describe("text-only image handling", () => {
             content: [{ type: "image", data: "base64-data", mimeType: "image/png" }],
           },
         ]),
-      /does not support image content.*refusing to send it/i,
+      /does not support image content/i,
     )
     assert.throws(
       () =>
@@ -142,7 +137,7 @@ describe("text-only image handling", () => {
             content: [{ type: "image", data: "base64-data", mimeType: "image/png" }],
           },
         ]),
-      /does not support image content.*refusing to send it/i,
+      /does not support image content/i,
     )
   })
 })
@@ -160,17 +155,16 @@ describe("textContent()", () => {
     )
   })
 
-  it("rejects mixed text and image content instead of dropping the image", () => {
-    assert.throws(
-      () =>
-        textContent({
-          content: [
-            { type: "text", text: "hello" },
-            { type: "image", data: "x", mimeType: "image/png" },
-            { type: "text", text: "world" },
-          ],
-        }),
-      /does not support image content.*refusing to send it/i,
+  it("extracts text while images are handled separately", () => {
+    assert.equal(
+      textContent({
+        content: [
+          { type: "text", text: "hello" },
+          { type: "image", data: "x", mimeType: "image/png" },
+          { type: "text", text: "world" },
+        ],
+      }),
+      "hello\nworld",
     )
   })
 
@@ -504,6 +498,71 @@ describe("messagesToCC()", () => {
     assert.equal(objectAt(result, ["1", "content", "2"]), undefined)
     assert.equal(objectAt(result, ["2", "role"]), "tool")
     assert.equal(objectAt(result, ["2", "content", "0", "output", "value"]), "hello\nworld")
+  })
+
+  it("serializes image inputs in the current Command Code wire format", () => {
+    assert.deepEqual(
+      messagesToCC(
+        [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "inspect this" },
+              { type: "image", data: "aGVsbG8=", mimeType: "image/png" },
+            ],
+          },
+        ],
+        { allowImages: true },
+      ),
+      [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "inspect this" },
+            {
+              type: "image",
+              image: "data:image/png;base64,aGVsbG8=",
+              mimeType: "image/png",
+            },
+          ],
+        },
+      ],
+    )
+  })
+
+  it("preserves tool-result images as a following user image message", () => {
+    const result = messagesToCC(
+      [
+        { role: "user", content: "read image" },
+        {
+          role: "assistant",
+          content: [{ type: "toolCall", id: "c1", name: "read", arguments: {} }],
+        },
+        {
+          role: "toolResult",
+          toolCallId: "c1",
+          toolName: "read",
+          content: [
+            { type: "text", text: "image attached" },
+            { type: "image", data: "aGVsbG8=", mimeType: "image/jpeg" },
+          ],
+        },
+      ],
+      { allowImages: true },
+    )
+
+    assert.equal(objectAt(result, ["2", "role"]), "tool")
+    assert.equal(objectAt(result, ["2", "content", "0", "output", "value"]), "image attached")
+    assert.deepEqual(objectAt(result, ["3"]), {
+      role: "user",
+      content: [
+        {
+          type: "image",
+          image: "data:image/jpeg;base64,aGVsbG8=",
+          mimeType: "image/jpeg",
+        },
+      ],
+    })
   })
 
   it("drops previous assistant reasoning while preserving text and tool calls", () => {

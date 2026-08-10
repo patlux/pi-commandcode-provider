@@ -9,8 +9,11 @@ import {
   commandCodeModelsFromCache,
   DEFAULT_MODELS_TIMEOUT_MS,
   getModelsTimeoutMs,
+  inputModalitiesForModel,
   loadCommandCodeModels,
   MODEL_EFFORTS,
+  MODEL_INPUT_MODALITIES,
+  modelSupportsImageInput,
   thinkingLevelMapForEfforts,
   thinkingMetadataForModel,
   type CommandCodeModel,
@@ -81,6 +84,16 @@ describe("commandCodeModelsFromApiResponse()", () => {
     assert.deepEqual(commandCodeModelsFromApiResponse(API_RESPONSE), EXPECTED_MODELS)
   })
 
+  it("matches command-code@1.15.1 image input capabilities", () => {
+    assert.deepEqual(inputModalitiesForModel("gpt-5.6-luna"), ["text", "image"])
+    assert.deepEqual(inputModalitiesForModel("meta/muse-spark-1.2"), ["text", "image"])
+    assert.deepEqual(inputModalitiesForModel("deepseek/deepseek-v4-pro"), ["text"])
+    assert.deepEqual(inputModalitiesForModel("unknown-new-model"), ["text"])
+    assert.equal(modelSupportsImageInput("gpt-5.6-luna"), true)
+    assert.equal(modelSupportsImageInput("deepseek/deepseek-v4-pro"), false)
+    assert.equal(Object.keys(MODEL_INPUT_MODALITIES).length, 37)
+  })
+
   it("marks only known reasoning models as reasoning-capable", () => {
     const models = commandCodeModelsFromApiResponse({
       object: "list",
@@ -94,7 +107,7 @@ describe("commandCodeModelsFromApiResponse()", () => {
     assert.equal(models[1]?.reasoning, false)
   })
 
-  it("matches the exact command-code@1.14.1 reasoning effort catalog", () => {
+  it("matches the exact command-code@1.15.1 reasoning effort catalog", () => {
     assert.deepEqual(MODEL_EFFORTS, {
       "Qwen/Qwen3.8-Max": ["low", "medium", "xhigh"],
       "claude-fable-5": ["low", "medium", "high", "xhigh", "max"],

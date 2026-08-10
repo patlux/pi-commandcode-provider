@@ -55,24 +55,48 @@ function apiKeyFromCredentialRecord(value: unknown): string | undefined {
   return stringValue(value.key) ?? stringValue(value.access)
 }
 
-function hasImageContent(value: unknown): boolean {
-  if (isRecord(value)) return value.type === "image"
-  return recordArray(value).some((part) => part.type === "image")
+function imageParts(value: unknown): readonly Record<string, unknown>[] {
+  if (isRecord(value)) return value.type === "image" ? [value] : []
+  return recordArray(value).filter((part) => part.type === "image")
 }
 
 function imageContentError(role: string): Error {
-  return new Error(
-    `Command Code does not support image content in ${role}; refusing to send it to avoid lossy handling`,
-  )
+  return new Error(`Selected Command Code model does not support image content in ${role}`)
 }
 
 export function assertTextOnlyMessages(messages?: readonly MessageLike[]): void {
   for (const message of messages ?? []) {
-    if (hasImageContent(message.content)) {
+    if (imageParts(message.content).length > 0) {
       const role = message.role === "toolResult" ? "tool results" : `${message.role} messages`
       throw imageContentError(role)
     }
   }
+}
+
+function imageToCommandCode(part: Record<string, unknown>): Record<string, string> {
+  const data = stringValue(part.data)
+  const mimeType = stringValue(part.mimeType)
+  if (!data || !mimeType)
+    throw new Error("Invalid image content: expected base64 data and mimeType")
+
+  return {
+    type: "image",
+    image: `data:${mimeType};base64,${data}`,
+    mimeType,
+  }
+}
+
+function userContentToCommandCode(content: unknown, allowImages: boolean): unknown {
+  if (typeof content === "string") return content
+
+  return recordArray(content).flatMap((part) => {
+    if (part.type === "text") return [{ type: "text", text: stringValue(part.text) ?? "" }]
+    if (part.type === "image") {
+      if (!allowImages) throw imageContentError("user messages")
+      return [imageToCommandCode(part)]
+    }
+    return []
+  })
 }
 
 export function getApiKey(
@@ -115,8 +139,6 @@ export function getApiKey(
 }
 
 export function textContent(message: { content?: unknown }): string {
-  if (hasImageContent(message.content)) throw imageContentError("tool results")
-
   return recordArray(message.content)
     .filter((part) => part.type === "text")
     .map((part) => stringValue(part.text) ?? "")
@@ -157,8 +179,12 @@ function completeToolCallIds(messages?: readonly MessageLike[]): Set<string> {
   return new Set([...callIds].filter((id) => resultIds.has(id)))
 }
 
-export function messagesToCC(messages?: readonly MessageLike[]): unknown[] {
-  assertTextOnlyMessages(messages)
+export function messagesToCC(
+  messages?: readonly MessageLike[],
+  options: { allowImages?: boolean } = {},
+): unknown[] {
+  const allowImages = options.allowImages ?? false
+  if (!allowImages) assertTextOnlyMessages(messages)
 
   const out: unknown[] = []
   const pairedToolCallIds = completeToolCallIds(messages)
@@ -167,7 +193,7 @@ export function messagesToCC(messages?: readonly MessageLike[]): unknown[] {
     if (message.role === "user") {
       out.push({
         role: "user",
-        content: typeof message.content === "string" ? message.content : message.content,
+        content: userContentToCommandCode(message.content, allowImages),
       })
     } else if (message.role === "assistant") {
       const parts: unknown[] = []
@@ -201,6 +227,15 @@ export function messagesToCC(messages?: readonly MessageLike[]): unknown[] {
           },
         ],
       })
+
+      const images = imageParts(message.content)
+      if (images.length > 0) {
+        if (!allowImages) throw imageContentError("tool results")
+        out.push({
+          role: "user",
+          content: images.map(imageToCommandCode),
+        })
+      }
     }
   }
   return out

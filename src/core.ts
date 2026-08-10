@@ -8,6 +8,7 @@
 import { randomUUID } from "node:crypto"
 
 import { commandCodeErrorMessage, redactCommandCodeErrorText } from "./overflow.ts"
+import { modelSupportsImageInput } from "./models.ts"
 import {
   getApiKey,
   getEnvironmentInfo,
@@ -42,13 +43,7 @@ export * from "./overflow.ts"
 export * from "./types.ts"
 
 export const DEFAULT_API_BASE = "https://api.commandcode.ai"
-export const COMMAND_CODE_CLI_VERSION = "0.29.0"
-/**
- * The legacy /alpha/generate request path used by this provider has no
- * documented image-part contract. Keep the advertised capability text-only
- * until Command Code documents and tests image handling for this endpoint.
- */
-export const COMMAND_CODE_INPUT_TYPES = ["text"] as const
+export const COMMAND_CODE_CLI_VERSION = "1.15.1"
 
 const DEFAULT_GENERATE_MAX_TOKENS = 64_000
 const DEFAULT_MAX_RETRIES = 0
@@ -472,7 +467,8 @@ export function createStreamCommandCode(deps: CoreDependencies) {
         const reasoningEffort = mappedReasoningEffort(model, options)
         const timeoutMs = options?.timeoutMs
 
-        assertTextOnlyMessages(context.messages)
+        const allowImages = modelSupportsImageInput(model.id)
+        if (!allowImages) assertTextOnlyMessages(context.messages)
 
         let body: unknown = {
           config: {
@@ -491,7 +487,7 @@ export function createStreamCommandCode(deps: CoreDependencies) {
           skills: null,
           params: {
             model: model.id,
-            messages: messagesToCC(context.messages),
+            messages: messagesToCC(context.messages, { allowImages }),
             tools: toolsToJson(context.tools),
             system: systemPromptToText(context.systemPrompt),
             max_tokens: generateMaxTokens(model, options),

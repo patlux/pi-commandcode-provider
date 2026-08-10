@@ -7,6 +7,63 @@ export const DEFAULT_MODELS_TIMEOUT_MS = 10_000
 const DEFAULT_MAX_OUTPUT_TOKENS = 65_536
 const MODEL_CACHE_VERSION = 1
 
+export type CommandCodeInputType = "text" | "image"
+
+/**
+ * Model input modalities from the command-code@1.15.1 bundled catalog.
+ * Models omitted here remain text-only so newly discovered IDs never claim
+ * image support without upstream evidence.
+ */
+export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCodeInputType[]>> = {
+  "MiniMaxAI/MiniMax-M3": ["text", "image"],
+  "Qwen/Qwen3.6-Plus": ["text", "image"],
+  "Qwen/Qwen3.7-Flash": ["text", "image"],
+  "Qwen/Qwen3.7-Plus": ["text", "image"],
+  "Qwen/Qwen3.8-Max": ["text", "image"],
+  "claude-fable-5": ["text", "image"],
+  "claude-haiku-4-5-20251001": ["text", "image"],
+  "claude-opus-4-7": ["text", "image"],
+  "claude-opus-4-8": ["text", "image"],
+  "claude-opus-5": ["text", "image"],
+  "claude-sonnet-4-6": ["text", "image"],
+  "claude-sonnet-5": ["text", "image"],
+  "google/gemini-3.1-flash-lite": ["text", "image"],
+  "google/gemini-3.5-flash": ["text", "image"],
+  "google/gemini-3.5-flash-lite": ["text", "image"],
+  "google/gemini-3.6-flash": ["text", "image"],
+  "gpt-5.3-codex": ["text", "image"],
+  "gpt-5.4": ["text", "image"],
+  "gpt-5.4-mini": ["text", "image"],
+  "gpt-5.5": ["text", "image"],
+  "gpt-5.6-luna": ["text", "image"],
+  "gpt-5.6-sol": ["text", "image"],
+  "gpt-5.6-terra": ["text", "image"],
+  "meta/muse-spark-1.1": ["text", "image"],
+  "meta/muse-spark-1.2": ["text", "image"],
+  "meta/muse-spark-1.2-contributor": ["text", "image"],
+  "moonshotai/Kimi-K2.5": ["text", "image"],
+  "moonshotai/Kimi-K2.6": ["text", "image"],
+  "moonshotai/Kimi-K2.7-Code": ["text", "image"],
+  "moonshotai/Kimi-K2.7-Code-Highspeed": ["text", "image"],
+  "moonshotai/Kimi-K3": ["text", "image"],
+  "sakana/fugu-ultra": ["text", "image"],
+  "stepfun/Step-3.7-Flash": ["text", "image"],
+  "thinkingmachines/inkling": ["text", "image"],
+  "thinkingmachines/inkling-small": ["text", "image"],
+  "xai/grok-4.5": ["text", "image"],
+  "xiaomi/mimo-v2.5": ["text", "image"],
+}
+
+const TEXT_INPUT_ONLY = ["text"] as const
+
+export function inputModalitiesForModel(modelId: string): readonly CommandCodeInputType[] {
+  return MODEL_INPUT_MODALITIES[modelId] ?? TEXT_INPUT_ONLY
+}
+
+export function modelSupportsImageInput(modelId: string): boolean {
+  return inputModalitiesForModel(modelId).includes("image")
+}
+
 export type PiThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max"
 
 type CommandCodeReasoningEffort = Exclude<PiThinkingLevel, "off">
@@ -15,7 +72,7 @@ type CommandCodeReasoningEffort = Exclude<PiThinkingLevel, "off">
  * Per-model reasoning efforts supported by Command Code's generate endpoint.
  *
  * The Provider API does not expose reasoning metadata. This is an exact
- * snapshot of `reasoningEfforts` from the command-code@1.14.1 model catalog
+ * snapshot of `reasoningEfforts` from the command-code@1.15.1 model catalog
  * (`packages/shared/src/model-catalog.ts`, also published in the generated
  * `dist/bundled/command-code-knowledge/reference/models.md`). Models omitted
  * here let Command Code choose their reasoning depth, matching the CLI.

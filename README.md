@@ -132,9 +132,9 @@ The following environment variables are intended for tests, local mocks, and com
 
 ## Image input
 
-This provider currently advertises and accepts **text input only**. The extension uses Command Code's legacy `/alpha/generate` protocol, while the public Provider API documentation describes image parts for its documented `/provider/v1` endpoints. The legacy request path has no documented image-part contract, and the model catalog fixture exposes model IDs and context lengths but no image capability or limit fields.
+The provider advertises image input only for models marked with the `image` input modality in the official Command Code CLI model catalog. The capability snapshot currently follows `command-code@1.15.1`; unknown models default to text-only until their upstream metadata is reviewed.
 
-To avoid silently dropping or changing image data, the provider rejects image content in user messages and tool results before making a network request. It does not claim image capability or define image-size/count limits. This limitation can be revisited when Command Code documents image parts and limits for the protocol used here.
+For vision-capable models, image blocks from user messages and tool results are forwarded in Command Code's current data-URL wire format. Text-only models reject image content before making a network request instead of silently dropping it.
 
 ## Pricing display
 

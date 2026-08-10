@@ -15,16 +15,12 @@ import {
 } from "@earendil-works/pi-coding-agent"
 import { join } from "node:path"
 
-import {
-  COMMAND_CODE_CLI_VERSION,
-  COMMAND_CODE_INPUT_TYPES,
-  createStreamCommandCode,
-  DEFAULT_API_BASE,
-} from "./src/core.ts"
+import { COMMAND_CODE_CLI_VERSION, createStreamCommandCode, DEFAULT_API_BASE } from "./src/core.ts"
 import { calculateCommandCodeCost } from "./src/cost.ts"
 import {
   DEFAULT_MODELS_URL,
   getModelsTimeoutMs,
+  inputModalitiesForModel,
   loadCommandCodeModels,
   thinkingMetadataForModel,
   type CommandCodeModel,
@@ -75,7 +71,7 @@ function createProviderModel(model: {
     name: model.name,
     reasoning: model.reasoning,
     ...(thinkingMetadataForModel(model.id) ?? {}),
-    input: COMMAND_CODE_INPUT_TYPES,
+    input: inputModalitiesForModel(model.id),
     cost: MODEL_COSTS[model.id] ?? ZERO_MODEL_COST,
     contextWindow: model.contextWindow,
     maxTokens: model.maxTokens,

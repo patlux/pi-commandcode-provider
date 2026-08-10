@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add model-specific image input capabilities from the `command-code@1.15.1` catalog and forward user and tool-result images using the current Command Code wire format.
+- Update the Command Code client version header to `1.15.1`.
+
 ## 0.5.0 - 2026-08-07
 
 - Stop replaying completed assistant reasoning traces to Command Code while preserving visible text and completed tool calls in follow-up request history.

@@ -142,6 +142,59 @@ describe("streamCommandCode — successful streams", () => {
     assert.equal(calculatedUsages.length, 1)
   })
 
+  it("sends images for vision-capable models", async () => {
+    server.mockResponse({
+      type: "success",
+      events: [JSON.stringify({ type: "finish", finishReason: "stop" })],
+    })
+    const { streamCommandCode } = createTestDeps({ apiBase: server.baseUrl() })
+
+    await collectEvents(
+      streamCommandCode(
+        makeModel({ id: "gpt-5.6-luna" }),
+        makeContext({
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "inspect" },
+                { type: "image", data: "aGVsbG8=", mimeType: "image/png" },
+              ],
+            },
+          ],
+        }),
+        { apiKey: "mock-key" },
+      ),
+    )
+
+    assert.equal(
+      objectAt(server.lastRequestBody(), ["params", "messages", "0", "content", "1", "image"]),
+      "data:image/png;base64,aGVsbG8=",
+    )
+  })
+
+  it("rejects images before network access for text-only models", async () => {
+    const { streamCommandCode } = createTestDeps({ apiBase: server.baseUrl() })
+
+    const events = await collectEvents(
+      streamCommandCode(
+        makeModel({ id: "deepseek/deepseek-v4-pro" }),
+        makeContext({
+          messages: [
+            {
+              role: "user",
+              content: [{ type: "image", data: "aGVsbG8=", mimeType: "image/png" }],
+            },
+          ],
+        }),
+        { apiKey: "mock-key" },
+      ),
+    )
+
+    assert.equal(events.at(-1)?.type, "error")
+    assert.equal(server.requestCount(), 0)
+  })
+
   it("derives uncached input when noCacheTokens is missing", async () => {
     server.mockResponse({
       type: "success",
@@ -375,10 +428,7 @@ describe("streamCommandCode — request serialization", () => {
     const lastEvent = events.at(-1)
     assert.equal(lastEvent?.type, "error")
     if (lastEvent?.type === "error") {
-      assert.match(
-        lastEvent.error.errorMessage ?? "",
-        /does not support image content.*refusing to send it/i,
-      )
+      assert.match(lastEvent.error.errorMessage ?? "", /does not support image content/i)
     }
     assert.equal(server.requestCount(), 0)
   })
@@ -438,7 +488,7 @@ describe("streamCommandCode — request serialization", () => {
 
     const headers = server.lastRequestHeaders()
     assert.equal(headers.authorization, "Bearer mock-key")
-    assert.equal(headers["x-command-code-version"], "0.29.0")
+    assert.equal(headers["x-command-code-version"], "1.15.1")
     assert.equal(headers["x-project-slug"], "repo")
     assert.equal(headers["x-taste-learning"], "true")
     assert.equal(headers["x-co-flag"], "false")
