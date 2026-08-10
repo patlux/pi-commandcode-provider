@@ -2,8 +2,14 @@
 
 ## Unreleased
 
+## 0.5.1 - 2026-08-11
+
 - Add model-specific image input capabilities from the `command-code@1.15.1` catalog and forward user and tool-result images using the current Command Code wire format.
 - Update the Command Code client version header to `1.15.1`.
+
+### Contributors
+
+- @DiyarD — reported missing vision support for GPT-5.6 Luna, Muse Spark 1.2, and other vision-capable models.
 
 ## 0.5.0 - 2026-08-07
 
