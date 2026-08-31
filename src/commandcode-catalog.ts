@@ -103,6 +103,10 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
 }
 
 export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasoningEffort[]>> = {
+  "meta/muse-spark-1.1": ["minimal", "low", "medium", "high", "xhigh"],
+  "meta/muse-spark-1.2": ["minimal", "low", "medium", "high", "xhigh"],
+  "meta/muse-spark-1.2-contributor": ["minimal", "low", "medium", "high", "xhigh"],
+  "claude-fable-5": ["low", "medium", "high", "xhigh", "max"],
   "claude-fable-5": ["low", "medium", "high", "xhigh", "max"],
   "claude-opus-4-7": ["low", "medium", "high", "xhigh", "max"],
   "claude-opus-4-8": ["low", "medium", "high", "xhigh", "max"],

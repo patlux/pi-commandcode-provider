@@ -77,7 +77,7 @@ export function thinkingMetadataForModel(modelId: string): ThinkingMetadata | un
     }
   }
   if (!isReasoningModel(modelId)) return undefined
-  return { thinkingLevelMap: thinkingLevelMapForEfforts([]) }
+  return undefined
 }
 
 function isReasoningModel(modelId: string): boolean {
