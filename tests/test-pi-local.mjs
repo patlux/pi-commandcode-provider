@@ -437,9 +437,9 @@ async function runRpcExtensionCommands(timeoutMs = 30_000) {
     stderr += chunk.toString("utf-8")
   })
 
-  const waitFor = (predicate) =>
+  const waitFor = (predicate, fromIndex = 0) =>
     new Promise((resolve, reject) => {
-      const existing = events.find(predicate)
+      const existing = events.slice(fromIndex).find(predicate)
       if (existing) {
         resolve(existing)
         return
@@ -461,17 +461,27 @@ async function runRpcExtensionCommands(timeoutMs = 30_000) {
     )
     const commandNames = commandsResponse.data?.commands?.map((command) => command.name) ?? []
 
-    send({ id: "status-before", type: "prompt", message: "/commandcode-status" })
-    await waitFor(
-      (event) => event.type === "response" && event.id === "status-before" && event.success,
-    )
-    const statusBefore = await waitFor(
-      (event) =>
-        event.type === "extension_ui_request" &&
-        event.method === "notify" &&
-        typeof event.message === "string" &&
-        event.message.includes("model count: 3"),
-    )
+    // The cached catalog registers immediately and refreshes in the
+    // background. `/commandcode-refresh` coalesces with an in-flight refresh,
+    // so the status must report the startup refresh as finished before the
+    // catalog is changed; otherwise the command reports the old catalog.
+    let statusBefore
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const id = `status-before-${attempt}`
+      const fromIndex = events.length
+      send({ id, type: "prompt", message: "/commandcode-status" })
+      await waitFor((event) => event.type === "response" && event.id === id && event.success)
+      statusBefore = await waitFor(
+        (event) =>
+          event.type === "extension_ui_request" &&
+          event.method === "notify" &&
+          typeof event.message === "string" &&
+          event.message.includes("model count: 3"),
+        fromIndex,
+      )
+      if (/source: live[\s\S]*refresh: idle/.test(statusBefore.message)) break
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
 
     includeRefreshedModel = true
     send({ id: "refresh", type: "prompt", message: "/commandcode-refresh" })
@@ -729,7 +739,11 @@ try {
   const offlineListOutput = offlineList.stdout || offlineList.stderr
   assert.match(offlineListOutput, /gpt-5\.4/)
   assert.match(offlineListOutput, /cc-second-model/)
-  assert.match(offlineList.stderr, /Using the cached catalog/)
+  // The cached catalog is registered before the background refresh fails, and
+  // `--list-models` exits as soon as the list is printed. Whether the refresh
+  // warning reaches stderr first depends on the host runtime (Bun flushes it,
+  // Node does not), so the warning is asserted on the print run below, which
+  // waits for the response.
 
   console.log("[pi-local] use a cached model while model discovery is offline")
   requestCount = 0
