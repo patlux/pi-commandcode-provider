@@ -55,10 +55,40 @@ type CompatStreamFunction = (
  * and registers custom APIs itself inside `registerProvider`. Resolve the
  * function at runtime so the extension loads on both hosts.
  */
-function registerCompatApiProvider(stream: CompatStreamFunction): void {
+function compatApiProviderRegistrar(): ((...args: unknown[]) => unknown) | undefined {
   const register = (piAiCompat as { registerApiProvider?: unknown }).registerApiProvider
-  if (typeof register !== "function") return
-  register({ api: COMMAND_CODE_API, stream, streamSimple: stream }, COMPAT_SOURCE_ID)
+  return typeof register === "function" ? (register as (...args: unknown[]) => unknown) : undefined
+}
+
+function registerCompatApiProvider(stream: CompatStreamFunction): void {
+  compatApiProviderRegistrar()?.(
+    { api: COMMAND_CODE_API, stream, streamSimple: stream },
+    COMPAT_SOURCE_ID,
+  )
+}
+
+/**
+ * The `apiKey` handed to `registerProvider` means different things per host.
+ *
+ * pi parses `$COMMAND_CODE_API_KEY` as an env template: unresolved means
+ * "not configured", so `/login` credentials and `--api-key` take over, and
+ * the entry keeps the API-key auth method registered next to OAuth. Without
+ * it pi composes an OAuth-only provider and drops stored `api_key`
+ * credentials and `--api-key`.
+ *
+ * Oh My Pi has no template notion: an unresolved value stays a literal config
+ * override that shadows its `/login` credential store and is sent verbatim as
+ * `Authorization: Bearer $COMMAND_CODE_API_KEY`. There, omit `apiKey` unless
+ * a real key is configured; OMP then reads env keys and stored credentials
+ * itself.
+ *
+ * Hosts are told apart by the same `registerApiProvider` probe used for the
+ * compat registry: pi exports it, OMP does not.
+ */
+function providerApiKey(): string | undefined {
+  const configured = pickCommandCodeApiKey(getConfiguredApiKey(), undefined)
+  if (configured) return configured
+  return compatApiProviderRegistrar() ? "$COMMAND_CODE_API_KEY" : undefined
 }
 
 function commandCodeHeaders(): Record<string, string> | undefined {
@@ -77,10 +107,7 @@ function createProviderConfig(
   return {
     name: "Command Code",
     baseUrl: apiBase,
-    // Never register an unresolved `$COMMAND_CODE_API_KEY` placeholder.
-    // Oh My Pi treats that literal as a config override, which shadows
-    // `/login` OAuth and sends `Authorization: Bearer $COMMAND_CODE_API_KEY`.
-    apiKey: pickCommandCodeApiKey(getConfiguredApiKey(), undefined),
+    apiKey: providerApiKey(),
     api: COMMAND_CODE_API,
     streamSimple: streamCommandCode,
     headers,

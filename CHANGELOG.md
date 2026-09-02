@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Stop registering the unresolved `$COMMAND_CODE_API_KEY` placeholder as a provider `apiKey` when no env or auth-file key is configured. Oh My Pi treats that literal as a config override, which shadowed `/login` OAuth credentials and sent `Authorization: Bearer $COMMAND_CODE_API_KEY` (401). Chat now uses the stored OAuth key, matching `/commandcode-quota`.
+- Fix Oh My Pi chat returning `401 Invalid 'Authorization' header` after `/login`: OMP kept the unresolved `$COMMAND_CODE_API_KEY` placeholder as a literal config API key that shadowed its stored credentials and was sent as the Bearer token. The placeholder is now registered only on pi, where it keeps the API-key login method and `--api-key` working next to OAuth; on OMP the provider omits `apiKey` unless a real key is configured. Placeholders passed by the host are also resolved or stripped on the Provider API and compat stream paths, matching the generate transport and `/commandcode-quota`.
+- Cover stored `/login` OAuth and API-key credentials, `--api-key`, and env keys end to end on both pi and Oh My Pi, asserting the exact Bearer token the mock API receives.
 
 ## 0.6.2 - 2026-09-02
 
