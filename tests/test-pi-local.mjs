@@ -44,12 +44,20 @@ function findPiBinary() {
 
 const PI_BIN = findPiBinary()
 if (!PI_BIN) {
+  if (process.env.PI_LOCAL_REQUIRED === "1") {
+    console.error("[pi-local] FAIL - pi is required but not on PATH and PI_BIN is unset")
+    process.exit(1)
+  }
   console.log("[pi-local] SKIP — pi is not on PATH")
   process.exit(0)
 }
 
 const piCheck = spawnSync(PI_BIN, ["--help"], { stdio: "ignore" })
 if (piCheck.error) {
+  if (process.env.PI_LOCAL_REQUIRED === "1") {
+    console.error(`[pi-local] FAIL - pi failed to start: ${piCheck.error.message}`)
+    process.exit(1)
+  }
   console.log(`[pi-local] SKIP — pi failed to start: ${piCheck.error.message}`)
   process.exit(0)
 }

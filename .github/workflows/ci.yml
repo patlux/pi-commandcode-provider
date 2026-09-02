@@ -17,11 +17,21 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      # `npm test` includes tests/test-pi-local.mjs, which drives a real pi
+      # binary against the mock API and otherwise skips silently.
+      - name: Install pi
+        run: |
+          npm install -g @earendil-works/pi-coding-agent@latest
+          echo "PI_BIN=$(npm prefix -g)/bin/pi" >> "$GITHUB_ENV"
+      - name: Verify pi starts
+        run: '"$PI_BIN" --version'
       - run: npm test
+        env:
+          PI_LOCAL_REQUIRED: "1"
 
   format:
     runs-on: ubuntu-latest
