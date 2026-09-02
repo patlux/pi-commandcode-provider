@@ -19,6 +19,7 @@ import {
   messagesToCC,
   numberValue,
   parseStreamEventLine,
+  pickCommandCodeApiKey,
   recordOrEmpty,
   stringValue,
   toolsToJson,
@@ -237,22 +238,14 @@ export function createStreamCommandCode(deps: CoreDependencies) {
 
     async function run() {
       // Some hosts pass a literal env-var reference instead of resolving it.
-      const PLACEHOLDER_API_KEYS = new Set([
-        "$COMMAND_CODE_API_KEY",
-        "COMMAND_CODE_API_KEY",
-        "$COMMANDCODE_API_KEY",
-        "COMMANDCODE_API_KEY",
-      ])
-      const hostKey =
-        options?.apiKey && !PLACEHOLDER_API_KEYS.has(options.apiKey) ? options.apiKey : undefined
-
-      const apiKey =
-        hostKey ??
+      const apiKey = pickCommandCodeApiKey(
+        options?.apiKey,
         getApiKey({
           env: deps.env,
           authPaths: deps.authPaths,
           homeDir: deps.homeDir,
-        })
+        }),
+      )
 
       if (!apiKey) {
         const msg: AssistantMessageLike = {

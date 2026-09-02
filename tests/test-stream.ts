@@ -108,6 +108,21 @@ describe("streamCommandCode — auth", () => {
 
     assert.equal(server.lastRequestHeaders().authorization, "Bearer option-key")
   })
+
+  it("treats a blank options.apiKey like a missing one", async () => {
+    server.mockResponse({
+      type: "success",
+      events: [JSON.stringify({ type: "finish", finishReason: "stop" })],
+    })
+    const { streamCommandCode } = createTestDeps({
+      apiBase: server.baseUrl(),
+      env: { COMMAND_CODE_API_KEY: "env-key" },
+    })
+
+    await collectEvents(streamCommandCode(makeModel(), makeContext(), { apiKey: "   " }))
+
+    assert.equal(server.lastRequestHeaders().authorization, "Bearer env-key")
+  })
 })
 
 describe("streamCommandCode — successful streams", () => {
