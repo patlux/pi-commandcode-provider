@@ -9,7 +9,7 @@
  */
 
 import assert from "node:assert/strict"
-import { spawn } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
 import { accessSync, constants, mkdtempSync, rmSync } from "node:fs"
 import { createServer } from "node:http"
 import { tmpdir } from "node:os"
@@ -176,27 +176,93 @@ const address = server.address()
 const port = typeof address === "object" && address ? address.port : 0
 const apiBase = `http://127.0.0.1:${port}`
 
-function runOmp(args, timeoutOrOptions = 30_000) {
-  const options =
-    typeof timeoutOrOptions === "number" ? { timeoutMs: timeoutOrOptions } : timeoutOrOptions
-  const timeoutMs = options.timeoutMs ?? 30_000
+const agentDir = join(tempHome, ".omp", "agent")
+
+function ompEnv(overrides = {}) {
   const env = {
     ...process.env,
     HOME: tempHome,
     USERPROFILE: tempHome,
-    PI_CODING_AGENT_DIR: join(tempHome, ".omp", "agent"),
+    PI_CODING_AGENT_DIR: agentDir,
     COMMAND_CODE_API_KEY: "mock-key",
     COMMANDCODE_API_BASE: `${apiBase}/provider/v1`,
     COMMANDCODE_MODELS_URL: `${apiBase}/provider/v1/models`,
   }
-  if ("apiKey" in options) {
-    if (options.apiKey === undefined) delete env.COMMAND_CODE_API_KEY
-    else env.COMMAND_CODE_API_KEY = options.apiKey
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value === undefined) delete env[key]
+    else env[key] = value
   }
+  return env
+}
+
+// Same DDL OMP 18 runs for its credential store; OMP's own migration is
+// `CREATE TABLE IF NOT EXISTS`, so creating it first is safe.
+const OMP_AUTH_CREDENTIALS_DDL = `CREATE TABLE IF NOT EXISTS auth_credentials (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  provider TEXT NOT NULL,
+  credential_type TEXT NOT NULL,
+  data TEXT NOT NULL,
+  disabled_cause TEXT DEFAULT NULL,
+  identity_key TEXT DEFAULT NULL,
+  created_at INTEGER NOT NULL DEFAULT (CAST(strftime('%s','now') AS INTEGER)),
+  updated_at INTEGER NOT NULL DEFAULT (CAST(strftime('%s','now') AS INTEGER))
+)`
+
+/**
+ * Store a credential the way OMP's `/login` does: in the `auth_credentials`
+ * table of `agent.db`. OMP is a Bun binary, so `bun:sqlite` is always
+ * available next to it and matches the SQLite build OMP itself uses.
+ * Pass `undefined` to remove any stored Command Code credential.
+ */
+function seedOmpCredential(credential) {
+  const rows =
+    credential === undefined
+      ? []
+      : [
+          [
+            credential.type,
+            JSON.stringify(
+              credential.type === "oauth"
+                ? {
+                    access: credential.access,
+                    refresh: credential.refresh,
+                    expires: credential.expires,
+                  }
+                : { key: credential.key, source: "login" },
+            ),
+          ],
+        ]
+  const script = `
+    import { Database } from "bun:sqlite"
+    // \`bun -e\` has no script slot: argv is [bun, ...args].
+    const [dbPath, ddl, rowsJson] = process.argv.slice(1)
+    const db = new Database(dbPath)
+    db.run(ddl)
+    db.run("DELETE FROM auth_credentials WHERE provider = ?", ["commandcode"])
+    for (const [type, data] of JSON.parse(rowsJson)) {
+      db.run(
+        "INSERT INTO auth_credentials (provider, credential_type, data) VALUES (?, ?, ?)",
+        ["commandcode", type, data],
+      )
+    }
+    db.close()
+  `
+  const result = spawnSync(
+    "bun",
+    ["-e", script, join(agentDir, "agent.db"), OMP_AUTH_CREDENTIALS_DDL, JSON.stringify(rows)],
+    { env: ompEnv(), encoding: "utf-8" },
+  )
+  assert.equal(result.status, 0, result.stderr)
+}
+
+function runOmp(args, timeoutOrOptions = 30_000) {
+  const options =
+    typeof timeoutOrOptions === "number" ? { timeoutMs: timeoutOrOptions } : timeoutOrOptions
+  const timeoutMs = options.timeoutMs ?? 30_000
   return new Promise((resolve) => {
     const child = spawn(OMP_BIN, args, {
       cwd: PROJECT_DIR,
-      env,
+      env: ompEnv(options.env),
       stdio: ["ignore", "pipe", "pipe"],
     })
     let stdout = ""
@@ -277,24 +343,64 @@ try {
   assert.equal(lastRequestBody?.model, TEST_MODEL)
   assert.ok(Array.isArray(lastRequestBody?.messages))
 
-  console.log("[omp-compat] does not send the unresolved $COMMAND_CODE_API_KEY placeholder")
+  // OMP stores `/login` credentials in agent.db and consults them only when
+  // the extension does not install a config API key. main registered the
+  // unresolved `$COMMAND_CODE_API_KEY` placeholder, which OMP kept as a
+  // literal config override and sent as the Bearer token, so stored
+  // credentials never reached the request (401).
+  const chatArgs = ["-e", EXT_PATH, "-p", "say mock token", "--model", `commandcode/${TEST_MODEL}`]
+  const noEnvKey = { COMMAND_CODE_API_KEY: undefined, COMMANDCODE_API_KEY: undefined }
+
+  console.log("[omp-compat] stored /login OAuth credential is used when no env key exists")
+  seedOmpCredential({
+    type: "oauth",
+    access: "stored-oauth-token",
+    refresh: "stored-oauth-token",
+    expires: Date.now() + 24 * 60 * 60 * 1000,
+  })
   requestCount = 0
   lastRequestHeaders = {}
-  await runOmp(["-e", EXT_PATH, "-p", "say mock token", "--model", `commandcode/${TEST_MODEL}`], {
-    timeoutMs: 30_000,
-    apiKey: undefined,
-  })
-  if (requestCount > 0) {
-    const authorization = lastRequestHeaders.authorization ?? ""
-    assert.notEqual(
-      authorization,
-      "Bearer $COMMAND_CODE_API_KEY",
-      "OMP must not send the unresolved placeholder as a Bearer token",
-    )
-    assert.notEqual(authorization, "Bearer $COMMANDCODE_API_KEY")
-    assert.notEqual(authorization, "Bearer COMMAND_CODE_API_KEY")
-    assert.notEqual(authorization, "Bearer COMMANDCODE_API_KEY")
-  }
+  const oauthChat = await runOmp(chatArgs, { env: noEnvKey })
+  assert.equal(oauthChat.code, 0, oauthChat.stderr)
+  assert.match(oauthChat.stdout, /mock-omp-ok/)
+  assert.equal(requestCount, 1)
+  assert.equal(lastRequestHeaders.authorization, "Bearer stored-oauth-token")
+
+  console.log("[omp-compat] stored /login API key credential is used when no env key exists")
+  seedOmpCredential({ type: "api_key", key: "stored-api-key" })
+  requestCount = 0
+  lastRequestHeaders = {}
+  const apiKeyChat = await runOmp(chatArgs, { env: noEnvKey })
+  assert.equal(apiKeyChat.code, 0, apiKeyChat.stderr)
+  assert.match(apiKeyChat.stdout, /mock-omp-ok/)
+  assert.equal(requestCount, 1)
+  assert.equal(lastRequestHeaders.authorization, "Bearer stored-api-key")
+
+  console.log("[omp-compat] --api-key wins over a stored credential")
+  requestCount = 0
+  lastRequestHeaders = {}
+  const cliKeyChat = await runOmp([...chatArgs, "--api-key", "cli-key"], { env: noEnvKey })
+  assert.equal(cliKeyChat.code, 0, cliKeyChat.stderr)
+  assert.match(cliKeyChat.stdout, /mock-omp-ok/)
+  assert.equal(requestCount, 1)
+  assert.equal(lastRequestHeaders.authorization, "Bearer cli-key")
+
+  console.log("[omp-compat] COMMAND_CODE_API_KEY still works alongside a stored credential")
+  requestCount = 0
+  lastRequestHeaders = {}
+  const envKeyChat = await runOmp(chatArgs)
+  assert.equal(envKeyChat.code, 0, envKeyChat.stderr)
+  assert.match(envKeyChat.stdout, /mock-omp-ok/)
+  assert.equal(requestCount, 1)
+  assert.match(lastRequestHeaders.authorization ?? "", /^Bearer (mock-key|stored-api-key)$/)
+
+  console.log("[omp-compat] no credential at all never sends the placeholder")
+  seedOmpCredential(undefined)
+  requestCount = 0
+  lastRequestHeaders = {}
+  const noKeyChat = await runOmp(chatArgs, { env: noEnvKey })
+  assert.equal(requestCount, 0, JSON.stringify(lastRequestHeaders))
+  assert.doesNotMatch(noKeyChat.stdout + noKeyChat.stderr, /\$COMMAND_CODE_API_KEY/)
 
   console.log("[omp-compat] developer advisory reaches the legacy generate request body")
   requestCount = 0

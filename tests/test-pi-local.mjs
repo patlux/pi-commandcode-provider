@@ -226,11 +226,19 @@ const env = {
   COMMANDCODE_MODELS_URL: `${apiBase}/provider/v1/models`,
 }
 
-function runPi(args, timeoutMs = 30_000) {
+function runPi(args, timeoutOrOptions = 30_000) {
+  const options =
+    typeof timeoutOrOptions === "number" ? { timeoutMs: timeoutOrOptions } : timeoutOrOptions
+  const timeoutMs = options.timeoutMs ?? 30_000
+  const childEnv = { ...env }
+  for (const [key, value] of Object.entries(options.env ?? {})) {
+    if (value === undefined) delete childEnv[key]
+    else childEnv[key] = value
+  }
   return new Promise((resolve) => {
     const child = spawn(PI_BIN, args, {
       cwd: PROJECT_DIR,
-      env,
+      env: childEnv,
       stdio: ["ignore", "pipe", "pipe"],
     })
     let stdout = ""
@@ -823,6 +831,75 @@ try {
     editTool?.function?.parameters?.properties?.edits?.items?.properties?.oldText?.type,
     "string",
   )
+
+  // pi resolves `/login` credentials, `--api-key`, and env keys through the
+  // provider's registered auth methods. Stored credentials and `--api-key`
+  // only reach the request when the provider keeps an API-key auth method
+  // next to OAuth, so every credential source is checked without an env key.
+  const authArgs = [
+    "--no-extensions",
+    "-e",
+    EXT_PATH,
+    "-p",
+    "say mock token",
+    "--provider",
+    "commandcode",
+    "--model",
+    TEST_MODEL,
+  ]
+  const noEnvKey = { COMMAND_CODE_API_KEY: undefined, COMMANDCODE_API_KEY: undefined }
+  const authPath = join(agentDir, "auth.json")
+
+  console.log("[pi-local] stored /login OAuth credential is used when no env key exists")
+  writeFileSync(
+    authPath,
+    JSON.stringify({
+      commandcode: {
+        type: "oauth",
+        access: "stored-oauth-token",
+        refresh: "stored-oauth-token",
+        expires: Date.now() + 24 * 60 * 60 * 1000,
+      },
+    }),
+  )
+  requestCount = 0
+  lastRequestHeaders = {}
+  const oauthPrint = await runPi(authArgs, { env: noEnvKey })
+  assert.equal(oauthPrint.code, 0, oauthPrint.stderr)
+  assert.match(oauthPrint.stdout, /mock-pi-ok/)
+  assert.equal(requestCount, 1)
+  assert.equal(lastRequestHeaders.authorization, "Bearer stored-oauth-token")
+
+  console.log("[pi-local] stored /login API key credential is used when no env key exists")
+  writeFileSync(
+    authPath,
+    JSON.stringify({ commandcode: { type: "api_key", key: "stored-api-key" } }),
+  )
+  requestCount = 0
+  lastRequestHeaders = {}
+  const apiKeyPrint = await runPi(authArgs, { env: noEnvKey })
+  assert.equal(apiKeyPrint.code, 0, apiKeyPrint.stderr)
+  assert.match(apiKeyPrint.stdout, /mock-pi-ok/)
+  assert.equal(requestCount, 1)
+  assert.equal(lastRequestHeaders.authorization, "Bearer stored-api-key")
+
+  console.log("[pi-local] --api-key is used when no env key or stored credential exists")
+  rmSync(authPath, { force: true })
+  requestCount = 0
+  lastRequestHeaders = {}
+  const cliKeyPrint = await runPi([...authArgs, "--api-key", "cli-key"], { env: noEnvKey })
+  assert.equal(cliKeyPrint.code, 0, cliKeyPrint.stderr)
+  assert.match(cliKeyPrint.stdout, /mock-pi-ok/)
+  assert.equal(requestCount, 1)
+  assert.equal(lastRequestHeaders.authorization, "Bearer cli-key")
+
+  console.log("[pi-local] no credential at all never sends the placeholder")
+  requestCount = 0
+  lastRequestHeaders = {}
+  const noKeyPrint = await runPi(authArgs, { env: noEnvKey })
+  assert.notEqual(noKeyPrint.code, 0)
+  assert.equal(requestCount, 0, JSON.stringify(lastRequestHeaders))
+  assert.doesNotMatch(noKeyPrint.stdout + noKeyPrint.stderr, /\$COMMAND_CODE_API_KEY/)
 
   console.log("[pi-local] Claude request through Anthropic Messages endpoint")
   requestCount = 0
