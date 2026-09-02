@@ -17,6 +17,7 @@ import {
 import { join } from "node:path"
 
 import { getConfiguredApiKey } from "./src/api-key.ts"
+import { pickCommandCodeApiKey, withResolvedCommandCodeApiKey } from "./src/converters.ts"
 import { createStreamCommandCode } from "./src/core.ts"
 import { calculateCommandCodeCost } from "./src/cost.ts"
 import {
@@ -76,7 +77,10 @@ function createProviderConfig(
   return {
     name: "Command Code",
     baseUrl: apiBase,
-    apiKey: getConfiguredApiKey() ?? "$COMMAND_CODE_API_KEY",
+    // Never register an unresolved `$COMMAND_CODE_API_KEY` placeholder.
+    // Oh My Pi treats that literal as a config override, which shadows
+    // `/login` OAuth and sends `Authorization: Bearer $COMMAND_CODE_API_KEY`.
+    apiKey: pickCommandCodeApiKey(getConfiguredApiKey(), undefined),
     api: COMMAND_CODE_API,
     streamSimple: streamCommandCode,
     headers,
@@ -132,15 +136,18 @@ export default async function (pi: ExtensionAPI) {
     calculateCost: calculateCommandCodeCost,
     apiBase: legacyApiBase(apiBase),
   })
+  const resolveStreamOptions = (options?: Parameters<typeof streamNativeProvider>[2]) =>
+    withResolvedCommandCodeApiKey(options, getConfiguredApiKey())
   const transport = createCommandCodeTransportRouter({
     createStream: () => new AssistantMessageEventStream(),
     streamProvider: (model, context, options) =>
       streamNativeProvider(
         { ...model, api: apiForModelId(model.id), compat: model.compatConfig ?? model.compat },
         context,
-        options,
+        resolveStreamOptions(options),
       ),
-    streamGenerate,
+    streamGenerate: (model, context, options) =>
+      streamGenerate(model, context, resolveStreamOptions(options)),
   })
 
   // pi dispatches the main chat through the registered provider, but sibling
@@ -149,13 +156,9 @@ export default async function (pi: ExtensionAPI) {
   // api-registry, which knows nothing about extension providers. Register the
   // custom api there so those calls reach the same transport. The registry
   // resolves no credentials for extension providers, so fall back to the
-  // configured key when the caller passes none.
+  // configured key when the caller passes none or a placeholder.
   const compatStream: CompatStreamFunction = (model, context, options) =>
-    transport.stream(
-      model,
-      context,
-      options?.apiKey ? options : { ...options, apiKey: getConfiguredApiKey() },
-    ) as AssistantMessageEventStream
+    transport.stream(model, context, resolveStreamOptions(options)) as AssistantMessageEventStream
   registerCompatApiProvider(compatStream)
 
   pi.on("message_end", async (event, ctx) => {

@@ -147,6 +147,13 @@ export const COMMAND_CODE_PLACEHOLDER_KEYS = new Set([
   "COMMANDCODE_API_KEY",
 ])
 
+function usableCommandCodeApiKey(value: string | undefined): string | undefined {
+  const trimmed = typeof value === "string" ? value.trim() : undefined
+  if (!trimmed) return undefined
+  if (COMMAND_CODE_PLACEHOLDER_KEYS.has(trimmed)) return undefined
+  return trimmed
+}
+
 /**
  * Pick the real API key from a host registry value and/or the env/auth-file
  * fallback, never returning a literal placeholder or an empty/whitespace value.
@@ -156,10 +163,20 @@ export function pickCommandCodeApiKey(
   registryKey: string | undefined,
   hostKey: string | undefined,
 ): string | undefined {
-  const trimmed = typeof registryKey === "string" ? registryKey.trim() : undefined
-  if (!trimmed) return hostKey
-  if (COMMAND_CODE_PLACEHOLDER_KEYS.has(trimmed)) return hostKey
-  return trimmed
+  return usableCommandCodeApiKey(registryKey) ?? usableCommandCodeApiKey(hostKey)
+}
+
+/**
+ * Replace a host-supplied placeholder (or missing key) with the configured
+ * fallback. Used for both registerProvider and the Provider API stream path.
+ */
+export function withResolvedCommandCodeApiKey<T extends { apiKey?: string }>(
+  options: T | undefined,
+  configuredKey: string | undefined,
+): T | { apiKey?: string } {
+  const apiKey = pickCommandCodeApiKey(options?.apiKey, configuredKey)
+  if (options && apiKey === options.apiKey) return options
+  return { ...options, apiKey }
 }
 
 export function textContent(message: { content?: unknown }): string {

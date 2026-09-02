@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Stop registering the unresolved `$COMMAND_CODE_API_KEY` placeholder as a provider `apiKey` when no env or auth-file key is configured. Oh My Pi treats that literal as a config override, which shadowed `/login` OAuth credentials and sent `Authorization: Bearer $COMMAND_CODE_API_KEY` (401). Chat now uses the stored OAuth key, matching `/commandcode-quota`.
+
 ## 0.6.2 - 2026-09-02
 
 - Fix `omp plugin install` on Oh My Pi 18.x, which rejected 0.6.1 because its pi-ai lacks the `registerApiProvider` export; the compat registration now resolves at runtime and is skipped on hosts that register custom APIs themselves.

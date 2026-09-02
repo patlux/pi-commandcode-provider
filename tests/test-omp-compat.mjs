@@ -176,19 +176,27 @@ const address = server.address()
 const port = typeof address === "object" && address ? address.port : 0
 const apiBase = `http://127.0.0.1:${port}`
 
-function runOmp(args, timeoutMs = 30_000) {
+function runOmp(args, timeoutOrOptions = 30_000) {
+  const options =
+    typeof timeoutOrOptions === "number" ? { timeoutMs: timeoutOrOptions } : timeoutOrOptions
+  const timeoutMs = options.timeoutMs ?? 30_000
+  const env = {
+    ...process.env,
+    HOME: tempHome,
+    USERPROFILE: tempHome,
+    PI_CODING_AGENT_DIR: join(tempHome, ".omp", "agent"),
+    COMMAND_CODE_API_KEY: "mock-key",
+    COMMANDCODE_API_BASE: `${apiBase}/provider/v1`,
+    COMMANDCODE_MODELS_URL: `${apiBase}/provider/v1/models`,
+  }
+  if ("apiKey" in options) {
+    if (options.apiKey === undefined) delete env.COMMAND_CODE_API_KEY
+    else env.COMMAND_CODE_API_KEY = options.apiKey
+  }
   return new Promise((resolve) => {
     const child = spawn(OMP_BIN, args, {
       cwd: PROJECT_DIR,
-      env: {
-        ...process.env,
-        HOME: tempHome,
-        USERPROFILE: tempHome,
-        PI_CODING_AGENT_DIR: join(tempHome, ".omp", "agent"),
-        COMMAND_CODE_API_KEY: "mock-key",
-        COMMANDCODE_API_BASE: `${apiBase}/provider/v1`,
-        COMMANDCODE_MODELS_URL: `${apiBase}/provider/v1/models`,
-      },
+      env,
       stdio: ["ignore", "pipe", "pipe"],
     })
     let stdout = ""
@@ -268,6 +276,25 @@ try {
   )
   assert.equal(lastRequestBody?.model, TEST_MODEL)
   assert.ok(Array.isArray(lastRequestBody?.messages))
+
+  console.log("[omp-compat] does not send the unresolved $COMMAND_CODE_API_KEY placeholder")
+  requestCount = 0
+  lastRequestHeaders = {}
+  await runOmp(["-e", EXT_PATH, "-p", "say mock token", "--model", `commandcode/${TEST_MODEL}`], {
+    timeoutMs: 30_000,
+    apiKey: undefined,
+  })
+  if (requestCount > 0) {
+    const authorization = lastRequestHeaders.authorization ?? ""
+    assert.notEqual(
+      authorization,
+      "Bearer $COMMAND_CODE_API_KEY",
+      "OMP must not send the unresolved placeholder as a Bearer token",
+    )
+    assert.notEqual(authorization, "Bearer $COMMANDCODE_API_KEY")
+    assert.notEqual(authorization, "Bearer COMMAND_CODE_API_KEY")
+    assert.notEqual(authorization, "Bearer COMMANDCODE_API_KEY")
+  }
 
   console.log("[omp-compat] developer advisory reaches the legacy generate request body")
   requestCount = 0

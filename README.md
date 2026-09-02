@@ -41,6 +41,8 @@ Run `/login` in pi or OMP. Select **Use a subscription**, then **Command Code**.
 
 If automatic transfer from the browser fails, copy the API key shown by Command Code and paste it into the terminal prompt.
 
+On Oh My Pi, `/login` stores those credentials in OMP's credential store. The provider does not register the unresolved `$COMMAND_CODE_API_KEY` placeholder, because OMP would treat that string as a config API key and it would hide the login credentials. If chat still returns `401 Invalid 'Authorization' header`, restart OMP after `/login` and confirm `/commandcode-quota` shows your account.
+
 ### Environment variable
 
 ```sh

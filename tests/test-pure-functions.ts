@@ -17,6 +17,7 @@ import {
   messagesToCC,
   parseStreamEventLine,
   pickCommandCodeApiKey,
+  withResolvedCommandCodeApiKey,
   projectSlugFromPath,
   textContent,
   toJsonSchema,
@@ -147,6 +148,42 @@ describe("pickCommandCodeApiKey()", () => {
 
   it("trims a real registry key", () => {
     assert.equal(pickCommandCodeApiKey("  real-registry-key  ", "file-key"), "real-registry-key")
+  })
+
+  it("never returns a placeholder as the host fallback", () => {
+    assert.equal(pickCommandCodeApiKey(undefined, "$COMMAND_CODE_API_KEY"), undefined)
+    assert.equal(pickCommandCodeApiKey("$COMMAND_CODE_API_KEY", "$COMMANDCODE_API_KEY"), undefined)
+    assert.equal(pickCommandCodeApiKey("COMMAND_CODE_API_KEY", "COMMANDCODE_API_KEY"), undefined)
+  })
+
+  it("omits a placeholder from registerProvider when no real key is configured", () => {
+    assert.equal(pickCommandCodeApiKey(undefined, undefined), undefined)
+    assert.equal(pickCommandCodeApiKey("$COMMAND_CODE_API_KEY", undefined), undefined)
+    assert.equal(pickCommandCodeApiKey("user_real-key", undefined), "user_real-key")
+  })
+})
+
+describe("withResolvedCommandCodeApiKey()", () => {
+  it("replaces a host placeholder with the configured key", () => {
+    assert.deepEqual(
+      withResolvedCommandCodeApiKey({ apiKey: "$COMMAND_CODE_API_KEY", extra: true }, "file-key"),
+      { apiKey: "file-key", extra: true },
+    )
+  })
+
+  it("drops a placeholder when no configured key exists", () => {
+    assert.deepEqual(
+      withResolvedCommandCodeApiKey({ apiKey: "$COMMAND_CODE_API_KEY" }, undefined),
+      {
+        apiKey: undefined,
+      },
+    )
+  })
+
+  it("keeps a real host key and injects a configured key when the host omitted one", () => {
+    const options = { apiKey: "host-key" }
+    assert.equal(withResolvedCommandCodeApiKey(options, "file-key"), options)
+    assert.deepEqual(withResolvedCommandCodeApiKey(undefined, "file-key"), { apiKey: "file-key" })
   })
 })
 
