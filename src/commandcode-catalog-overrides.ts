@@ -20,4 +20,6 @@ export const MODEL_EFFORT_OVERRIDES: Readonly<
   "meta/muse-spark-1.1": ["minimal", "low", "medium", "high", "xhigh"],
   "meta/muse-spark-1.2": ["minimal", "low", "medium", "high", "xhigh"],
   "meta/muse-spark-1.2-contributor": ["minimal", "low", "medium", "high", "xhigh"],
+  "meta/muse-spark-1.3": ["minimal", "low", "medium", "high", "xhigh"],
+  "meta/muse-spark-1.3-contributor": ["minimal", "low", "medium", "high", "xhigh"],
 }
