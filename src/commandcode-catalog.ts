@@ -1,10 +1,10 @@
-export const COMMAND_CODE_CLI_VERSION = "1.40.1"
+export const COMMAND_CODE_CLI_VERSION = "1.44.0"
 
 export type CommandCodeInputType = "text" | "image"
 export type CommandCodeReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | "max"
 
 /**
- * Generated from command-code@1.40.1 by `npm run sync:commandcode-catalog`.
+ * Generated from command-code@1.44.0 by `npm run sync:commandcode-catalog`.
  * Do not edit manually.
  */
 export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCodeInputType[]>> = {
@@ -22,6 +22,7 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "google/gemini-3.5-flash-lite": ["text", "image"],
   "google/gemini-3.6-flash": ["text", "image"],
   "google/gemini-3.7-flash": ["text", "image"],
+  "google/gemini-3.8-flash": ["text", "image"],
   "gpt-5.3-codex": ["text", "image"],
   "gpt-5.4": ["text", "image"],
   "gpt-5.4-mini": ["text", "image"],
@@ -46,6 +47,7 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "Qwen/Qwen3.8-27B": ["text", "image"],
   "Qwen/Qwen3.8-Flash": ["text", "image"],
   "Qwen/Qwen3.8-Max": ["text", "image"],
+  "Qwen/Qwen3.8-Max-0902": ["text", "image"],
   "sakana/fugu-ultra": ["text", "image"],
   "stepfun/Step-3.7-Flash": ["text", "image"],
   "thinkingmachines/inkling": ["text", "image"],
@@ -72,6 +74,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "google/gemini-3.5-flash-lite": true,
   "google/gemini-3.6-flash": true,
   "google/gemini-3.7-flash": true,
+  "google/gemini-3.8-flash": true,
   "gpt-5.3-codex": true,
   "gpt-5.4": true,
   "gpt-5.4-mini": true,
@@ -79,6 +82,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "gpt-5.6-luna": true,
   "gpt-5.6-sol": true,
   "gpt-5.6-terra": true,
+  "meituan/LongCat-2.0:free": true,
   "meta/muse-spark-1.1": true,
   "meta/muse-spark-1.2": true,
   "meta/muse-spark-1.2-contributor": true,
@@ -98,6 +102,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "Qwen/Qwen3.8-27B": true,
   "Qwen/Qwen3.8-Flash": true,
   "Qwen/Qwen3.8-Max": true,
+  "Qwen/Qwen3.8-Max-0902": true,
   "sakana/fugu-ultra": true,
   "stepfun/Step-3.5-Flash": true,
   "stepfun/Step-3.7-Flash": true,
@@ -129,6 +134,7 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "google/gemini-3.5-flash-lite": ["low", "medium", "high"],
   "google/gemini-3.6-flash": ["low", "medium", "high"],
   "google/gemini-3.7-flash": ["low", "medium", "high"],
+  "google/gemini-3.8-flash": ["low", "medium", "high"],
   "gpt-5.3-codex": ["low", "medium", "high", "xhigh"],
   "gpt-5.4": ["low", "medium", "high", "xhigh"],
   "gpt-5.4-mini": ["low", "medium", "high"],
@@ -140,6 +146,7 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "Qwen/Qwen3.8-27B": ["low", "medium", "xhigh"],
   "Qwen/Qwen3.8-Flash": ["low", "medium", "xhigh"],
   "Qwen/Qwen3.8-Max": ["low", "medium", "xhigh"],
+  "Qwen/Qwen3.8-Max-0902": ["low", "medium", "xhigh"],
   "sakana/fugu-ultra": ["high", "xhigh"],
   "tencent/hy4-preview": ["low", "medium", "high"],
   "xai/grok-4.5": ["low", "medium", "high"],
