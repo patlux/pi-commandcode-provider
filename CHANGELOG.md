@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.6.4 - 2026-09-03
+
+- Refresh the generated Command Code capability catalog from `command-code@1.40.1` to `command-code@1.44.0`, adding current image-input, reasoning, effort, and output-limit metadata for newly published models.
+- Expose selectable thinking levels (`minimal`, `low`, `medium`, `high`, `xhigh`) for `meta/muse-spark-1.3` and `meta/muse-spark-1.3-contributor`, so Pi and Oh My Pi forward the selected `reasoning_effort` instead of keeping thinking disabled.
+
+### Contributors
+
+- @heie54 — added and validated Muse Spark 1.3 reasoning support (#80).
+
 ## 0.6.3 - 2026-09-02
 
 - Fix Oh My Pi chat returning `401 Invalid 'Authorization' header` after `/login`: OMP kept the unresolved `$COMMAND_CODE_API_KEY` placeholder as a literal config API key that shadowed its stored credentials and was sent as the Bearer token. The placeholder is now registered only on pi, where it keeps the API-key login method and `--api-key` working next to OAuth; on OMP the provider omits `apiKey` unless a real key is configured. Placeholders passed by the host are also resolved or stripped on the Provider API and compat stream paths, and the legacy generate transport resolves its key through the same rule.
