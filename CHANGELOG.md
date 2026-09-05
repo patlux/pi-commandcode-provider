@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Batch consecutive tool-result images after all tool results on the generate transport, preventing interleaved user messages from breaking multi-tool turns with "Tool result is missing".
+
 ## 0.6.4 - 2026-09-03
 
 - Refresh the generated Command Code capability catalog from `command-code@1.40.1` to `command-code@1.44.0`, adding current image-input, reasoning, effort, and output-limit metadata for newly published models.
