@@ -712,6 +712,60 @@ describe("messagesToCC()", () => {
     })
   })
 
+  it("batches consecutive tool-result images after all tool results instead of interleaving user messages", () => {
+    const result = messagesToCC(
+      [
+        { role: "user", content: "read two images" },
+        {
+          role: "assistant",
+          content: [
+            { type: "toolCall", id: "c1", name: "read", arguments: { path: "a.png" } },
+            { type: "toolCall", id: "c2", name: "read", arguments: { path: "b.png" } },
+          ],
+        },
+        {
+          role: "toolResult",
+          toolCallId: "c1",
+          toolName: "read",
+          content: [
+            { type: "text", text: "image a" },
+            { type: "image", data: "YWFh", mimeType: "image/png" },
+          ],
+        },
+        {
+          role: "toolResult",
+          toolCallId: "c2",
+          toolName: "read",
+          content: [
+            { type: "text", text: "image b" },
+            { type: "image", data: "YmJi", mimeType: "image/png" },
+          ],
+        },
+      ],
+      { allowImages: true },
+    )
+
+    assert.equal(objectAt(result, ["2", "role"]), "tool")
+    assert.equal(objectAt(result, ["2", "content", "0", "toolCallId"]), "c1")
+    assert.equal(objectAt(result, ["3", "role"]), "tool")
+    assert.equal(objectAt(result, ["3", "content", "0", "toolCallId"]), "c2")
+    assert.deepEqual(objectAt(result, ["4"]), {
+      role: "user",
+      content: [
+        {
+          type: "image",
+          image: "data:image/png;base64,YWFh",
+          mimeType: "image/png",
+        },
+        {
+          type: "image",
+          image: "data:image/png;base64,YmJi",
+          mimeType: "image/png",
+        },
+      ],
+    })
+  })
+
   it("drops previous assistant reasoning while preserving text and tool calls", () => {
     const result = messagesToCC([
       { role: "user", content: "first question" },
