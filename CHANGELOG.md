@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Add display pricing for newly added models from command-code@1.44.0 (meta/muse-spark-1.3, meta/muse-spark-1.3-contributor, google/gemini-3.8-flash, Qwen/Qwen3.8-Max-0902, and meituan/LongCat-2.0:free), fixing zero-cost calculation (#83).
+- Add display pricing for newly added models from command-code@1.50.0 (gpt-6-astra, meta/muse-spark-1.3, meta/muse-spark-1.3-contributor, google/gemini-3.8-flash, Qwen/Qwen3.8-Max-0902, and meituan/LongCat-2.0:free), fixing zero-cost calculation (#83).
 
 ## 0.6.4 - 2026-09-03
 

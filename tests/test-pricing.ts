@@ -198,6 +198,12 @@ describe("MODEL_COSTS pricing overlay", () => {
       cacheRead: 0.002,
       cacheWrite: 0,
     })
+    assertCost("gpt-6-astra", {
+      input: 10,
+      output: 50,
+      cacheRead: 1,
+      cacheWrite: 12.5,
+    })
   })
 
   it("uses the documented base rates for context-dependent models", () => {
@@ -238,7 +244,7 @@ describe("MODEL_COSTS pricing overlay", () => {
 
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-09-05")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-09-06")
   })
 
   it("fails once temporary pricing needs review", () => {

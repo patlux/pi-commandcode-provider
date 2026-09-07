@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-09-05T09:25:55.533Z",
+  "fetchedAt": "2026-09-06T07:29:55.533Z",
   "source": "https://api.commandcode.ai/provider/v1/models",
   "modelIds": [
     "claude-sonnet-5",
@@ -10,6 +10,7 @@
     "claude-opus-4-8",
     "claude-opus-4-7",
     "claude-haiku-4-5-20251001",
+    "gpt-6-astra",
     "gpt-5.6-sol",
     "gpt-5.6-terra",
     "gpt-5.6-luna",
