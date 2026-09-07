@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Refresh model capabilities to `command-code@1.50.0`, adding GPT-6 Astra reasoning/image support and Grok 4.6 image support; replace Muse Spark manual efforts with published upstream levels.
+- Verify pricing coverage for all 68 website-listed models and refresh regression tests, retaining Astra pricing while it is absent from the live Provider API catalog.
+- Fixing zero-cost calculation (#83).
+
 ## 0.6.4 - 2026-09-03
 
 - Refresh the generated Command Code capability catalog from `command-code@1.40.1` to `command-code@1.44.0`, adding current image-input, reasoning, effort, and output-limit metadata for newly published models.

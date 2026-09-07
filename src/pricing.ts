@@ -20,7 +20,7 @@ export interface TemporaryPricing {
 }
 
 export const PRICING_SOURCE_URL = "https://commandcode.ai/docs/resources/pricing-limits"
-export const PRICING_LAST_VERIFIED = "2026-09-01"
+export const PRICING_LAST_VERIFIED = "2026-09-06"
 
 export const ZERO_MODEL_COST: CommandCodeModelCost = {
   input: 0,
@@ -40,6 +40,7 @@ export const ZERO_MODEL_COST: CommandCodeModelCost = {
 export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   // Free models
   "poolside/laguna-s-2.1-free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  "meituan/LongCat-2.0:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 
   // Open and open-weight models
   "tencent/hy3-paid": { input: 0.14, output: 0.58, cacheRead: 0.035, cacheWrite: 0 },
@@ -90,6 +91,7 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
     cacheWrite: 0,
   },
   "Qwen/Qwen3.8-Max": { input: 2, output: 6, cacheRead: 0.25, cacheWrite: 2.5 },
+  "Qwen/Qwen3.8-Max-0902": { input: 2, output: 6, cacheRead: 0.25, cacheWrite: 0 },
   "Qwen/Qwen3.8-27B": { input: 0.4, output: 3, cacheRead: 0.04, cacheWrite: 0 },
   "Qwen/Qwen3.8-Flash": { input: 0.16, output: 0.47, cacheRead: 0.016, cacheWrite: 0 },
   "Qwen/Qwen3.7-Max": { input: 2.5, output: 7.5, cacheRead: 0.5, cacheWrite: 3.13 },
@@ -164,6 +166,13 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
     cacheRead: 0.002,
     cacheWrite: 0,
   },
+  "meta/muse-spark-1.3": { input: 1.25, output: 4.25, cacheRead: 0.15, cacheWrite: 0 },
+  "meta/muse-spark-1.3-contributor": {
+    input: 0.1,
+    output: 0.2,
+    cacheRead: 0.002,
+    cacheWrite: 0,
+  },
 
   // Anthropic
   "claude-sonnet-5": { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
@@ -181,6 +190,21 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   },
 
   // OpenAI
+  "gpt-6-astra": {
+    input: 10,
+    output: 50,
+    cacheRead: 1,
+    cacheWrite: 12.5,
+    tiers: [
+      {
+        inputTokensAbove: 272_000,
+        input: 20,
+        output: 75,
+        cacheRead: 2,
+        cacheWrite: 12.5,
+      },
+    ],
+  },
   "gpt-5.6-sol": { input: 5, output: 30, cacheRead: 0.5, cacheWrite: 6.25 },
   "gpt-5.6-terra": { input: 2, output: 12, cacheRead: 0.2, cacheWrite: 2.5 },
   "gpt-5.6-luna": { input: 0.2, output: 1.2, cacheRead: 0.02, cacheWrite: 0.25 },
@@ -190,6 +214,7 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   "gpt-5.4-mini": { input: 0.75, output: 4.5, cacheRead: 0.075, cacheWrite: 0 },
 
   // Google and xAI
+  "google/gemini-3.8-flash": { input: 1.5, output: 7.5, cacheRead: 0.15, cacheWrite: 0 },
   "google/gemini-3.7-flash": {
     input: 1.5,
     output: 7.5,

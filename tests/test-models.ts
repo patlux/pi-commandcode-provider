@@ -126,6 +126,29 @@ describe("commandCodeModelsFromApiResponse()", () => {
     assert.equal(modelSupportsImageInput("unknown-new-model"), false)
   })
 
+  it("includes newly published image and reasoning capabilities", () => {
+    for (const modelId of ["gpt-6-astra", "xai/grok-4.6"]) {
+      assert.deepEqual(inputModalitiesForModel(modelId), ["text", "image"])
+    }
+    assert.equal(MODEL_REASONING["gpt-6-astra"], true)
+    assert.deepEqual(MODEL_EFFORTS["gpt-6-astra"], ["low", "medium", "high", "xhigh", "max"])
+    for (const modelId of [
+      "meta/muse-spark-1.1",
+      "meta/muse-spark-1.2",
+      "meta/muse-spark-1.2-contributor",
+      "meta/muse-spark-1.3-contributor",
+    ]) {
+      assert.deepEqual(MODEL_EFFORTS[modelId], ["low", "medium", "high", "xhigh"])
+    }
+    assert.deepEqual(MODEL_EFFORTS["meta/muse-spark-1.3"], [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+    ])
+  })
+
   it("tracks reasoning independently from selectable effort levels", () => {
     const reasoningModels = Object.keys(MODEL_REASONING)
     const effortModels = Object.keys(MODEL_EFFORTS)
@@ -198,7 +221,6 @@ describe("commandCodeModelsFromApiResponse()", () => {
 
   it("merges manual effort overrides over the generated catalog", () => {
     const validEfforts = new Set(["minimal", "low", "medium", "high", "xhigh", "max"])
-    assert.ok(Object.keys(MODEL_EFFORT_OVERRIDES).length > 0)
     for (const [modelId, efforts] of Object.entries(MODEL_EFFORT_OVERRIDES)) {
       assert.equal(MODEL_REASONING[modelId], true, `${modelId} override needs a reasoning flag`)
       assert.equal(
