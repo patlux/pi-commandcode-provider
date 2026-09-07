@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-- Add display pricing for newly added models from command-code@1.50.0 (gpt-6-astra, meta/muse-spark-1.3, meta/muse-spark-1.3-contributor, google/gemini-3.8-flash, Qwen/Qwen3.8-Max-0902, and meituan/LongCat-2.0:free), fixing zero-cost calculation (#83).
+- Refresh model capabilities to `command-code@1.50.0`, adding GPT-6 Astra reasoning/image support and Grok 4.6 image support; replace Muse Spark manual efforts with published upstream levels.
+- Verify pricing coverage for all 68 website-listed models and refresh regression tests, retaining Astra pricing while it is absent from the live Provider API catalog.
+- Fixing zero-cost calculation (#83).
 
 ## 0.6.4 - 2026-09-03
 

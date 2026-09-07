@@ -52,7 +52,7 @@ describe("MODEL_COSTS pricing overlay", () => {
     assert.equal(fixture.source, "https://api.commandcode.ai/provider/v1/models")
     assert.match(fixture.fetchedAt, /^2026-09-/)
 
-    const catalogIds = [...fixture.modelIds].sort()
+    const catalogIds = [...new Set([...fixture.modelIds, "gpt-6-astra"])].sort()
     const pricedIds = Object.keys(MODEL_COSTS).sort()
     assert.deepEqual(pricedIds, catalogIds)
   })
@@ -198,11 +198,41 @@ describe("MODEL_COSTS pricing overlay", () => {
       cacheRead: 0.002,
       cacheWrite: 0,
     })
-    assertCost("gpt-6-astra", {
+  })
+
+  it("prices the latest website-listed models explicitly", () => {
+    assertCost("Qwen/Qwen3.8-Max-0902", {
+      input: 2,
+      output: 6,
+      cacheRead: 0.25,
+      cacheWrite: 0,
+    })
+    assertCost("google/gemini-3.8-flash", {
+      input: 1.5,
+      output: 7.5,
+      cacheRead: 0.15,
+      cacheWrite: 0,
+    })
+    assertCost("meituan/LongCat-2.0:free", {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    })
+    assert.deepEqual(MODEL_COSTS["gpt-6-astra"], {
       input: 10,
       output: 50,
       cacheRead: 1,
       cacheWrite: 12.5,
+      tiers: [
+        {
+          inputTokensAbove: 272_000,
+          input: 20,
+          output: 75,
+          cacheRead: 2,
+          cacheWrite: 12.5,
+        },
+      ],
     })
   })
 

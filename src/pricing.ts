@@ -251,6 +251,6 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
       },
     ],
   },
-};
+}
 
-export const TEMPORARY_PRICING: readonly TemporaryPricing[] = [];
+export const TEMPORARY_PRICING: readonly TemporaryPricing[] = []
