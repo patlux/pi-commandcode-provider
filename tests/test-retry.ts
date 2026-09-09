@@ -322,6 +322,40 @@ describe("streamCommandCode — timeout", () => {
     if (error?.type !== "error") throw new Error("expected error")
     assert.match(error.error.errorMessage ?? "", /timed out after 50ms/)
   })
+
+  // https://github.com/patlux/pi-commandcode-provider/issues/87
+  it("does not abort actively streaming responses that exceed timeoutMs overall", async () => {
+    server.mockResponse({
+      type: "success",
+      events: [
+        JSON.stringify({ type: "text-delta", text: "chunk 1 " }),
+        JSON.stringify({ type: "text-delta", text: "chunk 2 " }),
+        JSON.stringify({ type: "text-delta", text: "chunk 3 " }),
+        JSON.stringify({ type: "finish", finishReason: "stop" }),
+      ],
+      delays: [0, 30, 30, 30],
+    })
+    const { streamCommandCode } = createTestDeps({ apiBase: server.baseUrl() })
+
+    const events = await collectEvents(
+      streamCommandCode(makeModel(), makeContext(), {
+        apiKey: TEST_API_KEY,
+        timeoutMs: 50,
+      }),
+      5_000,
+    )
+
+    assert.equal(server.requestCount(), 1)
+    assert.deepEqual(eventTypes(events), [
+      "start",
+      "text_start",
+      "text_delta",
+      "text_delta",
+      "text_delta",
+      "text_end",
+      "done",
+    ])
+  })
 })
 
 describe("streamCommandCode — abort cancels retry loop", () => {

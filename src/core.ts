@@ -708,6 +708,7 @@ export function createStreamCommandCode(deps: CoreDependencies) {
                 if (controller.signal.aborted) throw abortError("Aborted")
                 const { done, value } = await raceAbort(reader.read(), attemptController.signal)
                 if (done) {
+                  clearAttemptTimeout()
                   if (buffer.trim()) handleEvent(parseStreamEventLine(buffer))
                   if (!finished) {
                     throw new Error(
@@ -715,6 +716,13 @@ export function createStreamCommandCode(deps: CoreDependencies) {
                     )
                   }
                   break
+                }
+                if (timeoutMs !== undefined) {
+                  clearAttemptTimeout()
+                  attemptTimeoutId = setTimeout(() => {
+                    attemptTimedOut = true
+                    attemptController.abort()
+                  }, timeoutMs)
                 }
                 if (controller.signal.aborted) throw abortError("Aborted")
 

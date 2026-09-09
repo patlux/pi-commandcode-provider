@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Treat `timeoutMs` as an idle gap timeout between received chunks rather than a total wall-clock limit on the entire stream, so long reasoning streams that actively yield tokens are not aborted after 300 seconds ([#87](https://github.com/patlux/pi-commandcode-provider/issues/87)).
+
 ## 0.6.4 - 2026-09-03
 
 - Refresh the generated Command Code capability catalog from `command-code@1.40.1` to `command-code@1.44.0`, adding current image-input, reasoning, effort, and output-limit metadata for newly published models.
