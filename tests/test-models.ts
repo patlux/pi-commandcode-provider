@@ -4,10 +4,14 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, it } from "node:test"
 
-import { MODEL_EFFORT_OVERRIDES } from "../src/commandcode-catalog-overrides.ts"
+import {
+  MODEL_EFFORT_OVERRIDES,
+  MODEL_INPUT_MODALITIES_OVERRIDES,
+} from "../src/commandcode-catalog-overrides.ts"
 import {
   COMMAND_CODE_CLI_VERSION,
   MODEL_EFFORTS as CATALOG_MODEL_EFFORTS,
+  MODEL_INPUT_MODALITIES as CATALOG_MODEL_INPUT_MODALITIES,
 } from "../src/commandcode-catalog.ts"
 import {
   apiForModelId,
@@ -213,6 +217,30 @@ describe("commandCodeModelsFromApiResponse()", () => {
     }
     for (const [modelId, efforts] of Object.entries(CATALOG_MODEL_EFFORTS)) {
       assert.deepEqual(MODEL_EFFORTS[modelId], efforts, `${modelId} upstream efforts changed`)
+    }
+  })
+
+  it("merges manual input-modality overrides over the generated catalog", () => {
+    assert.ok(Object.keys(MODEL_INPUT_MODALITIES_OVERRIDES).length > 0)
+    for (const [modelId, modalities] of Object.entries(MODEL_INPUT_MODALITIES_OVERRIDES)) {
+      assert.equal(
+        CATALOG_MODEL_INPUT_MODALITIES[modelId],
+        undefined,
+        `${modelId} now has upstream modalities; drop the manual override`,
+      )
+      assert.ok(
+        modalities.includes("image"),
+        `${modelId} override is pointless without image input`,
+      )
+      assert.deepEqual(inputModalitiesForModel(modelId), modalities)
+      assert.equal(modelSupportsImageInput(modelId), true)
+    }
+    for (const [modelId, modalities] of Object.entries(CATALOG_MODEL_INPUT_MODALITIES)) {
+      assert.deepEqual(
+        MODEL_INPUT_MODALITIES[modelId],
+        modalities,
+        `${modelId} upstream modalities changed`,
+      )
     }
   })
 

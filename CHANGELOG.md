@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Enable image input for models the pinned catalog predates. `src/commandcode-catalog.ts` is generated from a Command Code CLI release, so a model published afterwards is absent from `MODEL_INPUT_MODALITIES` and stays text-only until the next catalog sync: the provider transport publishes `input: ["text"]` to the host and the generate transport refuses image blocks. A new `MODEL_INPUT_MODALITIES_OVERRIDES` hook next to the effort overrides carries the modalities. It re-enables vision for `deepseek/deepseek-v4.1-flash` and `xai/grok-4.6`, both served by the Provider API and both declared `inputModalities:["text","image"]` by `command-code@1.53.0`.
+
+### Contributors
+
+- @eibednejo — added the input-modality override hook and the vision entries for the affected models.
+
 ## 0.6.4 - 2026-09-03
 
 - Refresh the generated Command Code capability catalog from `command-code@1.40.1` to `command-code@1.44.0`, adding current image-input, reasoning, effort, and output-limit metadata for newly published models.
