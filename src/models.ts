@@ -1,12 +1,15 @@
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import { dirname } from "node:path"
 
-import { MODEL_EFFORT_OVERRIDES } from "./commandcode-catalog-overrides.ts"
+import {
+  MODEL_EFFORT_OVERRIDES,
+  MODEL_REASONING_OVERRIDES,
+} from "./commandcode-catalog-overrides.ts"
 import {
   MODEL_EFFORTS as CATALOG_MODEL_EFFORTS,
   MODEL_INPUT_MODALITIES,
   MODEL_MAX_OUTPUT_TOKENS,
-  MODEL_REASONING,
+  MODEL_REASONING as CATALOG_MODEL_REASONING,
   type CommandCodeInputType,
   type CommandCodeReasoningEffort,
 } from "./commandcode-catalog.ts"
@@ -17,7 +20,13 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   ...MODEL_EFFORT_OVERRIDES,
 }
 
-export { MODEL_INPUT_MODALITIES, MODEL_MAX_OUTPUT_TOKENS, MODEL_REASONING }
+/** Upstream CLI reasoning flags with the manual overrides merged over them. */
+export const MODEL_REASONING: Readonly<Record<string, true>> = {
+  ...CATALOG_MODEL_REASONING,
+  ...MODEL_REASONING_OVERRIDES,
+}
+
+export { MODEL_INPUT_MODALITIES, MODEL_MAX_OUTPUT_TOKENS }
 export type { CommandCodeInputType }
 
 export const DEFAULT_PROVIDER_API_BASE = "https://api.commandcode.ai/provider/v1"

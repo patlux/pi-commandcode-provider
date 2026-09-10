@@ -4,10 +4,14 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, it } from "node:test"
 
-import { MODEL_EFFORT_OVERRIDES } from "../src/commandcode-catalog-overrides.ts"
+import {
+  MODEL_EFFORT_OVERRIDES,
+  MODEL_REASONING_OVERRIDES,
+} from "../src/commandcode-catalog-overrides.ts"
 import {
   COMMAND_CODE_CLI_VERSION,
   MODEL_EFFORTS as CATALOG_MODEL_EFFORTS,
+  MODEL_REASONING as CATALOG_MODEL_REASONING,
 } from "../src/commandcode-catalog.ts"
 import {
   apiForModelId,
@@ -213,6 +217,22 @@ describe("commandCodeModelsFromApiResponse()", () => {
     }
     for (const [modelId, efforts] of Object.entries(CATALOG_MODEL_EFFORTS)) {
       assert.deepEqual(MODEL_EFFORTS[modelId], efforts, `${modelId} upstream efforts changed`)
+    }
+  })
+
+  it("merges manual reasoning overrides over the generated catalog", () => {
+    assert.ok(Object.keys(MODEL_REASONING_OVERRIDES).length > 0)
+    for (const modelId of Object.keys(MODEL_REASONING_OVERRIDES)) {
+      assert.equal(
+        CATALOG_MODEL_REASONING[modelId],
+        undefined,
+        `${modelId} now has an upstream reasoning flag; drop the manual override`,
+      )
+      assert.equal(MODEL_REASONING[modelId], true)
+      assert.ok(
+        MODEL_EFFORTS[modelId]?.length,
+        `${modelId} needs selectable efforts; the endpoint rejects a bare reasoning flag`,
+      )
     }
   })
 

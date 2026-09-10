@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Enable thinking for `deepseek/deepseek-v4.1-flash` and future catalog-gap models. `src/commandcode-catalog.ts` is pinned to a Command Code CLI release, so a model added upstream afterwards has no reasoning flag until the next catalog sync, and Pi forwarded no `reasoning_effort` for it. A new `MODEL_REASONING_OVERRIDES` hook next to the existing effort overrides carries the flag, and Pi and Oh My Pi now expose `low`, `high`, and `max` for that model (#90).
+
+### Contributors
+
+- @Fu3rte — reported the catalog-gap reasoning failure and proposed the override hook (#90).
+
 ## 0.6.4 - 2026-09-03
 
 - Refresh the generated Command Code capability catalog from `command-code@1.40.1` to `command-code@1.44.0`, adding current image-input, reasoning, effort, and output-limit metadata for newly published models.

@@ -8,7 +8,7 @@ import { after, before, beforeEach, describe, it } from "node:test"
 
 import { COMMAND_CODE_CLI_VERSION } from "../src/commandcode-catalog.ts"
 import type { AssistantMessageEvent } from "../src/core.ts"
-import { MODEL_EFFORTS, thinkingLevelMapForEfforts } from "../src/models.ts"
+import { MODEL_EFFORTS, MODEL_REASONING, thinkingLevelMapForEfforts } from "../src/models.ts"
 import {
   collectEvents,
   createTestDeps,
@@ -843,6 +843,28 @@ describe("streamCommandCode — request serialization", () => {
       id: "deepseek/deepseek-v4-flash",
       reasoning: true,
       thinkingLevelMap: thinkingLevelMapForEfforts(MODEL_EFFORTS["deepseek/deepseek-v4-flash"]),
+    })
+
+    await collectEvents(
+      streamCommandCode(model, makeContext(), { apiKey: "mock-key", reasoning: "max" }),
+    )
+
+    assert.equal(objectAt(server.lastRequestBody(), ["params", "reasoning_effort"]), "max")
+  })
+
+  it("forwards a supported Pi reasoning level for a catalog-gap model", async () => {
+    server.mockResponse({
+      type: "success",
+      events: [JSON.stringify({ type: "finish", finishReason: "stop" })],
+    })
+    const { streamCommandCode } = createTestDeps({ apiBase: server.baseUrl() })
+    // Model added upstream after the pinned catalog: its metadata comes only
+    // from the manual overrides, so a missing flag or effort list drops the field.
+    const modelId = "deepseek/deepseek-v4.1-flash"
+    const model = makeModel({
+      id: modelId,
+      reasoning: MODEL_REASONING[modelId] === true,
+      thinkingLevelMap: thinkingLevelMapForEfforts(MODEL_EFFORTS[modelId]),
     })
 
     await collectEvents(
