@@ -20,7 +20,7 @@ export interface TemporaryPricing {
 }
 
 export const PRICING_SOURCE_URL = "https://commandcode.ai/docs/resources/pricing-limits"
-export const PRICING_LAST_VERIFIED = "2026-09-06"
+export const PRICING_LAST_VERIFIED = "2026-09-11"
 
 export const ZERO_MODEL_COST: CommandCodeModelCost = {
   input: 0,
@@ -41,6 +41,7 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   // Free models
   "poolside/laguna-s-2.1-free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   "meituan/LongCat-2.0:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  "inclusionai/ling-3.0-flash-sante:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 
   // Open and open-weight models
   "tencent/hy3-paid": { input: 0.14, output: 0.58, cacheRead: 0.035, cacheWrite: 0 },
@@ -88,6 +89,12 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
     input: 0.28,
     output: 0.56,
     cacheRead: 0.07,
+    cacheWrite: 0,
+  },
+  "deepseek/deepseek-v4.1-flash": {
+    input: 0.15,
+    output: 0.6,
+    cacheRead: 0.003,
     cacheWrite: 0,
   },
   "Qwen/Qwen3.8-Max": { input: 2, output: 6, cacheRead: 0.25, cacheWrite: 2.5 },

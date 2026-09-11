@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add DeepSeek V4.1 Flash with image input, reasoning efforts, and display pricing, and InclusionAI Ling 3.0 Flash Sante with reasoning, a 32K output limit, and free pricing; refresh the generated capability catalog to `command-code@1.53.0`.
 - Refresh model capabilities to `command-code@1.50.0`, adding GPT-6 Astra reasoning/image support and Grok 4.6 image support; replace Muse Spark manual efforts with published upstream levels.
 - Verify pricing coverage for all 68 website-listed models and refresh regression tests, retaining Astra pricing while it is absent from the live Provider API catalog.
 - Fixing zero-cost calculation (#83).
