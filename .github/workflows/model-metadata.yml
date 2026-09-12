@@ -58,7 +58,7 @@ jobs:
         run: npm run sync:commandcode-catalog | tee commandcode-catalog-report.md
       - name: Format and verify synchronized files
         run: |
-          npm run format -- src/commandcode-catalog.ts README.md
+          npm run format -- src/commandcode-catalog.ts src/commandcode-catalog-overrides.ts README.md
           npm run typecheck
           npm run test:models
           npm run format:check
@@ -87,4 +87,5 @@ jobs:
           assignees: patlux
           add-paths: |
             src/commandcode-catalog.ts
+            src/commandcode-catalog-overrides.ts
             README.md

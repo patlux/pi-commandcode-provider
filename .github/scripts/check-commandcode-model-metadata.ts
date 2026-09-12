@@ -40,6 +40,7 @@ function execNpmFileAsync(
 }
 const CATALOG_SOURCE_PATH = new URL("../../src/commandcode-catalog.ts", import.meta.url)
 const README_PATH = new URL("../../README.md", import.meta.url)
+const OVERRIDES_SOURCE_PATH = new URL("../../src/commandcode-catalog-overrides.ts", import.meta.url)
 
 export interface CommandCodeModelMetadata {
   imageModelIds: readonly string[]
@@ -379,6 +380,55 @@ function updateDocumentedCatalogVersion(
   return contents.replace(pattern, `command-code@${packageVersion}`)
 }
 
+const EFFORT_OVERRIDE_ENTRY = /^\s*"((?:[^"\\]|\\.)+)":\s*\[/
+
+/**
+ * Drop manual effort overrides that upstream now publishes itself.
+ *
+ * `tests/test-models.ts` fails while an override duplicates upstream efforts, so
+ * leaving the removal to a human kept the scheduled workflow red and blocked its
+ * own pull request. The overrides file is hand-formatted, so this rewrites single
+ * entry lines and leaves comments, ordering, and still-needed entries untouched.
+ */
+export function pruneObsoleteEffortOverrides(
+  contents: string,
+  upstreamEffortModelIds: readonly string[],
+): { contents: string; removedModelIds: readonly string[] } {
+  const upstreamModelIds = new Set(upstreamEffortModelIds)
+  const removedModelIds: string[] = []
+  const keptLines: string[] = []
+
+  for (const line of contents.split("\n")) {
+    const modelId = EFFORT_OVERRIDE_ENTRY.exec(line)?.[1]
+    if (modelId !== undefined && upstreamModelIds.has(modelId)) {
+      removedModelIds.push(modelId)
+      continue
+    }
+    keptLines.push(line)
+  }
+
+  if (removedModelIds.length === 0) return { contents, removedModelIds }
+
+  const kept = keptLines.join("\n")
+  const hasRemainingEntries = keptLines.some((line) => EFFORT_OVERRIDE_ENTRY.test(line))
+  return {
+    contents: hasRemainingEntries ? kept : collapseEmptyOverrideMap(kept),
+    removedModelIds: sorted(removedModelIds),
+  }
+}
+
+/** Render an override map without entries as `= {}` so the file stays formatted. */
+function collapseEmptyOverrideMap(contents: string): string {
+  const openIndex = contents.indexOf("= {")
+  const closeIndex = contents.lastIndexOf("}")
+  if (openIndex < 0 || closeIndex < openIndex) return contents
+
+  // Keep the trailing newline exactly once; leaving the removed block's blank
+  // lines behind would fail `npm run format:check` in the sync workflow.
+  const trailing = contents.slice(closeIndex + 1).replace(/^\n+/, "")
+  return `${contents.slice(0, openIndex)}= {}\n${trailing}`
+}
+
 export function updateReadmeCatalogVersion(readme: string, packageVersion: string): string {
   return updateDocumentedCatalogVersion(readme, packageVersion, "README")
 }
@@ -386,12 +436,19 @@ export function updateReadmeCatalogVersion(readme: string, packageVersion: strin
 async function writeSynchronizedCatalog(
   packageVersion: string,
   metadata: CommandCodeModelMetadata,
-): Promise<void> {
+): Promise<readonly string[]> {
   const readme = await readFile(README_PATH, "utf-8")
   await Promise.all([
     writeFile(CATALOG_SOURCE_PATH, renderCommandCodeCatalog(packageVersion, metadata), "utf-8"),
     writeFile(README_PATH, updateReadmeCatalogVersion(readme, packageVersion), "utf-8"),
   ])
+
+  const overrides = await readFile(OVERRIDES_SOURCE_PATH, "utf-8")
+  const pruned = pruneObsoleteEffortOverrides(overrides, Object.keys(metadata.reasoningEfforts))
+  if (pruned.removedModelIds.length > 0) {
+    await writeFile(OVERRIDES_SOURCE_PATH, pruned.contents, "utf-8")
+  }
+  return pruned.removedModelIds
 }
 
 function metadataReport(
@@ -510,8 +567,16 @@ async function main(): Promise<void> {
   console.log(report)
 
   if (write) {
-    await writeSynchronizedCatalog(upstreamPackage.packageVersion, upstreamPackage.metadata)
+    const removedOverrides = await writeSynchronizedCatalog(
+      upstreamPackage.packageVersion,
+      upstreamPackage.metadata,
+    )
     console.log(`Synchronized static metadata with command-code@${upstreamPackage.packageVersion}.`)
+    if (removedOverrides.length > 0) {
+      console.log(
+        `Removed ${removedOverrides.length} manual effort override(s) now published upstream: ${removedOverrides.join(", ")}.`,
+      )
+    }
     return
   }
 

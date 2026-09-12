@@ -6,11 +6,22 @@ import type { CommandCodeReasoningEffort } from "./commandcode-catalog.ts"
  *
  * `src/commandcode-catalog.ts` is generated from the CLI package and must stay
  * byte-identical to upstream so the daily drift check works. Entries here are
- * merged over the generated catalog at load time and are not touched by
- * `npm run sync:commandcode-catalog`.
+ * merged over the generated catalog at load time. `npm run sync:commandcode-catalog`
+ * deletes an entry as soon as upstream publishes its own levels, so nothing has to
+ * be removed by hand.
+ *
+ * An entry only takes effect for a model the generated catalog already marks as
+ * reasoning-capable: `src/core.ts` drops `reasoning_effort` when `model.reasoning`
+ * is false, and a model missing from `MODEL_REASONING` stays false. Upstream emits
+ * the flag whenever it emits efforts, so a sync that brings in new efforts brings
+ * the flag with it.
+ *
+ * Keep one self-contained entry per line and keep the rationale above the
+ * declaration: the sync rewrites individual entry lines and cannot preserve a
+ * comment block that describes only some of them.
  *
  * Add a model only when the effort parameter is known to be accepted by the
- * Command Code endpoint; remove it once the CLI catalog ships its own efforts.
+ * Command Code endpoint.
  */
 export const MODEL_EFFORT_OVERRIDES: Readonly<
   Record<string, readonly CommandCodeReasoningEffort[]>
