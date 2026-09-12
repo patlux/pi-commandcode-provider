@@ -387,8 +387,8 @@ const EFFORT_OVERRIDE_ENTRY = /^\s*"((?:[^"\\]|\\.)+)":\s*\[/
  *
  * `tests/test-models.ts` fails while an override duplicates upstream efforts, so
  * leaving the removal to a human kept the scheduled workflow red and blocked its
- * own pull request. The overrides file is hand-formatted, so this rewrites single
- * entry lines and leaves comments, ordering, and still-needed entries untouched.
+ * own pull request. The overrides file is hand-formatted, so this rewrites entries
+ * and leaves comments, ordering, and still-needed entries untouched.
  */
 export function pruneObsoleteEffortOverrides(
   contents: string,
@@ -397,14 +397,27 @@ export function pruneObsoleteEffortOverrides(
   const upstreamModelIds = new Set(upstreamEffortModelIds)
   const removedModelIds: string[] = []
   const keptLines: string[] = []
+  const lines = contents.split("\n")
 
-  for (const line of contents.split("\n")) {
-    const modelId = EFFORT_OVERRIDE_ENTRY.exec(line)?.[1]
-    if (modelId !== undefined && upstreamModelIds.has(modelId)) {
-      removedModelIds.push(modelId)
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? ""
+    const match = EFFORT_OVERRIDE_ENTRY.exec(line)
+    const modelId = match?.[1]
+
+    if (match === null || modelId === undefined || !upstreamModelIds.has(modelId)) {
+      keptLines.push(line)
       continue
     }
-    keptLines.push(line)
+
+    removedModelIds.push(modelId)
+
+    // Prettier wraps an entry whose id is too long to fit the print width, so the
+    // effort array continues on the following lines. Consume them up to the closing
+    // bracket, otherwise they are left behind as invalid syntax.
+    if (line.includes("]")) continue
+    for (index += 1; index < lines.length; index += 1) {
+      if ((lines[index] ?? "").includes("]")) break
+    }
   }
 
   if (removedModelIds.length === 0) return { contents, removedModelIds }

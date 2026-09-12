@@ -225,4 +225,33 @@ export const MODEL_MAX_OUTPUT_TOKENS: Readonly<Record<string, number>> = {
     assert.deepEqual(pruned.removedModelIds, [])
     assert.equal(pruned.contents, commented)
   })
+
+  it("removes a wrapped entry without leaving its array behind", () => {
+    // Prettier wraps an entry whose id exceeds the print width, so the effort
+    // array spans several lines. Only removing the first line would leave
+    // orphaned level lines and break the file's syntax.
+    const wrapped = `export const MODEL_EFFORT_OVERRIDES: Readonly<
+  Record<string, readonly CommandCodeReasoningEffort[]>
+> = {
+  "vendor/a-very-long-model-identifier-that-exceeds-the-print-width": [
+    "minimal",
+    "low",
+  ],
+  "short": ["low"],
+}
+`
+    const longId = "vendor/a-very-long-model-identifier-that-exceeds-the-print-width"
+    const pruned = pruneObsoleteEffortOverrides(wrapped, [longId])
+
+    assert.deepEqual(pruned.removedModelIds, [longId])
+    assert.equal(
+      pruned.contents,
+      `export const MODEL_EFFORT_OVERRIDES: Readonly<
+  Record<string, readonly CommandCodeReasoningEffort[]>
+> = {
+  "short": ["low"],
+}
+`,
+    )
+  })
 })
