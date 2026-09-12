@@ -6,10 +6,13 @@ on:
     paths:
       - ".github/scripts/check-commandcode-model-metadata.ts"
       - ".github/workflows/model-metadata.yml"
+      - "README.md"
+      - "src/commandcode-catalog-overrides.ts"
       - "src/commandcode-catalog.ts"
       - "src/core.ts"
       - "src/models.ts"
       - "tests/test-model-metadata-check.ts"
+      - "tests/test-models.ts"
   schedule:
     - cron: "17 6 * * *"
   workflow_dispatch:

@@ -380,7 +380,7 @@ function updateDocumentedCatalogVersion(
   return contents.replace(pattern, `command-code@${packageVersion}`)
 }
 
-const EFFORT_OVERRIDE_ENTRY = /^\s*"((?:[^"\\]|\\.)+)":\s*\[/
+const EFFORT_OVERRIDE_ENTRY = /^\s*["']((?:[^"'\\]|\\.)+)["']\s*:\s*\[/
 
 /**
  * Drop manual effort overrides that upstream now publishes itself.
@@ -432,7 +432,10 @@ export function pruneObsoleteEffortOverrides(
 
 /** Render an override map without entries as `= {}` so the file stays formatted. */
 function collapseEmptyOverrideMap(contents: string): string {
-  const openIndex = contents.indexOf("= {")
+  const declarationIndex = contents.indexOf("MODEL_EFFORT_OVERRIDES")
+  if (declarationIndex < 0) return contents
+
+  const openIndex = contents.indexOf("= {", declarationIndex)
   const closeIndex = contents.lastIndexOf("}")
   if (openIndex < 0 || closeIndex < openIndex) return contents
 

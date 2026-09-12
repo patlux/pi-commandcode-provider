@@ -226,6 +226,32 @@ export const MODEL_MAX_OUTPUT_TOKENS: Readonly<Record<string, number>> = {
     assert.equal(pruned.contents, commented)
   })
 
+  it("prunes entries written with single quotes or spaced colons", () => {
+    const styled = OVERRIDES_SOURCE.replace(
+      '  "meta/muse-spark-1.1": ["minimal", "low", "medium", "high", "xhigh"],',
+      "  'meta/muse-spark-1.1' : ['minimal', 'low', 'medium', 'high', 'xhigh'],",
+    )
+    const pruned = pruneObsoleteEffortOverrides(styled, ["meta/muse-spark-1.1"])
+
+    assert.deepEqual(pruned.removedModelIds, ["meta/muse-spark-1.1"])
+    assert.ok(!pruned.contents.includes("muse-spark-1.1"))
+  })
+
+  it("collapses the map even when a comment above it contains '= {'", () => {
+    const withComment = OVERRIDES_SOURCE.replace(
+      'import type { CommandCodeReasoningEffort } from "./commandcode-catalog.ts"',
+      'import type { CommandCodeReasoningEffort } from "./commandcode-catalog.ts"\n\n// Illustrative only: const other = { }',
+    )
+    const pruned = pruneObsoleteEffortOverrides(withComment, [
+      "meta/muse-spark-1.1",
+      "meta/muse-spark-1.2",
+    ])
+
+    assert.ok(pruned.contents.includes("const other = { }"), "the comment is preserved")
+    assert.ok(pruned.contents.includes("MODEL_EFFORT_OVERRIDES"))
+    assert.ok(pruned.contents.includes("= {}"))
+  })
+
   it("removes a wrapped entry without leaving its array behind", () => {
     // Prettier wraps an entry whose id exceeds the print width, so the effort
     // array spans several lines. Only removing the first line would leave
