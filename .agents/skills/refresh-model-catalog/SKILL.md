@@ -32,7 +32,7 @@ npm run sync:commandcode-catalog
 
 Regenerates `src/commandcode-catalog.ts` and bumps the documented CLI version in `README.md`. Review the diff; the catalog also lists reasoning models without selectable efforts.
 
-Never add efforts to the generated file by hand. Manual effort policy for reasoning models that upstream ships without levels lives in `src/commandcode-catalog-overrides.ts` and is merged at load time. When the sync report lists a model from that file under "New effort metadata", remove its override; `tests/test-models.ts` fails until you do.
+Never add efforts to the generated file by hand. Manual effort policy for reasoning models that upstream ships without levels lives in `src/commandcode-catalog-overrides.ts` and is merged at load time. The sync drops an override itself once upstream publishes its own levels, so you only need to keep one self-contained entry per line and the shared rationale above the declaration; it cannot preserve a comment block that covers only some entries.
 
 ### 3. Update display pricing (manual review)
 

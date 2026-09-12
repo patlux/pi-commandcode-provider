@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Make the daily catalog sync self-healing: it now drops manual effort overrides that upstream has published itself, instead of leaving the removal to a human. The scheduled workflow previously failed on its own guard test, which skipped the pull-request step, so it could never propose the fix. The sync pull request also carries `src/commandcode-catalog-overrides.ts` now.
+- Fix the pi end-to-end suite against pi 0.85 and newer, which streams Anthropic Messages through the SDK and appends `?beta=true` to `/v1/messages`. The mock matched the exact URL and answered 404, so every pull request failed while CI installs pi unpinned.
+
 ## 0.6.4 - 2026-09-03
 
 - Refresh the generated Command Code capability catalog from `command-code@1.40.1` to `command-code@1.44.0`, adding current image-input, reasoning, effort, and output-limit metadata for newly published models.
