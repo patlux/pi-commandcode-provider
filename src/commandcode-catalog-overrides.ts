@@ -16,9 +16,9 @@ import type { CommandCodeReasoningEffort } from "./commandcode-catalog.ts"
  * the flag whenever it emits efforts, so a sync that brings in new efforts brings
  * the flag with it.
  *
- * Keep one self-contained entry per line and keep the rationale above the
- * declaration: the sync rewrites individual entry lines and cannot preserve a
- * comment block that describes only some of them.
+ * Keep shared rationale above the declaration. The sync parses this object
+ * literal and preserves neighboring declarations; review entry-specific comments
+ * after pruning because they may describe removed entries.
  *
  * Add a model only when the effort parameter is known to be accepted by the
  * Command Code endpoint.

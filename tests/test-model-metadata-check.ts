@@ -195,6 +195,31 @@ export const MODEL_MAX_OUTPUT_TOKENS: Readonly<Record<string, number>> = {
     assert.ok(pruned.contents.includes("export const MODEL_EFFORT_OVERRIDES"))
   })
 
+  it("preserves neighboring declarations when pruning the effort map", () => {
+    const before = 'export const OTHER = {\n  "meta/muse-spark-1.1": ["image"],\n}\n'
+    const after = "\nexport const AFTER = { nested: { value: true } }\n"
+    const source = before + OVERRIDES_SOURCE + after
+    const pruned = pruneObsoleteEffortOverrides(source, [
+      "meta/muse-spark-1.1",
+      "meta/muse-spark-1.2",
+    ])
+    assert.ok(pruned.contents.startsWith(before))
+    assert.ok(pruned.contents.endsWith(after))
+    assert.deepEqual(pruned.removedModelIds, ["meta/muse-spark-1.1", "meta/muse-spark-1.2"])
+    assert.equal(
+      pruneObsoleteEffortOverrides(pruned.contents, ["meta/muse-spark-1.1"]).contents,
+      pruned.contents,
+    )
+  })
+
+  it("ignores entries inside block comments", () => {
+    const source = OVERRIDES_SOURCE.replace(
+      '  "meta/muse-spark-1.1":',
+      '  /*\n  "not/an-override": ["low"],\n  */\n  "meta/muse-spark-1.1":',
+    )
+    assert.equal(pruneObsoleteEffortOverrides(source, ["not/an-override"]).contents, source)
+  })
+
   it("leaves the overrides file untouched when nothing is obsolete", () => {
     const pruned = pruneObsoleteEffortOverrides(OVERRIDES_SOURCE, ["some/other-model"])
 

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { pathToFileURL } from "node:url"
 import { promisify } from "node:util"
+import ts from "typescript"
 
 import {
   COMMAND_CODE_CLI_VERSION,
@@ -380,8 +381,6 @@ function updateDocumentedCatalogVersion(
   return contents.replace(pattern, `command-code@${packageVersion}`)
 }
 
-const EFFORT_OVERRIDE_ENTRY = /^\s*["']((?:[^"'\\]|\\.)+)["']\s*:\s*\[/
-
 /**
  * Drop manual effort overrides that upstream now publishes itself.
  *
@@ -394,55 +393,51 @@ export function pruneObsoleteEffortOverrides(
   contents: string,
   upstreamEffortModelIds: readonly string[],
 ): { contents: string; removedModelIds: readonly string[] } {
+  const source = ts.createSourceFile("overrides.ts", contents, ts.ScriptTarget.Latest, true)
   const upstreamModelIds = new Set(upstreamEffortModelIds)
-  const removedModelIds: string[] = []
-  const keptLines: string[] = []
-  const lines = contents.split("\n")
-
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index] ?? ""
-    const match = EFFORT_OVERRIDE_ENTRY.exec(line)
-    const modelId = match?.[1]
-
-    if (match === null || modelId === undefined || !upstreamModelIds.has(modelId)) {
-      keptLines.push(line)
-      continue
-    }
-
-    removedModelIds.push(modelId)
-
-    // Prettier wraps an entry whose id is too long to fit the print width, so the
-    // effort array continues on the following lines. Consume them up to the closing
-    // bracket, otherwise they are left behind as invalid syntax.
-    if (line.includes("]")) continue
-    for (index += 1; index < lines.length; index += 1) {
-      if ((lines[index] ?? "").includes("]")) break
+  for (const statement of source.statements) {
+    if (!ts.isVariableStatement(statement)) continue
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || declaration.name.text !== "MODEL_EFFORT_OVERRIDES")
+        continue
+      const map = declaration.initializer
+      if (!map || !ts.isObjectLiteralExpression(map)) {
+        throw new Error("MODEL_EFFORT_OVERRIDES must be an object literal")
+      }
+      const obsolete = map.properties.filter(
+        (property) =>
+          ts.isPropertyAssignment(property) &&
+          ts.isStringLiteral(property.name) &&
+          upstreamModelIds.has(property.name.text),
+      )
+      const removedModelIds = obsolete.flatMap((property) =>
+        ts.isPropertyAssignment(property) && ts.isStringLiteral(property.name)
+          ? [property.name.text]
+          : [],
+      )
+      if (obsolete.length === 0) return { contents, removedModelIds }
+      if (obsolete.length === map.properties.length) {
+        return {
+          contents: contents.slice(0, map.getStart(source)) + "{}" + contents.slice(map.end),
+          removedModelIds: sorted(removedModelIds),
+        }
+      }
+      // Only remove syntax spans, preserving comments and all neighboring declarations.
+      let updated = contents
+      for (const property of [...obsolete].reverse()) {
+        const tokenStart = property.getStart(source)
+        const lineStart = contents.lastIndexOf("\n", tokenStart - 1) + 1
+        const start = /^\s*$/.test(contents.slice(lineStart, tokenStart)) ? lineStart : tokenStart
+        const comma = /^\s*,/.exec(contents.slice(property.end, map.end))
+        const tokenEnd = property.end + (comma?.[0].length ?? 0)
+        const newline = /^[ \t]*\r?\n/.exec(contents.slice(tokenEnd))
+        const end = tokenEnd + (newline?.[0].length ?? 0)
+        updated = updated.slice(0, start) + updated.slice(end)
+      }
+      return { contents: updated, removedModelIds: sorted(removedModelIds) }
     }
   }
-
-  if (removedModelIds.length === 0) return { contents, removedModelIds }
-
-  const kept = keptLines.join("\n")
-  const hasRemainingEntries = keptLines.some((line) => EFFORT_OVERRIDE_ENTRY.test(line))
-  return {
-    contents: hasRemainingEntries ? kept : collapseEmptyOverrideMap(kept),
-    removedModelIds: sorted(removedModelIds),
-  }
-}
-
-/** Render an override map without entries as `= {}` so the file stays formatted. */
-function collapseEmptyOverrideMap(contents: string): string {
-  const declarationIndex = contents.indexOf("MODEL_EFFORT_OVERRIDES")
-  if (declarationIndex < 0) return contents
-
-  const openIndex = contents.indexOf("= {", declarationIndex)
-  const closeIndex = contents.lastIndexOf("}")
-  if (openIndex < 0 || closeIndex < openIndex) return contents
-
-  // Keep the trailing newline exactly once; leaving the removed block's blank
-  // lines behind would fail `npm run format:check` in the sync workflow.
-  const trailing = contents.slice(closeIndex + 1).replace(/^\n+/, "")
-  return `${contents.slice(0, openIndex)}= {}\n${trailing}`
+  return { contents, removedModelIds: [] }
 }
 
 export function updateReadmeCatalogVersion(readme: string, packageVersion: string): string {
