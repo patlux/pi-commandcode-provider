@@ -198,7 +198,6 @@ describe("commandCodeModelsFromApiResponse()", () => {
 
   it("merges manual effort overrides over the generated catalog", () => {
     const validEfforts = new Set(["minimal", "low", "medium", "high", "xhigh", "max"])
-    assert.ok(Object.keys(MODEL_EFFORT_OVERRIDES).length > 0)
     for (const [modelId, efforts] of Object.entries(MODEL_EFFORT_OVERRIDES)) {
       assert.equal(MODEL_REASONING[modelId], true, `${modelId} override needs a reasoning flag`)
       assert.equal(

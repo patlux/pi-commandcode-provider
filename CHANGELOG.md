@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Refresh the model capability metadata so model ids added since the last refresh report their image, reasoning, and effort support instead of falling back to the text-only, non-reasoning defaults. `deepseek/deepseek-v4.1-flash`, `gpt-6-astra`, and `inclusionai/ling-3.0-flash-sante:free` now expose the thinking levels the public model reference documents, and no longer drop `reasoning_effort` from requests.
+- Drop the manual effort overrides for the Meta Muse Spark models: the refreshed catalog carries those levels itself, and the table is documented to lose entries once that happens.
+
 ## 0.6.4 - 2026-09-03
 
 - Refresh the generated Command Code capability catalog from `command-code@1.40.1` to `command-code@1.44.0`, adding current image-input, reasoning, effort, and output-limit metadata for newly published models.
