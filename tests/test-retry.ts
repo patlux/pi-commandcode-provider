@@ -333,14 +333,14 @@ describe("streamCommandCode — timeout", () => {
         JSON.stringify({ type: "text-delta", text: "chunk 3 " }),
         JSON.stringify({ type: "finish", finishReason: "stop" }),
       ],
-      delays: [0, 30, 30, 30],
+      delays: [0, 200, 200, 200],
     })
     const { streamCommandCode } = createTestDeps({ apiBase: server.baseUrl() })
 
     const events = await collectEvents(
       streamCommandCode(makeModel(), makeContext(), {
         apiKey: TEST_API_KEY,
-        timeoutMs: 50,
+        timeoutMs: 500,
       }),
       5_000,
     )

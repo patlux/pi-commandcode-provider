@@ -112,7 +112,12 @@ function modelCatalog() {
 }
 
 const server = createServer((req, res) => {
-  if (req.method === "GET" && req.url === "/provider/v1/models") {
+  // Match on the pathname only. Newer pi releases append a query string (for
+  // example `/provider/v1/messages?beta=true`) when the Anthropic SDK streams,
+  // and an exact URL comparison turned that into a 404 that failed every PR.
+  const pathname = new URL(req.url ?? "/", "http://localhost").pathname
+
+  if (req.method === "GET" && pathname === "/provider/v1/models") {
     modelListRequestCount += 1
     const respond = () => {
       if (res.destroyed) return
@@ -124,8 +129,8 @@ const server = createServer((req, res) => {
     return
   }
 
-  const isOpenAIRequest = req.method === "POST" && req.url === "/provider/v1/chat/completions"
-  const isAnthropicRequest = req.method === "POST" && req.url === "/provider/v1/messages"
+  const isOpenAIRequest = req.method === "POST" && pathname === "/provider/v1/chat/completions"
+  const isAnthropicRequest = req.method === "POST" && pathname === "/provider/v1/messages"
   if (!isOpenAIRequest && !isAnthropicRequest) {
     res.writeHead(404)
     res.end("Not found")

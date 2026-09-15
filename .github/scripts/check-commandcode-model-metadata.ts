@@ -4,6 +4,7 @@ import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { pathToFileURL } from "node:url"
 import { promisify } from "node:util"
+import ts from "typescript"
 
 import {
   COMMAND_CODE_CLI_VERSION,
@@ -40,6 +41,7 @@ function execNpmFileAsync(
 }
 const CATALOG_SOURCE_PATH = new URL("../../src/commandcode-catalog.ts", import.meta.url)
 const README_PATH = new URL("../../README.md", import.meta.url)
+const OVERRIDES_SOURCE_PATH = new URL("../../src/commandcode-catalog-overrides.ts", import.meta.url)
 
 export interface CommandCodeModelMetadata {
   imageModelIds: readonly string[]
@@ -379,6 +381,65 @@ function updateDocumentedCatalogVersion(
   return contents.replace(pattern, `command-code@${packageVersion}`)
 }
 
+/**
+ * Drop manual effort overrides that upstream now publishes itself.
+ *
+ * `tests/test-models.ts` fails while an override duplicates upstream efforts, so
+ * leaving the removal to a human kept the scheduled workflow red and blocked its
+ * own pull request. The overrides file is hand-formatted, so this rewrites entries
+ * and leaves comments, ordering, and still-needed entries untouched.
+ */
+export function pruneObsoleteEffortOverrides(
+  contents: string,
+  upstreamEffortModelIds: readonly string[],
+): { contents: string; removedModelIds: readonly string[] } {
+  const source = ts.createSourceFile("overrides.ts", contents, ts.ScriptTarget.Latest, true)
+  const upstreamModelIds = new Set(upstreamEffortModelIds)
+  for (const statement of source.statements) {
+    if (!ts.isVariableStatement(statement)) continue
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || declaration.name.text !== "MODEL_EFFORT_OVERRIDES")
+        continue
+      const map = declaration.initializer
+      if (!map || !ts.isObjectLiteralExpression(map)) {
+        throw new Error("MODEL_EFFORT_OVERRIDES must be an object literal")
+      }
+      const obsolete = map.properties.filter(
+        (property) =>
+          ts.isPropertyAssignment(property) &&
+          ts.isStringLiteral(property.name) &&
+          upstreamModelIds.has(property.name.text),
+      )
+      const removedModelIds = obsolete.flatMap((property) =>
+        ts.isPropertyAssignment(property) && ts.isStringLiteral(property.name)
+          ? [property.name.text]
+          : [],
+      )
+      if (obsolete.length === 0) return { contents, removedModelIds }
+      if (obsolete.length === map.properties.length) {
+        return {
+          contents: contents.slice(0, map.getStart(source)) + "{}" + contents.slice(map.end),
+          removedModelIds: sorted(removedModelIds),
+        }
+      }
+      // Only remove syntax spans, preserving comments and all neighboring declarations.
+      let updated = contents
+      for (const property of [...obsolete].reverse()) {
+        const tokenStart = property.getStart(source)
+        const lineStart = contents.lastIndexOf("\n", tokenStart - 1) + 1
+        const start = /^\s*$/.test(contents.slice(lineStart, tokenStart)) ? lineStart : tokenStart
+        const comma = /^\s*,/.exec(contents.slice(property.end, map.end))
+        const tokenEnd = property.end + (comma?.[0].length ?? 0)
+        const newline = /^[ \t]*\r?\n/.exec(contents.slice(tokenEnd))
+        const end = tokenEnd + (newline?.[0].length ?? 0)
+        updated = updated.slice(0, start) + updated.slice(end)
+      }
+      return { contents: updated, removedModelIds: sorted(removedModelIds) }
+    }
+  }
+  return { contents, removedModelIds: [] }
+}
+
 export function updateReadmeCatalogVersion(readme: string, packageVersion: string): string {
   return updateDocumentedCatalogVersion(readme, packageVersion, "README")
 }
@@ -386,12 +447,19 @@ export function updateReadmeCatalogVersion(readme: string, packageVersion: strin
 async function writeSynchronizedCatalog(
   packageVersion: string,
   metadata: CommandCodeModelMetadata,
-): Promise<void> {
+): Promise<readonly string[]> {
   const readme = await readFile(README_PATH, "utf-8")
   await Promise.all([
     writeFile(CATALOG_SOURCE_PATH, renderCommandCodeCatalog(packageVersion, metadata), "utf-8"),
     writeFile(README_PATH, updateReadmeCatalogVersion(readme, packageVersion), "utf-8"),
   ])
+
+  const overrides = await readFile(OVERRIDES_SOURCE_PATH, "utf-8")
+  const pruned = pruneObsoleteEffortOverrides(overrides, Object.keys(metadata.reasoningEfforts))
+  if (pruned.removedModelIds.length > 0) {
+    await writeFile(OVERRIDES_SOURCE_PATH, pruned.contents, "utf-8")
+  }
+  return pruned.removedModelIds
 }
 
 function metadataReport(
@@ -510,8 +578,16 @@ async function main(): Promise<void> {
   console.log(report)
 
   if (write) {
-    await writeSynchronizedCatalog(upstreamPackage.packageVersion, upstreamPackage.metadata)
+    const removedOverrides = await writeSynchronizedCatalog(
+      upstreamPackage.packageVersion,
+      upstreamPackage.metadata,
+    )
     console.log(`Synchronized static metadata with command-code@${upstreamPackage.packageVersion}.`)
+    if (removedOverrides.length > 0) {
+      console.log(
+        `Removed ${removedOverrides.length} manual effort override(s) now published upstream: ${removedOverrides.join(", ")}.`,
+      )
+    }
     return
   }
 

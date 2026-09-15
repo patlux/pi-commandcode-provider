@@ -2,7 +2,17 @@
 
 ## Unreleased
 
-- Treat `timeoutMs` as an idle gap timeout between received chunks rather than a total wall-clock limit on the entire stream, so long reasoning streams that actively yield tokens are not aborted after 300 seconds ([#87](https://github.com/patlux/pi-commandcode-provider/issues/87)).
+- Reset the generate transport's idle timeout on every received chunk, allowing active reasoning streams to exceed the timeout overall while still aborting stalled streams (#87).
+
+- Batch consecutive tool-result images after all tool results on the generate transport, preventing interleaved user messages from breaking multi-tool turns with "Tool result is missing".
+
+- Add display pricing for DeepSeek V4.1 Flash, Qwen 3.8 Max 0902, Gemini 3.8 Flash, Muse Spark 1.3 variants, LongCat 2.0 free, and Ling 3.0 Flash Sante free. Verify against the September 15 pricing page and live 69-model catalog; correct DeepSeek V4 Flash and Vision Exp off-peak prices to $0.15/$0.60 with $0.003 cache reads per million tokens.
+
+- Refresh model capabilities to `command-code@1.54.0`: add DeepSeek V4.1 Flash image input and `low`/`high`/`max` efforts, GPT-6 Astra capability metadata, Grok 4.6 image input, and MiniMax M3 efforts. Ling 3.0 Flash Sante is reasoning-capable with a 32K output limit but has no published selectable effort levels. Catalog metadata does not make models absent from the Provider API selectable.
+- Replace manual Muse Spark efforts with upstream levels: remove `minimal` for all five models and add `max` for Muse Spark 1.3.
+- Rebind a host's preselected built-in Command Code model to the extension's registered transport at session start, preserving configured endpoints and generate fallback on Oh My Pi.
+- Make the daily catalog sync self-healing: it now removes manual effort overrides once upstream publishes its own levels and includes that change in the automated pull request.
+- Fix the pi end-to-end mock against pi 0.85 and newer by matching Anthropic Messages paths independently of query parameters.
 
 ## 0.6.4 - 2026-09-03
 

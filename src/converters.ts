@@ -245,7 +245,9 @@ export function messagesToCC(
   const out: unknown[] = []
   const { callIds, resultIds } = toolCallState(messages)
 
-  for (const message of messages ?? []) {
+  const rawMessages = messages ?? []
+  for (let i = 0; i < rawMessages.length; i++) {
+    const message = rawMessages[i]
     if (message.role === "user" || message.role === "developer") {
       // Hosts such as OMP steer the agent by injecting developer-role messages
       // (advisor notes, reminders, nudges) mid-conversation. /alpha/generate
@@ -288,30 +290,42 @@ export function messagesToCC(
       if (parts.length > 0) out.push({ role: "assistant", content: parts })
       if (missingResults.length > 0) out.push({ role: "tool", content: missingResults })
     } else if (message.role === "toolResult") {
-      if (!message.toolCallId || !callIds.has(message.toolCallId)) continue
-      const images = imageParts(message.content)
-      const text = textContent(message)
-      const outputText =
-        text ||
-        (images.length > 0 && !allowImages ? "[Image omitted: model does not support images]" : "")
-      out.push({
-        role: "tool",
-        content: [
-          {
-            type: "tool-result",
-            toolCallId: message.toolCallId,
-            toolName: message.toolName,
-            output: message.isError
-              ? { type: "error-text", value: outputText }
-              : { type: "text", value: outputText },
-          },
-        ],
-      })
+      const pendingImages: Record<string, string>[] = []
+      let j = i
+      for (; j < rawMessages.length && rawMessages[j].role === "toolResult"; j++) {
+        const toolMsg = rawMessages[j]
+        if (!toolMsg.toolCallId || !callIds.has(toolMsg.toolCallId)) continue
+        const images = imageParts(toolMsg.content)
+        const text = textContent(toolMsg)
+        const outputText =
+          text ||
+          (images.length > 0 && !allowImages
+            ? "[Image omitted: model does not support images]"
+            : "")
+        out.push({
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: toolMsg.toolCallId,
+              toolName: toolMsg.toolName,
+              output: toolMsg.isError
+                ? { type: "error-text", value: outputText }
+                : { type: "text", value: outputText },
+            },
+          ],
+        })
 
-      if (images.length > 0 && allowImages) {
+        if (images.length > 0 && allowImages) {
+          pendingImages.push(...images.map(imageToCommandCode))
+        }
+      }
+      i = j - 1
+
+      if (pendingImages.length > 0) {
         out.push({
           role: "user",
-          content: images.map(imageToCommandCode),
+          content: pendingImages,
         })
       }
     }
