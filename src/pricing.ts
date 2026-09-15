@@ -20,7 +20,7 @@ export interface TemporaryPricing {
 }
 
 export const PRICING_SOURCE_URL = "https://commandcode.ai/docs/resources/pricing-limits"
-export const PRICING_LAST_VERIFIED = "2026-09-10"
+export const PRICING_LAST_VERIFIED = "2026-09-15"
 
 export const ZERO_MODEL_COST: CommandCodeModelCost = {
   input: 0,
@@ -80,9 +80,9 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
     cacheWrite: 0,
   },
   "deepseek/deepseek-v4-flash-vision-exp": {
-    input: 0.22,
-    output: 0.66,
-    cacheRead: 0.007,
+    input: 0.15,
+    output: 0.6,
+    cacheRead: 0.003,
     cacheWrite: 0,
   },
   "deepseek/deepseek-v4-flash-fast": {
