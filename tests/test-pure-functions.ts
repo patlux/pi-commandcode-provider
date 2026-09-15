@@ -766,6 +766,50 @@ describe("messagesToCC()", () => {
     })
   })
 
+  it("keeps mixed image, text, and error tool results before hoisted images", () => {
+    const result = messagesToCC(
+      [
+        {
+          role: "assistant",
+          content: [
+            { type: "toolCall", id: "a", name: "read", arguments: {} },
+            { type: "toolCall", id: "b", name: "read", arguments: {} },
+            { type: "toolCall", id: "c", name: "read", arguments: {} },
+          ],
+        },
+        {
+          role: "toolResult",
+          toolCallId: "a",
+          toolName: "read",
+          content: [{ type: "image", data: "YQ==", mimeType: "image/png" }],
+        },
+        {
+          role: "toolResult",
+          toolCallId: "b",
+          toolName: "read",
+          content: [{ type: "text", text: "plain result" }],
+        },
+        {
+          role: "toolResult",
+          toolCallId: "c",
+          toolName: "read",
+          isError: true,
+          content: [{ type: "text", text: "failed" }],
+        },
+      ],
+      { allowImages: true },
+    )
+    assert.deepEqual(
+      result.map((entry) => objectAt(entry, ["role"])),
+      ["assistant", "tool", "tool", "tool", "user"],
+    )
+    assert.deepEqual(objectAt(result, ["3", "content", "0", "output"]), {
+      type: "error-text",
+      value: "failed",
+    })
+    assert.equal(objectAt(result, ["2", "content", "0", "output", "value"]), "plain result")
+  })
+
   it("drops previous assistant reasoning while preserving text and tool calls", () => {
     const result = messagesToCC([
       { role: "user", content: "first question" },

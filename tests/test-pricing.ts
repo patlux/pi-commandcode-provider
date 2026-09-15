@@ -27,7 +27,11 @@ const fixtureUrl = new URL("./fixtures/commandcode-model-ids.json", import.meta.
 const fixture = JSON.parse(await readFile(fixtureUrl, "utf-8")) as ModelCatalogSnapshot
 const pricingFixtureUrl = new URL("./fixtures/commandcode-pricing.json", import.meta.url)
 const pricingFixture = JSON.parse(await readFile(pricingFixtureUrl, "utf-8")) as PricingSnapshot
-const freeModels = new Set(["poolside/laguna-s-2.1-free"])
+const freeModels = new Set([
+  "poolside/laguna-s-2.1-free",
+  "meituan/LongCat-2.0:free",
+  "inclusionai/ling-3.0-flash-sante:free",
+])
 
 function assertCost(
   modelId: string,
@@ -50,7 +54,7 @@ function assertCost(
 describe("MODEL_COSTS pricing overlay", () => {
   it("covers the current Command Code model catalog snapshot", () => {
     assert.equal(fixture.source, "https://api.commandcode.ai/provider/v1/models")
-    assert.match(fixture.fetchedAt, /^2026-09-01T/)
+    assert.match(fixture.fetchedAt, /^2026-09-15T/)
 
     const catalogIds = [...fixture.modelIds].sort()
     const pricedIds = Object.keys(MODEL_COSTS).sort()
@@ -115,9 +119,15 @@ describe("MODEL_COSTS pricing overlay", () => {
       cacheWrite: 0,
     })
     assertCost("deepseek/deepseek-v4-flash", {
-      input: 0.22,
-      output: 0.66,
-      cacheRead: 0.007,
+      input: 0.15,
+      output: 0.6,
+      cacheRead: 0.003,
+      cacheWrite: 0,
+    })
+    assertCost("deepseek/deepseek-v4.1-flash", {
+      input: 0.15,
+      output: 0.6,
+      cacheRead: 0.003,
       cacheWrite: 0,
     })
     assertCost("Qwen/Qwen3.7-Max", {
@@ -224,9 +234,32 @@ describe("MODEL_COSTS pricing overlay", () => {
     ])
   })
 
+  it("uses reviewed rates for the September catalog additions", () => {
+    assertCost("Qwen/Qwen3.8-Max-0902", { input: 2, output: 6, cacheRead: 0.25, cacheWrite: 0 })
+    assertCost("google/gemini-3.8-flash", {
+      input: 1.5,
+      output: 7.5,
+      cacheRead: 0.15,
+      cacheWrite: 0,
+    })
+    assertCost("meta/muse-spark-1.3", { input: 1.25, output: 4.25, cacheRead: 0.15, cacheWrite: 0 })
+    assertCost("meta/muse-spark-1.3-contributor", {
+      input: 0.1,
+      output: 0.2,
+      cacheRead: 0.002,
+      cacheWrite: 0,
+    })
+    assertCost("deepseek/deepseek-v4-flash-vision-exp", {
+      input: 0.15,
+      output: 0.6,
+      cacheRead: 0.003,
+      cacheWrite: 0,
+    })
+  })
+
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-09-01")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-09-15")
   })
 
   it("fails once temporary pricing needs review", () => {
