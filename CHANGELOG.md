@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.7.0 - 2026-09-15
+
 - Honor host-resolved image input on the generate transport, including explicit text-only restrictions; fall back to catalog metadata only when host input is absent or empty. Filter unsupported modality strings without unsafe casts.
 
 - Reset the generate transport's idle timeout on every received chunk, allowing active reasoning streams to exceed the timeout overall while still aborting stalled streams (#87).
@@ -15,6 +17,23 @@
 - Rebind a host's preselected built-in Command Code model to the extension's registered transport at session start, preserving configured endpoints and generate fallback on Oh My Pi.
 - Make the daily catalog sync self-healing: it now removes manual effort overrides once upstream publishes its own levels and includes that change in the automated pull request.
 - Fix the pi end-to-end mock against pi 0.85 and newer by matching Anthropic Messages paths independently of query parameters.
+
+### Contributors
+
+- @pierreraby — repaired catalog synchronization and Pi integration tests (#95).
+- @SamYue1 — refreshed model capability metadata (#98).
+- @myohei — added and verified model pricing (#93).
+- @Star-233 — fixed parallel tool-result image ordering and contributed pricing coverage (#84, #85).
+- @leon-zym — fixed stream idle timeout handling (#88).
+- @djymike — honored host-resolved input modalities (#94).
+- @dangvanthanh, @newCman1, and @eibednejo — contributed overlapping catalog, pricing, reasoning, and image fixes (#86, #91, #92).
+- @zidanefaqih and @Alice39s — independently validated catalog behavior and provided review evidence (#93, #98).
+
+### Validation
+
+- Full automated suite and CI, including real Pi and Oh My Pi mock-API integration tests.
+- GOAT live E2E passed: reasoning, multi-turn history, runtime commands, abort, tools, vision, and packed artifact.
+- Go live E2E remains unverified: the test account returned insufficient credits on its first request. Generate transport mock coverage passes.
 
 ## 0.6.4 - 2026-09-03
 
