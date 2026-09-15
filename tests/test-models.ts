@@ -198,12 +198,14 @@ describe("commandCodeModelsFromApiResponse()", () => {
 
   it("merges manual effort overrides over the generated catalog", () => {
     const validEfforts = new Set(["minimal", "low", "medium", "high", "xhigh", "max"])
+    // An empty override map is the healthy end state once upstream publishes every
+    // level, so asserting it is non-empty made that state unreachable.
     for (const [modelId, efforts] of Object.entries(MODEL_EFFORT_OVERRIDES)) {
       assert.equal(MODEL_REASONING[modelId], true, `${modelId} override needs a reasoning flag`)
       assert.equal(
         CATALOG_MODEL_EFFORTS[modelId],
         undefined,
-        `${modelId} now has upstream efforts; drop the manual override`,
+        `${modelId} now has upstream efforts; run npm run sync:commandcode-catalog to drop it`,
       )
       assert.ok(efforts.length > 0)
       assert.ok(efforts.every((effort) => validEfforts.has(effort)))

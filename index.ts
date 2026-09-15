@@ -153,6 +153,15 @@ function legacyApiBase(providerApiBase: string): string {
 }
 
 export default async function (pi: ExtensionAPI) {
+  // Hosts may select their built-in Command Code model before loading extensions.
+  // Rebind that stale selection to our registered transport before the first turn.
+  pi.on("session_start", async (_event, ctx) => {
+    if (ctx.model?.provider !== "commandcode") return
+    const registered = ctx.modelRegistry.find("commandcode", ctx.model.id)
+    if (registered?.api === COMMAND_CODE_API && ctx.model.api !== COMMAND_CODE_API) {
+      await pi.setModel(registered)
+    }
+  })
   const apiBase = process.env.COMMANDCODE_API_BASE ?? DEFAULT_PROVIDER_API_BASE
   const modelsUrl = process.env.COMMANDCODE_MODELS_URL ?? DEFAULT_MODELS_URL
   const modelsTimeoutMs = getModelsTimeoutMs()
