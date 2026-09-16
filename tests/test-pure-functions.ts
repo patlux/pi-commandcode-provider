@@ -550,6 +550,136 @@ describe("toolsToJson()", () => {
   })
 })
 
+describe("toolsToJson() gemini schema dialect", () => {
+  const nullableTool = {
+    name: "memory_auto_improve",
+    description: "Memory maintenance",
+    parameters: {
+      type: "object",
+      properties: {
+        min_confidence: {
+          description: "Override the proposal confidence floor for this run.",
+          type: ["number", "null"],
+          format: "float",
+          default: null,
+        },
+        nested: {
+          type: "object",
+          properties: { flag: { type: ["boolean", "null"], default: null } },
+          required: ["flag"],
+        },
+        list: { type: "array", items: { type: ["string", "null"] } },
+        multi: { type: ["string", "number"] },
+      },
+      required: ["nested"],
+    },
+  }
+
+  it("collapses null-terminated type unions for google/gemini-* models", () => {
+    const original = structuredClone(nullableTool)
+    const [tool] = toolsToJson([nullableTool], "google/gemini-3.8-flash") as [
+      { input_schema: Record<string, unknown> },
+    ]
+    const properties = (tool.input_schema.properties ?? {}) as Record<string, unknown>
+    assert.deepEqual(properties.min_confidence, {
+      description: "Override the proposal confidence floor for this run.",
+      type: "number",
+      format: "float",
+      nullable: true,
+    })
+    assert.deepEqual((properties.nested as Record<string, unknown>).properties, {
+      flag: { type: "boolean", nullable: true },
+    })
+    assert.deepEqual(properties.list, { type: "array", items: { type: "string", nullable: true } })
+    assert.deepEqual(tool.input_schema.required, ["nested"])
+    assert.deepEqual((properties.nested as Record<string, unknown>).required, ["flag"])
+    assert.deepEqual(nullableTool, original)
+  })
+
+  it("preserves literal data instead of treating it as a schema", () => {
+    const literal = { type: ["string", "null"], default: null }
+    const parameters = {
+      type: "object",
+      const: literal,
+      enum: [literal],
+      default: literal,
+      examples: [literal],
+    }
+    const [tool] = toolsToJson(
+      [{ name: "literal", description: "Literal data", parameters }],
+      "google/gemini-3.8-flash",
+    ) as [{ input_schema: unknown }]
+    assert.deepEqual(tool.input_schema, parameters)
+  })
+
+  it("preserves special property names when normalizing nullable schemas", () => {
+    const properties = Object.fromEntries([["__proto__", { type: ["string", "null"] }]])
+    const [tool] = toolsToJson(
+      [
+        {
+          name: "special",
+          description: "Special keys",
+          parameters: {
+            type: "object",
+            properties,
+            required: ["__proto__"],
+          },
+        },
+      ],
+      "google/gemini-3.8-flash",
+    ) as [{ input_schema: unknown }]
+    assert.deepEqual(tool.input_schema, {
+      type: "object",
+      properties: Object.fromEntries([["__proto__", { type: "string", nullable: true }]]),
+      required: ["__proto__"],
+    })
+  })
+
+  it("normalizes definitions and composition while preserving boolean schemas", () => {
+    const [tool] = toolsToJson(
+      [
+        {
+          name: "composed",
+          description: "Composed schema",
+          parameters: {
+            type: "object",
+            $defs: { value: { type: ["null", "string"] } },
+            allOf: [{ properties: { value: { type: "string", nullable: true } } }],
+            additionalProperties: false,
+          },
+        },
+      ],
+      "google/gemini-3.8-flash",
+    ) as [{ input_schema: unknown }]
+    assert.deepEqual(tool.input_schema, {
+      type: "object",
+      $defs: { value: { type: "string", nullable: true } },
+      allOf: [{ properties: { value: { type: "string", nullable: true } } }],
+      additionalProperties: false,
+    })
+  })
+
+  it("keeps genuine multi-type unions untouched", () => {
+    const [tool] = toolsToJson([nullableTool], "google/gemini-3.8-flash") as [
+      { input_schema: Record<string, unknown> },
+    ]
+    const properties = (tool.input_schema.properties ?? {}) as Record<string, unknown>
+    assert.deepEqual(properties.multi, { type: ["string", "number"] })
+  })
+
+  it("keeps schemas verbatim for non-gemini models", () => {
+    const [tool] = toolsToJson([nullableTool], "gpt-5.4") as [
+      { input_schema: Record<string, unknown> },
+    ]
+    assert.deepEqual(tool.input_schema, toJsonSchema(nullableTool.parameters))
+  })
+
+  it("keeps schemas verbatim when no model id is given", () => {
+    const [tool] = toolsToJson([nullableTool]) as [{ input_schema: Record<string, unknown> }]
+    assert.deepEqual(tool.input_schema, toJsonSchema(nullableTool.parameters))
+  })
+})
+
 describe("messagesToCC()", () => {
   it("converts user, assistant, and tool result messages", () => {
     const result = messagesToCC([

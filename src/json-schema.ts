@@ -380,3 +380,38 @@ export function toJsonSchema(schema: unknown): unknown {
   if (!isRecord(schema)) return {}
   return convertSchema(schema, new WeakSet<object>())
 }
+
+/**
+ * Normalize nullable type arrays for Gemini's generate transport (#99).
+ * The gateway can turn these into any_of with sibling fields, which Vertex
+ * rejects. Use a single type plus nullable, omit null defaults, and leave
+ * genuine multi-type unions and required fields unchanged.
+ */
+export function geminiSafeJsonSchema(schema: unknown): unknown {
+  if (Array.isArray(schema)) return schema.map(geminiSafeJsonSchema)
+  if (!isRecord(schema)) return schema
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(schema)) {
+    if (key === "default" && value === null) continue
+    // Literal values (const, enum, defaults, examples) are data, not schemas.
+    const converted =
+      SCHEMA_MAP_FIELDS.has(key) && isRecord(value)
+        ? Object.fromEntries(
+            Object.entries(value).map(([name, child]) => [name, geminiSafeJsonSchema(child)]),
+          )
+        : SCHEMA_ARRAY_FIELDS.has(key) || SCHEMA_VALUE_FIELDS.has(key)
+          ? geminiSafeJsonSchema(value)
+          : value
+    setSchemaProperty(out, key, converted)
+  }
+  const type = out.type
+  if (Array.isArray(type)) {
+    const entries = type.filter((entry): entry is string => typeof entry === "string")
+    const nonNull = entries.filter((entry) => entry !== "null")
+    if (entries.length === type.length && entries.includes("null") && nonNull.length === 1) {
+      out.type = nonNull[0]
+      out.nullable = true
+    }
+  }
+  return out
+}

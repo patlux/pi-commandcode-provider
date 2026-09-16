@@ -3,7 +3,7 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 
 import type { MessageLike, StopReason, ToolLike } from "./types.ts"
-import { toJsonSchema } from "./json-schema.ts"
+import { geminiSafeJsonSchema, toJsonSchema } from "./json-schema.ts"
 
 export { toJsonSchema } from "./json-schema.ts"
 
@@ -200,14 +200,18 @@ export function getEnvironmentInfo(): string {
   return `${process.platform}-${process.arch}, Node.js ${process.version}`
 }
 
-export function toolsToJson(tools?: readonly ToolLike[]): unknown[] {
+export function toolsToJson(tools?: readonly ToolLike[], modelId?: string): unknown[] {
   if (!tools) return []
-  return tools.map((tool) => ({
-    type: "function",
-    name: tool.name,
-    description: tool.description,
-    input_schema: tool.parameters ? toJsonSchema(tool.parameters) : {},
-  }))
+  const geminiSafe = modelId !== undefined && modelId.startsWith("google/gemini-")
+  return tools.map((tool) => {
+    const schema = tool.parameters ? toJsonSchema(tool.parameters) : {}
+    return {
+      type: "function",
+      name: tool.name,
+      description: tool.description,
+      input_schema: geminiSafe ? geminiSafeJsonSchema(schema) : schema,
+    }
+  })
 }
 
 interface ToolCallState {
