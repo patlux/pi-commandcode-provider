@@ -126,6 +126,19 @@ describe("commandCodeModelsFromApiResponse()", () => {
     assert.equal(modelSupportsImageInput("unknown-new-model"), false)
   })
 
+  it("advertises Qwen 3.8 Omni Flash capabilities from the CLI catalog", () => {
+    const id = "Qwen/Qwen3.8-Omni-Flash"
+    assert.deepEqual(inputModalitiesForModel(id), ["text", "image"])
+    assert.equal(MODEL_REASONING[id], true)
+    assert.deepEqual(thinkingMetadataForModel(id)?.thinking?.efforts, ["low", "medium", "xhigh"])
+    const models = commandCodeModelsFromApiResponse({
+      object: "list",
+      data: [{ ...API_RESPONSE.data[0], id }],
+    })
+    assert.equal(models[0]?.reasoning, true)
+    assert.equal(models[0]?.maxTokens, 131_072)
+  })
+
   it("prefers host-resolved input modalities over the catalog snapshot", () => {
     // A model published upstream after the pinned CLI release is absent from the
     // generated catalog, so the host's resolved modalities must win.

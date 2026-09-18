@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Refresh the Command Code CLI catalog to `1.56.0`, adding image input, reasoning effort levels, a 131,072-token output limit, and reviewed display pricing for `Qwen/Qwen3.8-Omni-Flash`.
+
 - Normalize nullable type arrays for `google/gemini-*` tools on the generate transport to avoid the gateway's `any_of` validation error (#99), preserving required fields, literal data, and schemas for unrelated models.
 
 ## 0.7.0 - 2026-09-15

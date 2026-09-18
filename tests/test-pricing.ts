@@ -54,7 +54,7 @@ function assertCost(
 describe("MODEL_COSTS pricing overlay", () => {
   it("covers the current Command Code model catalog snapshot", () => {
     assert.equal(fixture.source, "https://api.commandcode.ai/provider/v1/models")
-    assert.match(fixture.fetchedAt, /^2026-09-15T/)
+    assert.match(fixture.fetchedAt, /^2026-09-18T/)
 
     const catalogIds = [...fixture.modelIds].sort()
     const pricedIds = Object.keys(MODEL_COSTS).sort()
@@ -235,6 +235,12 @@ describe("MODEL_COSTS pricing overlay", () => {
   })
 
   it("uses reviewed rates for the September catalog additions", () => {
+    assertCost("Qwen/Qwen3.8-Omni-Flash", {
+      input: 0.15,
+      output: 0.47,
+      cacheRead: 0.016,
+      cacheWrite: 0,
+    })
     assertCost("Qwen/Qwen3.8-Max-0902", { input: 2, output: 6, cacheRead: 0.25, cacheWrite: 0 })
     assertCost("google/gemini-3.8-flash", {
       input: 1.5,
@@ -259,7 +265,7 @@ describe("MODEL_COSTS pricing overlay", () => {
 
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-09-15")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-09-18")
   })
 
   it("fails once temporary pricing needs review", () => {

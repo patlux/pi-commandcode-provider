@@ -1,5 +1,5 @@
 {
-  "verifiedAt": "2026-09-15",
+  "verifiedAt": "2026-09-18",
   "source": "https://commandcode.ai/docs/resources/pricing-limits",
   "tierPolicy": "Use request-wide input tiers; the highest threshold exceeded by input plus cache tokens applies to the full request.",
   "tiers": {
@@ -39,6 +39,7 @@
     "Qwen/Qwen3.8-Max-0902": [2, 6, 0.25, 0],
     "Qwen/Qwen3.8-27B": [0.4, 3, 0.04, 0],
     "Qwen/Qwen3.8-Flash": [0.16, 0.47, 0.016, 0],
+    "Qwen/Qwen3.8-Omni-Flash": [0.15, 0.47, 0.016, 0],
     "Qwen/Qwen3.7-Max": [2.5, 7.5, 0.5, 3.13],
     "Qwen/Qwen3.7-Plus": [0.4, 1.6, 0.08, 0.5],
     "Qwen/Qwen3.7-Flash": [0.03, 0.13, 0.006, 0.038],
