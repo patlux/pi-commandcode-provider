@@ -2,9 +2,16 @@
 
 ## Unreleased
 
-- Refresh the Command Code CLI catalog to `1.56.0`, adding image input, reasoning effort levels, a 131,072-token output limit, and reviewed display pricing for `Qwen/Qwen3.8-Omni-Flash`.
+## 0.7.1 - 2026-09-18
 
-- Normalize nullable type arrays for `google/gemini-*` tools on the generate transport to avoid the gateway's `any_of` validation error (#99), preserving required fields, literal data, and schemas for unrelated models.
+- Normalize nullable type arrays for `google/gemini-*` tools on the generate transport to avoid the gateway's `any_of` validation error, preserving required fields, literal data, and schemas for unrelated models (#99, #103).
+- Refresh the Command Code CLI catalog to `1.56.0`, adding image input, reasoning effort levels, a 131,072-token output limit, and reviewed display pricing for `Qwen/Qwen3.8-Omni-Flash` (#102).
+- Correct the Oh My Pi update instructions to use `omp plugin install pi-commandcode-provider --force` for npm-installed plugins (#104).
+
+### Contributors
+
+- @JaimeGonzalezVallejo — reported the Gemini nullable-schema failure, contributed the fix and regression tests, and verified it against the live endpoint (#99, #103).
+- @Newbie-troll — corrected the Oh My Pi plugin update instructions (#104).
 
 ## 0.7.0 - 2026-09-15
 
