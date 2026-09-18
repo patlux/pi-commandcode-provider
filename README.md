@@ -168,7 +168,10 @@ pi remove npm:pi-commandcode-provider
 For OMP:
 
 ```sh
-omp plugin upgrade pi-commandcode-provider
+# Update
+omp plugin install pi-commandcode-provider --force
+
+# Remove
 omp plugin uninstall pi-commandcode-provider
 ```
 
