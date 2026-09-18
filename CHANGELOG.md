@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Normalize nullable type arrays for `google/gemini-*` tools on the generate transport to avoid the gateway's `any_of` validation error (#99), preserving required fields, literal data, and schemas for unrelated models.
+
 ## 0.7.0 - 2026-09-15
 
 - Honor host-resolved image input on the generate transport, including explicit text-only restrictions; fall back to catalog metadata only when host input is absent or empty. Filter unsupported modality strings without unsafe casts.

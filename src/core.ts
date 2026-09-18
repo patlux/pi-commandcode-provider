@@ -561,7 +561,7 @@ export function createStreamCommandCode(deps: CoreDependencies) {
           params: {
             model: model.id,
             messages: messagesToCC(context.messages, { allowImages }),
-            tools: toolsToJson(context.tools),
+            tools: toolsToJson(context.tools, model.id),
             system: systemPromptToText(context.systemPrompt),
             max_tokens: generateMaxTokens(model, options),
             stream: true,

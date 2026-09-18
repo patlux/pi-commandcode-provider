@@ -777,6 +777,51 @@ describe("streamCommandCode — request serialization", () => {
     assert.equal(headers["x-session-id"], undefined)
   })
 
+  it("normalizes nullable tool parameters only for Gemini on the generate wire (#99)", async () => {
+    server.mockResponse({
+      type: "success",
+      events: [JSON.stringify({ type: "finish", finishReason: "stop" })],
+    })
+    const { streamCommandCode } = createTestDeps({ apiBase: server.baseUrl() })
+    const field = {
+      description: "Override the proposal confidence floor for this run.",
+      type: ["number", "null"],
+      format: "float",
+      default: null,
+    }
+    const parameters = { type: "object", properties: { min_confidence: field }, required: [] }
+    const context = makeContext({
+      tools: [{ name: "memory_auto_improve", description: "Memory maintenance", parameters }],
+    })
+    for (const [id, expectedField] of [
+      ["gpt-5.4", field],
+      [
+        "google/gemini-3.8-flash",
+        {
+          description: field.description,
+          type: "number",
+          format: "float",
+          nullable: true,
+        },
+      ],
+    ] as const) {
+      const events = await collectEvents(
+        streamCommandCode(makeModel({ id }), context, { apiKey: "mock-key" }),
+      )
+      assert.equal(events.at(-1)?.type, "done")
+      const body = server.lastRequestBody()
+      assert.equal(objectAt(body, ["params", "model"]), id)
+      assert.deepEqual(objectAt(body, ["params", "tools"]), [
+        {
+          type: "function",
+          name: "memory_auto_improve",
+          description: "Memory maintenance",
+          input_schema: { ...parameters, properties: { min_confidence: expectedField } },
+        },
+      ])
+    }
+  })
+
   it("sends developer advisories as user messages in position, without system hoisting", async () => {
     server.mockResponse({
       type: "success",
