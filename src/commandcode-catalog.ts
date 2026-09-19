@@ -1,10 +1,10 @@
-export const COMMAND_CODE_CLI_VERSION = "1.56.0"
+export const COMMAND_CODE_CLI_VERSION = "1.58.0"
 
 export type CommandCodeInputType = "text" | "image"
 export type CommandCodeReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | "max"
 
 /**
- * Generated from command-code@1.56.0 by `npm run sync:commandcode-catalog`.
+ * Generated from command-code@1.58.0 by `npm run sync:commandcode-catalog`.
  * Do not edit manually.
  */
 export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCodeInputType[]>> = {
@@ -59,6 +59,7 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "xai/grok-4.6": ["text", "image"],
   "xiaomi/mimo-v2.5": ["text", "image"],
   "z-ai/glm-5.3-flash": ["text", "image"],
+  "z-ai/glm-5.3-flashx": ["text", "image"],
 }
 
 export const MODEL_REASONING: Readonly<Record<string, true>> = {
@@ -89,7 +90,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "gpt-5.6-terra": true,
   "gpt-6-astra": true,
   "inclusionai/ling-3.0-flash-sante:free": true,
-  "meituan/LongCat-2.0:free": true,
+  "meituan/LongCat-2.0": true,
   "meta/muse-spark-1.1": true,
   "meta/muse-spark-1.2": true,
   "meta/muse-spark-1.2-contributor": true,
@@ -121,6 +122,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "xai/grok-4.5": true,
   "xai/grok-4.6": true,
   "z-ai/glm-5.3-flash": true,
+  "z-ai/glm-5.3-flashx": true,
   "zai-org/GLM-5.2": true,
   "zai-org/GLM-5.3": true,
 }
@@ -169,6 +171,7 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "xai/grok-4.5": ["low", "medium", "high"],
   "xai/grok-4.6": ["low", "medium", "high", "xhigh"],
   "z-ai/glm-5.3-flash": ["low", "high", "max"],
+  "z-ai/glm-5.3-flashx": ["low", "high", "max"],
   "zai-org/GLM-5.2": ["high", "max"],
   "zai-org/GLM-5.3": ["low", "high", "max"],
 }
@@ -179,4 +182,5 @@ export const MODEL_MAX_OUTPUT_TOKENS: Readonly<Record<string, number>> = {
   "Qwen/Qwen3.8-27B": 32_768,
   "Qwen/Qwen3.8-Omni-Flash": 131_072,
   "z-ai/glm-5.3-flash": 131_072,
+  "z-ai/glm-5.3-flashx": 131_072,
 }
