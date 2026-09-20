@@ -101,6 +101,9 @@ export interface ContextLike {
   systemPrompt?: string
   messages?: readonly MessageLike[]
   tools?: readonly ToolLike[]
+  /** v0.86.0+ TranscriptContext methods — prefer when present */
+  getCurrentSystemPrompt?: () => string | undefined
+  getCurrentTools?: () => readonly ToolLike[] | undefined
 }
 
 export interface ProviderResponseInfo {

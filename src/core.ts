@@ -543,6 +543,10 @@ export function createStreamCommandCode(deps: CoreDependencies) {
         const allowImages = modelSupportsImageInput(model.id, model.input)
         if (!allowImages) assertTextOnlyMessages(context.messages)
 
+        // v0.86.0: TranscriptContext uses methods; fall back to direct properties
+        const resolvedTools = context.getCurrentTools?.() ?? context.tools
+        const resolvedSystemPrompt = context.getCurrentSystemPrompt?.() ?? context.systemPrompt
+
         let body: unknown = {
           config: {
             workingDir,
@@ -561,8 +565,8 @@ export function createStreamCommandCode(deps: CoreDependencies) {
           params: {
             model: model.id,
             messages: messagesToCC(context.messages, { allowImages }),
-            tools: toolsToJson(context.tools, model.id),
-            system: systemPromptToText(context.systemPrompt),
+            tools: toolsToJson(resolvedTools, model.id),
+            system: systemPromptToText(resolvedSystemPrompt),
             max_tokens: generateMaxTokens(model, options),
             stream: true,
             ...(options?.temperature !== undefined ? { temperature: options.temperature } : {}),
