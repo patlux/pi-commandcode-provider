@@ -11,6 +11,10 @@ import { COMMAND_CODE_CLI_VERSION } from "./commandcode-catalog.ts"
 import { commandCodeErrorMessage, redactCommandCodeErrorText } from "./overflow.ts"
 import { modelSupportsImageInput } from "./models.ts"
 import {
+  getCurrentSystemPrompt,
+  getCurrentTools,
+} from "@earendil-works/pi-ai"
+import {
   getApiKey,
   getEnvironmentInfo,
   isRecord,
@@ -543,6 +547,12 @@ export function createStreamCommandCode(deps: CoreDependencies) {
         const allowImages = modelSupportsImageInput(model.id, model.input)
         if (!allowImages) assertTextOnlyMessages(context.messages)
 
+        // v0.86.0+: TranscriptContext embeds prompt/tools in messages;
+        // fall back to direct properties for legacy Context callers.
+        const resolvedTools = context.tools ?? getCurrentTools(context.messages ?? [])
+        const resolvedSystemPrompt =
+          context.systemPrompt ?? getCurrentSystemPrompt(context.messages ?? [])
+
         let body: unknown = {
           config: {
             workingDir,
@@ -561,8 +571,8 @@ export function createStreamCommandCode(deps: CoreDependencies) {
           params: {
             model: model.id,
             messages: messagesToCC(context.messages, { allowImages }),
-            tools: toolsToJson(context.tools, model.id),
-            system: systemPromptToText(context.systemPrompt),
+            tools: toolsToJson(resolvedTools, model.id),
+            system: systemPromptToText(resolvedSystemPrompt),
             max_tokens: generateMaxTokens(model, options),
             stream: true,
             ...(options?.temperature !== undefined ? { temperature: options.temperature } : {}),
