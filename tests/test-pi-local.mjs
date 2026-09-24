@@ -65,7 +65,11 @@ if (piCheck.error) {
 let requestCount = 0
 let modelListRequestCount = 0
 let lastRequestBody
+let lastRequestPath
 let lastRequestHeaders = {}
+// When true the Provider API answers 403 upgrade_required, as it does for
+// plans without Provider API access, so requests fall back to /alpha/generate.
+let providerUpgradeRequired = false
 let overflowMode = false
 let overflowRequestCount = 0
 let modelsDelayMs = 0
@@ -131,13 +135,15 @@ const server = createServer((req, res) => {
 
   const isOpenAIRequest = req.method === "POST" && pathname === "/provider/v1/chat/completions"
   const isAnthropicRequest = req.method === "POST" && pathname === "/provider/v1/messages"
-  if (!isOpenAIRequest && !isAnthropicRequest) {
+  const isGenerateRequest = req.method === "POST" && pathname === "/alpha/generate"
+  if (!isOpenAIRequest && !isAnthropicRequest && !isGenerateRequest) {
     res.writeHead(404)
     res.end("Not found")
     return
   }
 
   requestCount += 1
+  lastRequestPath = pathname
   if (overflowMode) overflowRequestCount += 1
   lastRequestHeaders = Object.fromEntries(
     Object.entries(req.headers).map(([key, value]) => [
@@ -155,6 +161,21 @@ const server = createServer((req, res) => {
       lastRequestBody = JSON.parse(body)
     } catch {
       lastRequestBody = undefined
+    }
+
+    if (providerUpgradeRequired && !isGenerateRequest) {
+      res.writeHead(403, { "Content-Type": "application/json; charset=utf-8" })
+      res.end(JSON.stringify({ error: { code: "upgrade_required", type: "permission_error" } }))
+      return
+    }
+
+    if (isGenerateRequest) {
+      res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" })
+      res.write(`${JSON.stringify({ type: "text-delta", text: "mock-pi-ok" })}\n`)
+      res.end(
+        `${JSON.stringify({ type: "finish", finishReason: "stop", totalUsage: { inputTokens: 1, outputTokens: 1 } })}\n`,
+      )
+      return
     }
 
     if (overflowMode && overflowRequestCount === 2) {
@@ -859,6 +880,45 @@ try {
     "string",
   )
 
+  // pi 0.86+ passes providers a TranscriptContext whose system prompt and tools
+  // live in system messages. The generate transport builds its own request, so
+  // it must still declare them or models write tool calls as plain text.
+  console.log("[pi-local] generate fallback sends pi's system prompt and tools")
+  requestCount = 0
+  providerUpgradeRequired = true
+  const generatePrint = await runPi(
+    [
+      "--no-extensions",
+      "-e",
+      EXT_PATH,
+      "-p",
+      "say mock token",
+      "--provider",
+      "commandcode",
+      "--model",
+      TEST_MODEL,
+    ],
+    30_000,
+  )
+  providerUpgradeRequired = false
+  assert.equal(generatePrint.code, 0, generatePrint.stderr)
+  assert.match(generatePrint.stdout, /mock-pi-ok/)
+  assert.equal(requestCount, 2)
+  assert.equal(lastRequestPath, "/alpha/generate")
+  const generateTools = lastRequestBody?.params?.tools
+  assert.ok(
+    Array.isArray(generateTools) && generateTools.some((tool) => tool.name === "read"),
+    `generate request must declare pi's tools, got ${JSON.stringify(generateTools)}`,
+  )
+  assert.ok(
+    typeof lastRequestBody?.params?.system === "string" && lastRequestBody.params.system.length > 0,
+    "generate request must carry pi's system prompt",
+  )
+  assert.ok(
+    (lastRequestBody?.params?.messages ?? []).every((message) => message.role !== "system"),
+    "system messages must not leak into the generate message list",
+  )
+
   // pi resolves `/login` credentials, `--api-key`, and env keys through the
   // provider's registered auth methods. Stored credentials and `--api-key`
   // only reach the request when the provider keeps an API-key auth method
@@ -991,7 +1051,9 @@ try {
     images: [
       {
         type: "image",
-        data: "iVBORw0KGgo=",
+        // A decodable 1x1 PNG: pi 0.87+ resizes attachments and omits images
+        // it cannot decode, such as a bare PNG signature.
+        data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
         mimeType: "image/png",
       },
     ],

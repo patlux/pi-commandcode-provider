@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Send pi's system prompt and tool declarations on the `/alpha/generate` fallback with pi 0.86+, which moved them into transcript system messages. Plans without Provider API access use this transport, where models wrote tool calls as plain text instead of calling tools (#108, #109, #110).
 - Refresh the Command Code CLI catalog to `1.65.0`, adding image input, reasoning, and effort levels for `claude-opus-5-5`, `gpt-6-sol`, `gpt-6-luna`, `stepfun/Step-5-Preview`, `xai/grok-4.7`, `z-ai/glm-5.3-flashx`, and `stealth/space-bunny-alpha`, image input for the `xiaomi/mimo-v2.6-*` models, and reasoning for `meituan/LongCat-2.0`, which replaced `meituan/LongCat-2.0:free` (#106).
 - Add reviewed display pricing for these models and the now paid `meituan/LongCat-2.0`, including the temporary Grok 4.7 launch discount through 2026-09-27, and the long-context rates above 272K tokens for GPT-6 and GPT-5.6 models (#106).
 
