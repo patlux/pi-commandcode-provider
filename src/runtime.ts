@@ -117,7 +117,8 @@ export class CommandCodeRuntime<TProviderConfig, TContext extends CommandCodeCom
     private readonly options: CommandCodeRuntimeOptions<TProviderConfig>,
   ) {
     this.now = options.now ?? Date.now
-    this.logWarning = options.logWarning ?? ((message) => console.warn(`[commandcode] ${message}`))
+    // Direct console output corrupts the host TUI; warnings remain in /commandcode-status.
+    this.logWarning = options.logWarning ?? (() => {})
     const initialStatus: CommandCodeRuntimeStatus = {
       transport: "unknown",
       source: "empty",

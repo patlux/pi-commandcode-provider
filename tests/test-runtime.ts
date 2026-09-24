@@ -87,6 +87,33 @@ function deferred<T>(): {
 }
 
 describe("Command Code runtime", () => {
+  it("keeps default warning diagnostics off the console and available in status", async (t) => {
+    const warn = t.mock.method(console, "warn", () => {})
+    const pi = new ExtensionAPITestDouble()
+    const context = new CommandContext()
+    const warning =
+      "Loaded the live Command Code model catalog but could not update /missing/commandcode-models.json: ENOENT"
+    const runtime = createCommandCodeRuntime(pi, {
+      endpoint: "https://api.commandcode.ai/provider/v1/models",
+      cachePath: "/missing/commandcode-models.json",
+      loadModels: async () => loaded([FIRST_MODEL], "live", warning),
+      loadCachedModels: async () => [],
+      createProviderConfig: (models) => ({ models }),
+    })
+
+    await runtime.initialize()
+    await runtime.refresh()
+    assert.deepEqual(pi.providers.at(-1)?.models, [FIRST_MODEL])
+    assert.equal(runtime.getStatus().warning, warning)
+
+    const statusCommand = pi.commands.get("commandcode-status")
+    assert.ok(statusCommand)
+    await statusCommand("", context)
+    assert.equal(context.notifications.at(-1)?.type, "warning")
+    assert.ok(context.notifications.at(-1)?.message.includes(warning))
+    assert.equal(warn.mock.callCount(), 0)
+  })
+
   it("registers refresh and status commands and exposes redacted state", async () => {
     const pi = new ExtensionAPITestDouble()
     const context = new CommandContext()
