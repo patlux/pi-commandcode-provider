@@ -220,7 +220,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup and tests. See [RELEASE.m
 
 ## Maintainer wanted
 
-We're looking for another maintainer. See [#114](https://github.com/patlux/pi-commandcode-provider/issues/114).
+I'm looking for another maintainer. See [#114](https://github.com/patlux/pi-commandcode-provider/issues/114).
 
 ## License
 
