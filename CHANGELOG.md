@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Refresh the Command Code CLI catalog to `1.65.0`, adding image input, reasoning, and effort levels for `claude-opus-5-5`, `gpt-6-sol`, `gpt-6-luna`, `stepfun/Step-5-Preview`, `xai/grok-4.7`, `z-ai/glm-5.3-flashx`, and `stealth/space-bunny-alpha`, image input for the `xiaomi/mimo-v2.6-*` models, and reasoning for `meituan/LongCat-2.0`, which replaced `meituan/LongCat-2.0:free` (#106).
+- Add reviewed display pricing for these models and the now paid `meituan/LongCat-2.0`, including the temporary Grok 4.7 launch discount through 2026-09-27, and the long-context rates above 272K tokens for GPT-6 and GPT-5.6 models (#106).
+
 ## 0.7.1 - 2026-09-18
 
 - Normalize nullable type arrays for `google/gemini-*` tools on the generate transport to avoid the gateway's `any_of` validation error, preserving required fields, literal data, and schemas for unrelated models (#99, #103).

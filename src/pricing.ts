@@ -20,7 +20,7 @@ export interface TemporaryPricing {
 }
 
 export const PRICING_SOURCE_URL = "https://commandcode.ai/docs/resources/pricing-limits"
-export const PRICING_LAST_VERIFIED = "2026-09-18"
+export const PRICING_LAST_VERIFIED = "2026-09-24"
 
 export const ZERO_MODEL_COST: CommandCodeModelCost = {
   input: 0,
@@ -40,8 +40,8 @@ export const ZERO_MODEL_COST: CommandCodeModelCost = {
 export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   // Free models
   "inclusionai/ling-3.0-flash-sante:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-  "meituan/LongCat-2.0:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   "poolside/laguna-s-2.1-free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  "stealth/space-bunny-alpha": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 
   // Open and open-weight models
   "tencent/hy3-paid": { input: 0.14, output: 0.58, cacheRead: 0.035, cacheWrite: 0 },
@@ -57,6 +57,7 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   "moonshotai/Kimi-K2.6": { input: 0.95, output: 4, cacheRead: 0.16, cacheWrite: 0 },
   "moonshotai/Kimi-K2.5": { input: 0.6, output: 3, cacheRead: 0.1, cacheWrite: 0 },
   "z-ai/glm-5.3-flash": { input: 0.15, output: 0.5, cacheRead: 0.03, cacheWrite: 0 },
+  "z-ai/glm-5.3-flashx": { input: 0.37, output: 1.25, cacheRead: 0.075, cacheWrite: 0 },
   "zai-org/GLM-5.3": { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 },
   "zai-org/GLM-5.2": { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 },
   "zai-org/GLM-5.2-Fast": { input: 3, output: 10.25, cacheRead: 0.5, cacheWrite: 0 },
@@ -147,11 +148,21 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
     cacheWrite: 1.63,
   },
   "Qwen/Qwen3.6-Plus": { input: 0.5, output: 3, cacheRead: 0.1, cacheWrite: 0 },
+  "meituan/LongCat-2.0": { input: 0.3, output: 1.2, cacheRead: 0.006, cacheWrite: 0 },
+  "stepfun/Step-5-Preview": { input: 1, output: 2.7, cacheRead: 0.05, cacheWrite: 0 },
   "stepfun/Step-3.7-Flash": { input: 0.2, output: 1.15, cacheRead: 0.04, cacheWrite: 0 },
   "stepfun/Step-3.5-Flash": { input: 0.1, output: 0.3, cacheRead: 0.02, cacheWrite: 0 },
   // Permanent discounted rates.
   "xiaomi/mimo-v2.5-pro": { input: 0.435, output: 0.87, cacheRead: 0.0036, cacheWrite: 0 },
   "xiaomi/mimo-v2.5": { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 },
+  "xiaomi/mimo-v2.6-pro": { input: 0.435, output: 0.87, cacheRead: 0.0036, cacheWrite: 0 },
+  "xiaomi/mimo-v2.6-pro-ultraspeed": {
+    input: 4.35,
+    output: 8.7,
+    cacheRead: 0.036,
+    cacheWrite: 0,
+  },
+  "xiaomi/mimo-v2.6-flash": { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 },
   "nvidia/nemotron-3-ultra-550b-a55b": {
     input: 0.6,
     output: 2.4,
@@ -187,6 +198,7 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   "claude-sonnet-4-6": { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 },
   "claude-fable-5-1": { input: 10, output: 50, cacheRead: 0.25, cacheWrite: 12.5 },
   "claude-fable-5": { input: 10, output: 50, cacheRead: 1, cacheWrite: 12.5 },
+  "claude-opus-5-5": { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 },
   "claude-opus-5": { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
   "claude-opus-4-8": { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
   "claude-opus-4-7": { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
@@ -198,9 +210,52 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   },
 
   // OpenAI
-  "gpt-5.6-sol": { input: 5, output: 30, cacheRead: 0.5, cacheWrite: 6.25 },
-  "gpt-5.6-terra": { input: 2, output: 12, cacheRead: 0.2, cacheWrite: 2.5 },
-  "gpt-5.6-luna": { input: 0.2, output: 1.2, cacheRead: 0.02, cacheWrite: 0.25 },
+  "gpt-6-astra": {
+    input: 10,
+    output: 50,
+    cacheRead: 1,
+    cacheWrite: 12.5,
+    tiers: [{ inputTokensAbove: 272_000, input: 20, output: 75, cacheRead: 2, cacheWrite: 25 }],
+  },
+  "gpt-6-sol": {
+    input: 2,
+    output: 10,
+    cacheRead: 0.2,
+    cacheWrite: 2.5,
+    tiers: [{ inputTokensAbove: 272_000, input: 4, output: 15, cacheRead: 0.4, cacheWrite: 5 }],
+  },
+  "gpt-6-luna": {
+    input: 0.1,
+    output: 0.5,
+    cacheRead: 0.01,
+    cacheWrite: 0.125,
+    tiers: [
+      { inputTokensAbove: 272_000, input: 0.2, output: 0.75, cacheRead: 0.02, cacheWrite: 0.25 },
+    ],
+  },
+  "gpt-5.6-sol": {
+    input: 5,
+    output: 30,
+    cacheRead: 0.5,
+    cacheWrite: 6.25,
+    tiers: [{ inputTokensAbove: 272_000, input: 10, output: 45, cacheRead: 1, cacheWrite: 12.5 }],
+  },
+  "gpt-5.6-terra": {
+    input: 2,
+    output: 12,
+    cacheRead: 0.2,
+    cacheWrite: 2.5,
+    tiers: [{ inputTokensAbove: 272_000, input: 4, output: 18, cacheRead: 0.4, cacheWrite: 5 }],
+  },
+  "gpt-5.6-luna": {
+    input: 0.2,
+    output: 1.2,
+    cacheRead: 0.02,
+    cacheWrite: 0.25,
+    tiers: [
+      { inputTokensAbove: 272_000, input: 0.4, output: 1.8, cacheRead: 0.04, cacheWrite: 0.5 },
+    ],
+  },
   "gpt-5.5": { input: 5, output: 30, cacheRead: 0.5, cacheWrite: 0 },
   "gpt-5.4": { input: 2.5, output: 15, cacheRead: 0.25, cacheWrite: 0 },
   "gpt-5.3-codex": { input: 2, output: 8, cacheRead: 0.5, cacheWrite: 0 },
@@ -249,6 +304,20 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
       },
     ],
   },
+  // 40% launch discount; list price is 2 / 6 / 0.5, doubled above 200K.
+  "xai/grok-4.7": {
+    input: 1.2,
+    output: 3.6,
+    cacheRead: 0.3,
+    cacheWrite: 0,
+    tiers: [{ inputTokensAbove: 200_000, input: 2.4, output: 7.2, cacheRead: 0.6, cacheWrite: 0 }],
+  },
 }
 
-export const TEMPORARY_PRICING: readonly TemporaryPricing[] = []
+export const TEMPORARY_PRICING: readonly TemporaryPricing[] = [
+  {
+    models: ["xai/grok-4.7"],
+    expiresOn: "2026-09-27",
+    description: "40% launch discount",
+  },
+]
