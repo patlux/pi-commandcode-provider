@@ -1051,7 +1051,9 @@ try {
     images: [
       {
         type: "image",
-        data: "iVBORw0KGgo=",
+        // A decodable 1x1 PNG: pi 0.87+ resizes attachments and omits images
+        // it cannot decode, such as a bare PNG signature.
+        data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
         mimeType: "image/png",
       },
     ],
