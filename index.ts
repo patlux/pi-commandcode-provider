@@ -38,6 +38,7 @@ import { normalizeCommandCodeMessage } from "./src/overflow.ts"
 import { MODEL_COSTS, ZERO_MODEL_COST } from "./src/pricing.ts"
 import { registerCommandCodeQuota } from "./src/quota-command.ts"
 import { createCommandCodeRuntime } from "./src/runtime.ts"
+import { transcriptReadersFrom, withTranscriptPromptAndTools } from "./src/transcript.ts"
 import { createCommandCodeTransportRouter } from "./src/transport.ts"
 
 const COMMAND_CODE_API = "commandcode-custom"
@@ -174,6 +175,10 @@ export default async function (pi: ExtensionAPI) {
   })
   const resolveStreamOptions = (options?: Parameters<typeof streamNativeProvider>[2]) =>
     withResolvedCommandCodeApiKey(options, getConfiguredApiKey())
+  // The provider transport delegates to pi-ai, which reads the transcript
+  // itself. The generate transport builds its own request body and needs the
+  // flat prompt and tool fields that pi 0.86+ no longer passes.
+  const transcriptReaders = transcriptReadersFrom(piAiCompat)
   const transport = createCommandCodeTransportRouter({
     createStream: () => new AssistantMessageEventStream(),
     streamProvider: (model, context, options) =>
@@ -183,7 +188,11 @@ export default async function (pi: ExtensionAPI) {
         resolveStreamOptions(options),
       ),
     streamGenerate: (model, context, options) =>
-      streamGenerate(model, context, resolveStreamOptions(options)),
+      streamGenerate(
+        model,
+        withTranscriptPromptAndTools(context, transcriptReaders),
+        resolveStreamOptions(options),
+      ),
   })
 
   // pi dispatches the main chat through the registered provider, but sibling

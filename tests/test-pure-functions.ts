@@ -24,6 +24,8 @@ import {
   toolsToJson,
 } from "../src/core.ts"
 import { redactCommandCodeErrorText } from "../src/overflow.ts"
+import { transcriptReadersFrom, withTranscriptPromptAndTools } from "../src/transcript.ts"
+import type { MessageLike } from "../src/types.ts"
 
 import { objectAt } from "./helpers.ts"
 
@@ -1117,5 +1119,79 @@ describe("mapFinishReason()", () => {
     assert.equal(mapFinishReason("tool-calls"), "toolUse")
     assert.equal(mapFinishReason("max_tokens"), "length")
     assert.equal(mapFinishReason("max_output_tokens"), "length")
+  })
+})
+
+describe("transcript prompt and tools", () => {
+  const readTool = { name: "read", description: "Read a file", parameters: { type: "object" } }
+  const bashTool = { name: "bash", description: "Run a command", parameters: { type: "object" } }
+  const transcript: MessageLike[] = [
+    { role: "system", content: "You are pi." },
+    { role: "user", content: "read package.json" },
+  ]
+  // Stand-ins for pi-ai's exports; pi's own replay semantics are covered by
+  // the real-pi generate fallback test in tests/test-pi-local.mjs.
+  const piAiModule = {
+    getCurrentTools: (messages: readonly MessageLike[]) =>
+      messages.some((message) => message.role === "system") ? [readTool, bashTool] : [],
+    getCurrentSystemPrompt: (messages: readonly MessageLike[]) =>
+      messages
+        .filter((message) => message.role === "system")
+        .map((message) => message.content)
+        .join("\n"),
+  }
+
+  it("resolves no readers from a pi-ai module without them, as bundled in Oh My Pi", () => {
+    assert.equal(transcriptReadersFrom({ getCurrentTools: piAiModule.getCurrentTools }), undefined)
+    assert.equal(transcriptReadersFrom({}), undefined)
+  })
+
+  it("fills the prompt and tools from a pi 0.86+ transcript context", () => {
+    const resolved = withTranscriptPromptAndTools(
+      { messages: transcript },
+      transcriptReadersFrom(piAiModule),
+    )
+
+    assert.equal(resolved.systemPrompt, "You are pi.")
+    assert.deepEqual(resolved.tools, [readTool, bashTool])
+    assert.equal(resolved.messages, transcript)
+  })
+
+  it("keeps the flat fields that legacy hosts still pass", () => {
+    const legacy = {
+      systemPrompt: "legacy prompt",
+      messages: transcript,
+      tools: [bashTool],
+    }
+    assert.equal(withTranscriptPromptAndTools(legacy, transcriptReadersFrom(piAiModule)), legacy)
+
+    const promptOnly = { systemPrompt: "legacy prompt", messages: transcript }
+    assert.equal(
+      withTranscriptPromptAndTools(promptOnly, transcriptReadersFrom(piAiModule)),
+      promptOnly,
+    )
+  })
+
+  it("leaves the context unchanged when the host has no readers", () => {
+    const context = { messages: transcript }
+    assert.equal(withTranscriptPromptAndTools(context, undefined), context)
+  })
+
+  it("ignores malformed reader output", () => {
+    const readers = transcriptReadersFrom({
+      getCurrentTools: () => [readTool, { description: "no name" }, "bash"],
+      getCurrentSystemPrompt: () => undefined,
+    })
+    const resolved = withTranscriptPromptAndTools({ messages: transcript }, readers)
+
+    assert.equal(resolved.systemPrompt, "")
+    assert.deepEqual(resolved.tools, [readTool])
+    assert.deepEqual(
+      withTranscriptPromptAndTools(
+        { messages: transcript },
+        transcriptReadersFrom({ getCurrentTools: () => null, getCurrentSystemPrompt: () => "" }),
+      ).tools,
+      [],
+    )
   })
 })
