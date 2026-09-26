@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add a tag-triggered release workflow with npm Trusted Publishing, version and Git-ref guards, packed/registry package tests in Pi and OMP, and GitHub Release creation after verification. Owner-side npm and GitHub configuration is required before activation.
+
 ## 0.7.2 - 2026-09-24
 
 - Send pi's system prompt and tool declarations on the `/alpha/generate` fallback with pi 0.86+, which moved them into transcript system messages. Plans without Provider API access use this transport, where models wrote tool calls as plain text instead of calling tools (#108, #109, #110).

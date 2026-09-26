@@ -29,7 +29,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "npm run typecheck && tsx tests/test-package-manifest.ts && tsx tests/test-api-key.ts && tsx tests/test-pure-functions.ts && tsx tests/test-models.ts && tsx tests/test-model-metadata-check.ts && tsx tests/test-runtime.ts && tsx tests/test-pricing.ts && tsx tests/test-cost.ts && tsx tests/test-oauth.ts && tsx tests/test-abort.ts && tsx tests/test-overflow.ts && tsx tests/test-stream.ts && tsx tests/test-quota.ts && tsx tests/test-quota-command.ts && tsx tests/test-retry.ts && tsx tests/test-transport.ts && node tests/test-pi-isolated.mjs && node tests/test-pi-authenticated.mjs && node tests/test-pi-local.mjs && node tests/test-omp-compat.mjs",
+    "test": "npm run typecheck && node --test tests/test-release.mjs && tsx tests/test-package-manifest.ts && tsx tests/test-api-key.ts && tsx tests/test-pure-functions.ts && tsx tests/test-models.ts && tsx tests/test-model-metadata-check.ts && tsx tests/test-runtime.ts && tsx tests/test-pricing.ts && tsx tests/test-cost.ts && tsx tests/test-oauth.ts && tsx tests/test-abort.ts && tsx tests/test-overflow.ts && tsx tests/test-stream.ts && tsx tests/test-quota.ts && tsx tests/test-quota-command.ts && tsx tests/test-retry.ts && tsx tests/test-transport.ts && node tests/test-pi-isolated.mjs && node tests/test-pi-authenticated.mjs && node tests/test-pi-local.mjs && node tests/test-omp-compat.mjs",
     "typecheck": "tsc --noEmit",
     "format:check": "prettier --check '**/*.{ts,mjs,json,md}'",
     "format": "prettier --write '**/*.{ts,mjs,json,md}'",
@@ -53,6 +53,8 @@
     "test:pi-authenticated": "node tests/test-pi-authenticated.mjs",
     "test:pi-local": "node tests/test-pi-local.mjs",
     "test:smoke": "node tests/test-smoke.mjs",
+    "test:release": "node --test tests/test-release.mjs",
+    "test:release-package": "node tests/test-release-package.mjs",
     "test:e2e:live": "node tests/test-live-e2e.mjs",
     "test:e2e:live:go": "node scripts/live-e2e-profile.mjs go",
     "test:e2e:live:goat": "node scripts/live-e2e-profile.mjs goat",

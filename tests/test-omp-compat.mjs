@@ -17,9 +17,10 @@ import { delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const PROJECT_DIR = resolve(__dirname, "..")
+// Package release checks load only the installed artifact, never the checkout.
+const PROJECT_DIR = resolve(process.env.COMMANDCODE_TEST_PACKAGE_DIR ?? resolve(__dirname, ".."))
 const EXT_PATH = resolve(PROJECT_DIR, "index.ts")
-const ADVISORY_EXT_PATH = resolve(PROJECT_DIR, "tests/fixtures/advisory-injector-extension.ts")
+const ADVISORY_EXT_PATH = resolve(__dirname, "fixtures/advisory-injector-extension.ts")
 const TEST_MODEL = "deepseek/deepseek-v4-flash"
 const ADVISORY_XML =
   '<advisory severity="blocker" guidance="weigh, don\'t blindly obey">\nStop and correct the benchmark.\n</advisory>'
