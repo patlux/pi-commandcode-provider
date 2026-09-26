@@ -1,0 +1,177 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+# Shared across all versions so concurrent pushes cannot move a dist-tag backwards.
+# GitHub keeps at most one pending run; see RELEASE.md before pushing another tag.
+concurrency:
+  group: npm-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - run: node .github/scripts/release.mjs validate
+
+  checks:
+    needs: validate
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+      pull-requests: write
+    uses: ./.github/workflows/ci.yml
+
+  package:
+    needs: checks
+    runs-on: ubuntu-latest
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          # No dependency caches in release jobs.
+      - run: npm install --global npm@11.20.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.0
+      - name: Install real hosts
+        run: |
+          npm install --global @earendil-works/pi-coding-agent@latest @oh-my-pi/pi-coding-agent@latest
+          echo "PI_BIN=$(npm prefix -g)/bin/pi" >> "$GITHUB_ENV"
+          echo "OMP_BIN=$(npm prefix -g)/bin/omp" >> "$GITHUB_ENV"
+          pi --version
+          omp --version
+      - run: npm ci
+      - name: Run release tests on Node 24 without host skips
+        run: npm test
+        env:
+          PI_LOCAL_REQUIRED: "1"
+          OMP_COMPAT_REQUIRED: "1"
+      - run: npm run format:check
+      - run: npm audit --audit-level=moderate
+      - run: git diff --exit-code
+      - name: Pack once
+        id: pack
+        run: node .github/scripts/release.mjs pack
+      - name: Exercise the actual packed package
+        run: npm run test:release-package -- "$TARBALL"
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        id: upload
+        with:
+          name: npm-release-${{ github.run_attempt }}
+          path: release-artifact/
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: package
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm install --global npm@11.20.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.package.outputs.artifact-id }}
+          merge-multiple: true
+          path: release-artifact/
+      - name: Verify artifact, current tag, main ancestry and registry state
+        id: registry
+        run: node .github/scripts/release.mjs registry-check
+      # No npm ci, host tests, caches or package lifecycle scripts with OIDC access.
+      - name: Publish exactly the tested tarball using npm Trusted Publishing
+        if: steps.registry.outputs.decision == 'publish'
+        run: npm publish "$TARBALL" --tag "$DIST_TAG" --access public --ignore-scripts
+        env:
+          TARBALL: ${{ steps.registry.outputs.tarball }}
+          DIST_TAG: ${{ steps.registry.outputs.dist_tag }}
+
+  verify:
+    needs: [package, publish]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - run: npm install --global npm@11.20.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.0
+      - name: Install real hosts
+        run: |
+          npm install --global @earendil-works/pi-coding-agent@latest @oh-my-pi/pi-coding-agent@latest
+          echo "PI_BIN=$(npm prefix -g)/bin/pi" >> "$GITHUB_ENV"
+          echo "OMP_BIN=$(npm prefix -g)/bin/omp" >> "$GITHUB_ENV"
+          pi --version
+          omp --version
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.package.outputs.artifact-id }}
+          merge-multiple: true
+          path: release-artifact/
+      - name: Download and verify exact public npm version
+        id: registry
+        run: node .github/scripts/release.mjs verify
+      - name: Exercise the package downloaded from npm
+        run: node tests/test-release-package.mjs "$TARBALL"
+        env:
+          TARBALL: ${{ steps.registry.outputs.tarball }}
+
+  github-release:
+    needs: [package, verify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.package.outputs.artifact-id }}
+          merge-multiple: true
+          path: release-artifact/
+      - name: Create GitHub release only after registry verification
+        run: node .github/scripts/release.mjs github
+        env:
+          GH_TOKEN: ${{ github.token }}

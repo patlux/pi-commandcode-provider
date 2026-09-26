@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.7.3-next.0 - 2026-09-26
+
+- Validate the tag-triggered release workflow end to end using npm Trusted Publishing. The workflow verifies versions and Git refs, tests the packed and registry-installed package in Pi and OMP, and creates a GitHub Release only after verification ([#117](https://github.com/patlux/pi-commandcode-provider/pull/117)).
+- This prerelease tests release automation only; provider runtime behavior is unchanged from 0.7.2. It is published to `next`, leaving `latest` on 0.7.2.
+
 ## 0.7.2 - 2026-09-24
 
 - Send pi's system prompt and tool declarations on the `/alpha/generate` fallback with pi 0.86+, which moved them into transcript system messages. Plans without Provider API access use this transport, where models wrote tool calls as plain text instead of calling tools (#108, #109, #110).

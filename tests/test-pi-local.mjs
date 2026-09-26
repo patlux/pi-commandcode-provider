@@ -13,14 +13,10 @@ import { delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const PROJECT_DIR = resolve(__dirname, "..")
+// Package release checks load only the installed artifact, never the checkout.
+const PROJECT_DIR = resolve(process.env.COMMANDCODE_TEST_PACKAGE_DIR ?? resolve(__dirname, ".."))
 const EXT_PATH = resolve(PROJECT_DIR, "index.ts")
-const COMPAT_CALLER_EXT_PATH = resolve(
-  PROJECT_DIR,
-  "tests",
-  "fixtures",
-  "compat-caller-extension.ts",
-)
+const COMPAT_CALLER_EXT_PATH = resolve(__dirname, "fixtures", "compat-caller-extension.ts")
 const TEST_MODEL = "gpt-5.4"
 const CLAUDE_TEST_MODEL = "claude-sonnet-4-6"
 
@@ -236,7 +232,7 @@ const server = createServer((req, res) => {
   })
 })
 
-await new Promise((resolve) => server.listen(0, resolve))
+await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve))
 const address = server.address()
 const port = typeof address === "object" && address ? address.port : 0
 const apiBase = `http://127.0.0.1:${port}`
@@ -1092,5 +1088,7 @@ try {
   console.log("[pi-local] PASS")
 } finally {
   await new Promise((resolve) => server.close(resolve))
-  rmSync(tempHome, { recursive: true, force: true })
+  // RPC children can still flush session files while exiting after SIGTERM.
+  // Retry transient ENOTEMPTY, but keep a persistent cleanup failure fatal.
+  rmSync(tempHome, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
 }

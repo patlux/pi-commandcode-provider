@@ -241,7 +241,7 @@ export async function startMockCommandCodeServer(): Promise<MockCommandCodeServe
   })
 
   await new Promise<void>((resolve) => {
-    server.listen(0, () => {
+    server.listen(0, "127.0.0.1", () => {
       const address = server.address()
       if (typeof address === "object" && address) port = address.port
       resolve()

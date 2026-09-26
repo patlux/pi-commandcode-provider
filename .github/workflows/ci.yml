@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  # The tag release calls these same gates for its exact commit.
+  workflow_call:
+
+permissions:
+  contents: read
 
 jobs:
   # ──────────────────────────────────────────────────────────
@@ -43,6 +48,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run format:check
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint:1.7.7
 
   # ──────────────────────────────────────────────────────────
   # Oh My Pi host compatibility — real omp binary, mock API
@@ -119,6 +126,9 @@ jobs:
   gitleaks:
     name: Gitleaks — secrets scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
