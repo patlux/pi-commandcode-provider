@@ -2,7 +2,10 @@
 
 ## Unreleased
 
-- Add a tag-triggered release workflow with npm Trusted Publishing, version and Git-ref guards, packed/registry package tests in Pi and OMP, and GitHub Release creation after verification. Owner-side npm and GitHub configuration is required before activation.
+## 0.7.3-next.0 - 2026-09-26
+
+- Validate the tag-triggered release workflow end to end using npm Trusted Publishing. The workflow verifies versions and Git refs, tests the packed and registry-installed package in Pi and OMP, and creates a GitHub Release only after verification ([#117](https://github.com/patlux/pi-commandcode-provider/pull/117)).
+- This prerelease tests release automation only; provider runtime behavior is unchanged from 0.7.2. It is published to `next`, leaving `latest` on 0.7.2.
 
 ## 0.7.2 - 2026-09-24
 
