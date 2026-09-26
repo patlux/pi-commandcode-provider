@@ -128,6 +128,8 @@ While pi is running, use these provider commands without restarting:
 
 The `commandcode-quota` command reads from the Command Code alpha usage endpoints (the same ones the `cmd` CLI `/usage` command uses): `whoami`, `billing/credits`, `billing/subscriptions`, and `usage/summary`. It authenticates with the same API key the provider already uses. If the command cannot reach those endpoints or an endpoint schema changes, unavailable sections are reported explicitly instead of being displayed as zero usage. Output is plain text (via `ui.notify`) so it works across pi and compatible hosts such as OMP.
 
+On Oh My Pi the provider also registers an OMP usage provider through the `usage` field of `pi.registerProvider`, reading the same endpoints with the same credentials. It supplies the account's 5-hour and weekly usage windows, credits remaining and used against the billing-period pool, and the current plan to the host's usage surfaces, and it follows the same rule for sections the API does not report. pi has no such field and ignores it.
+
 Set `CMD_ZDR=1` to send Command Code's documented `x-cmd-zdr: 1` zero-data-retention header. The legacy `COMMANDCODE_ZDR=1` alias remains supported.
 
 The following environment variables are intended for tests, local mocks, and compatible API endpoints:
