@@ -218,9 +218,11 @@ The Go profile defaults to DeepSeek V4 Flash; GOAT defaults to Grok 4.6 because 
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup and tests. See [RELEASE.md](RELEASE.md) for the release process.
 
-## Maintainer wanted
+## Maintainers
 
-I'm looking for another maintainer. See [#114](https://github.com/patlux/pi-commandcode-provider/issues/114).
+- [@patlux](https://github.com/patlux)
+- [@pierreraby](https://github.com/pierreraby)
+- [@karaaslanz](https://github.com/karaaslanz)
 
 ## License
 

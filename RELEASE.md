@@ -48,7 +48,7 @@ The workflow file does not configure npm or GitHub protection settings. The cano
    Stage-only permission is insufficient: it requires a separate human approval, unlike this automatic workflow. Use npm's supported setup flow with the owner's own authenticated account. Do not add an `NPM_TOKEN` secret or share a maintainer's credentials. See [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/).
 
 4. Protect `v*` tags against updates and deletion. Review who can create tags, including existing automation collaborators: tag creation grants publication capability. If creation restrictions are used, allow every release maintainer, not only the repository owner.
-5. Keep `main` protected by passing CI. If requiring reviews, add all accepted maintainers to `CODEOWNERS` before enabling mandatory code-owner review; currently it names only `@patlux`. The workflow does not change membership, branch protection or npm package owners.
+5. Keep `main` protected by passing CI. If requiring reviews, ensure the maintainers listed in `CODEOWNERS` have accepted their invitations and have repository write access before enabling mandatory code-owner review. The workflow does not change membership, branch protection or npm package owners.
 6. Test the complete path with a **new, intentional `next` prerelease**. Confirm npm's version, `next` dist-tag, provenance and the GitHub prerelease. Verify that `latest` stayed unchanged. A dry run cannot prove OIDC authorization works.
 7. After successful validation, review npm's publishing access setting: require 2FA and disallow traditional tokens. Trusted Publishing continues to work. Revoke obsolete automation tokens only after identifying them and obtaining authorization.
 

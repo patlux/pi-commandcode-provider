@@ -2,21 +2,21 @@
 # These files require maintainer review on every PR
 
 # Security-critical: auth, secrets, OAuth flow
-/src/auth-server.ts @patlux
-/src/oauth.ts @patlux
-/src/converters.ts @patlux
+/src/auth-server.ts @patlux @pierreraby @karaaslanz
+/src/oauth.ts @patlux @pierreraby @karaaslanz
+/src/converters.ts @patlux @pierreraby @karaaslanz
 
 # CI/CD pipeline
-.github/workflows/ @patlux
-.github/scripts/ @patlux
+.github/workflows/ @patlux @pierreraby @karaaslanz
+.github/scripts/ @patlux @pierreraby @karaaslanz
 
 # Dependencies
-package.json @patlux
-package-lock.json @patlux
+package.json @patlux @pierreraby @karaaslanz
+package-lock.json @patlux @pierreraby @karaaslanz
 
 # Security tooling
-.semgrep/ @patlux
-.gitleaks.toml @patlux
+.semgrep/ @patlux @pierreraby @karaaslanz
+.gitleaks.toml @patlux @pierreraby @karaaslanz
 
 # This file itself
-.github/CODEOWNERS @patlux
+.github/CODEOWNERS @patlux @pierreraby @karaaslanz
