@@ -77,8 +77,12 @@ git diff --check
 
 For release and npm smoke-test steps, see [RELEASE.md](RELEASE.md). Releases use a
 merged release PR followed by a `vX.Y.Z` (stable) or `vX.Y.Z-next.N` tag push; the
-release workflow publishes the tested tarball through npm Trusted Publishing.
-GitHub/npm activation is a separate owner setup step.
+release workflow is the only publishing path, including recovery, and publishes the
+tested tarball through npm Trusted Publishing (OIDC).
+The canonical repository's activation was verified with `0.7.3-next.0` on 2026-09-26;
+see the [activation record](RELEASE.md#activation-record). Setup changes and maintainer
+permissions remain separate owner tasks. The repository's agent checklist lives in
+[the pi-commandcode-release skill](.agents/skills/pi-commandcode-release/SKILL.md).
 
 Release-rule tests run as part of `npm test`, or separately with `npm run test:release`.
 To test a packed artifact with real Pi and OMP against mock APIs, run
