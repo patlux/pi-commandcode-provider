@@ -9,6 +9,12 @@ Release PR (version + changelog) → green CI → merge into main
 
 Both stable releases and prereleases must reference commits already in `main`. Never move a release tag to another commit. Version numbers are chosen by maintainers, not generated from commit messages.
 
+## Authorization
+
+Coding agents must have explicit authorization before committing, pushing, merging, tagging, publishing or changing remote settings. Updating documentation does not authorize a release or maintainer invitations. Confirm the intended version and channel: a `next` prerelease is a real public release, not a dry run. Follow applicable branch-naming rules and preserve unrelated changes.
+
+If recovery cannot proceed safely, stop and report the run/version evidence, attempted checks, blocker and next input needed. Do not bypass CI/OIDC or weaken checks.
+
 ## Activation record
 
 The CI release path was activated and successfully tested end to end on **2026-09-26**:

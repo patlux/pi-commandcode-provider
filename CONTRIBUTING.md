@@ -81,8 +81,8 @@ release workflow is the only publishing path, including recovery, and publishes 
 tested tarball through npm Trusted Publishing (OIDC).
 The canonical repository's activation was verified with `0.7.3-next.0` on 2026-09-26;
 see the [activation record](RELEASE.md#activation-record). Setup changes and maintainer
-permissions remain separate owner tasks. The repository's agent checklist lives in
-[the pi-commandcode-release skill](.agents/skills/pi-commandcode-release/SKILL.md).
+permissions remain separate owner tasks. `RELEASE.md` is the single release guide
+for maintainers and coding agents.
 
 Release-rule tests run as part of `npm test`, or separately with `npm run test:release`.
 To test a packed artifact with real Pi and OMP against mock APIs, run
