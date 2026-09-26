@@ -38,6 +38,7 @@ import { normalizeCommandCodeMessage } from "./src/overflow.ts"
 import { MODEL_COSTS, ZERO_MODEL_COST } from "./src/pricing.ts"
 import { registerCommandCodeQuota } from "./src/quota-command.ts"
 import { createCommandCodeRuntime } from "./src/runtime.ts"
+import { createCommandCodeUsageProvider, type UsageProvider } from "./src/usage.ts"
 import { transcriptReadersFrom, withTranscriptPromptAndTools } from "./src/transcript.ts"
 import { createCommandCodeTransportRouter } from "./src/transport.ts"
 
@@ -99,11 +100,20 @@ function commandCodeHeaders(): Record<string, string> | undefined {
   return undefined
 }
 
+/**
+ * The registered config, plus Oh My Pi's extension-only usage hook.
+ *
+ * `usage` is not part of pi's `ProviderConfig`; pi ignores the extra field,
+ * while OMP turns it into the account's usage report. Both use the same
+ * registration call, so the field is attached unconditionally.
+ */
+type CommandCodeProviderConfig = ProviderConfig & { usage?: UsageProvider }
+
 function createProviderConfig(
   models: readonly CommandCodeModel[],
   apiBase: string,
   streamCommandCode: ProviderConfig["streamSimple"],
-): ProviderConfig {
+): CommandCodeProviderConfig {
   const headers = commandCodeHeaders()
   return {
     name: "Command Code",
@@ -112,6 +122,11 @@ function createProviderConfig(
     api: COMMAND_CODE_API,
     streamSimple: streamCommandCode,
     headers,
+    // Same alpha endpoints and credentials as the /commandcode-quota command.
+    usage: createCommandCodeUsageProvider({
+      apiBase: legacyApiBase(apiBase),
+      headers,
+    }),
     oauth: {
       name: "Command Code",
       login,
