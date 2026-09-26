@@ -75,7 +75,15 @@ npm run format:check
 git diff --check
 ```
 
-For release and npm smoke-test steps, see [RELEASE.md](RELEASE.md).
+For release and npm smoke-test steps, see [RELEASE.md](RELEASE.md). Releases use a
+merged release PR followed by a `vX.Y.Z` (stable) or `vX.Y.Z-next.N` tag push; the
+release workflow publishes the tested tarball through npm Trusted Publishing.
+GitHub/npm activation is a separate owner setup step.
+
+Release-rule tests run as part of `npm test`, or separately with `npm run test:release`.
+To test a packed artifact with real Pi and OMP against mock APIs, run
+`npm run test:release-package -- /path/to/package.tgz`; both hosts and Bun are required.
+Validate workflow edits with `actionlint`.
 
 ## Pull request guidelines
 
@@ -97,7 +105,8 @@ Local extension smoke:
 pi --no-extensions -e ./index.ts --list-models commandcode
 ```
 
-Npm package smoke and isolated `/login` testing are documented in [RELEASE.md](RELEASE.md#test-the-npm-package-in-pi).
+Packed-package smoke testing is documented in [RELEASE.md](RELEASE.md#local-package-smoke-test).
+Use the isolated launchers above for a separately authorized manual `/login` test.
 
 ## Commit message rules
 

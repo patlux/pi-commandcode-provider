@@ -8,6 +8,7 @@
 
 # CI/CD pipeline
 .github/workflows/ @patlux
+.github/scripts/ @patlux
 
 # Dependencies
 package.json @patlux
