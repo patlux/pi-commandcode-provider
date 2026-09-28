@@ -31,6 +31,7 @@ import {
   loadCommandCodeModels,
   MODEL_EFFORTS,
   thinkingMetadataForModel,
+  type CommandCodeApi,
   type CommandCodeModel,
 } from "./src/models.ts"
 import { getApiKey as getOAuthApiKey, login, refreshToken } from "./src/oauth.ts"
@@ -109,6 +110,39 @@ function commandCodeHeaders(): Record<string, string> | undefined {
  */
 type CommandCodeProviderConfig = ProviderConfig & { usage?: UsageProvider }
 
+type CommandCodeModelCompat = NonNullable<ProviderConfig["models"]>[number]["compat"]
+
+/**
+ * Compatibility flags per wire. Chat Completions mirrors what the Provider API
+ * accepts for open models; Responses leaves pi's defaults (store off, encrypted
+ * reasoning) and only mutes the OpenAI extras Command Code does not advertise;
+ * Anthropic keeps the existing Claude tuning.
+ */
+function compatForModel(model: CommandCodeModel): CommandCodeModelCompat {
+  if (model.api === "openai-responses") {
+    return {
+      supportsDeveloperRole: false,
+      supportsLongCacheRetention: false,
+      sessionAffinityFormat: "openai-nosession",
+    }
+  }
+  if (model.api === "anthropic-messages") {
+    return {
+      supportsEagerToolInputStreaming: false,
+      supportsLongCacheRetention: false,
+      supportsCacheControlOnTools: false,
+      supportsToolReferences: false,
+      ...(model.reasoning ? { forceAdaptiveThinking: true } : {}),
+    }
+  }
+  return {
+    supportsStore: false,
+    supportsDeveloperRole: false,
+    supportsReasoningEffort: MODEL_EFFORTS[model.id] !== undefined,
+    maxTokensField: "max_tokens",
+  }
+}
+
 function createProviderConfig(
   models: readonly CommandCodeModel[],
   apiBase: string,
@@ -145,21 +179,7 @@ function createProviderConfig(
       contextWindow: model.contextWindow,
       maxTokens: model.maxTokens,
       headers,
-      compat:
-        model.api === "openai-completions"
-          ? {
-              supportsStore: false,
-              supportsDeveloperRole: false,
-              supportsReasoningEffort: MODEL_EFFORTS[model.id] !== undefined,
-              maxTokensField: "max_tokens",
-            }
-          : {
-              supportsEagerToolInputStreaming: false,
-              supportsLongCacheRetention: false,
-              supportsCacheControlOnTools: false,
-              supportsToolReferences: false,
-              ...(model.reasoning ? { forceAdaptiveThinking: true } : {}),
-            },
+      compat: compatForModel(model),
     })),
   }
 }
@@ -194,13 +214,19 @@ export default async function (pi: ExtensionAPI) {
   // itself. The generate transport builds its own request body and needs the
   // flat prompt and tool fields that pi 0.86+ no longer passes.
   const transcriptReaders = transcriptReadersFrom(piAiCompat)
+  // The host dispatches every Command Code model through one custom api id, so
+  // the wire each model answers on is resolved here from the catalog that
+  // `createProviderConfig` registered. Unknown ids fall back to the id rule.
+  const modelApis = new Map<string, CommandCodeApi>()
+  const resolveModelApi = (modelId: string): CommandCodeApi =>
+    modelApis.get(modelId) ?? apiForModelId(modelId)
   const transport = createCommandCodeTransportRouter({
     createStream: () => new AssistantMessageEventStream(),
     streamProvider: (model, context, options) =>
       streamNativeProvider(
         {
           ...model,
-          api: apiForModelId(model.id),
+          api: resolveModelApi(model.id),
           cost: commandCodeCostRatesAt(model.id, model.cost),
           compat: model.compatConfig ?? model.compat,
         },
@@ -248,7 +274,10 @@ export default async function (pi: ExtensionAPI) {
         signal,
       }),
     loadCachedModels: () => loadCachedCommandCodeModels(modelsCachePath),
-    createProviderConfig: (models) => createProviderConfig(models, apiBase, transport.stream),
+    createProviderConfig: (models) => {
+      for (const model of models) modelApis.set(model.id, model.api)
+      return createProviderConfig(models, apiBase, transport.stream)
+    },
     getTransport: transport.getTransport,
   })
 

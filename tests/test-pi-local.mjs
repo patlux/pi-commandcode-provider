@@ -19,6 +19,7 @@ const EXT_PATH = resolve(PROJECT_DIR, "index.ts")
 const COMPAT_CALLER_EXT_PATH = resolve(__dirname, "fixtures", "compat-caller-extension.ts")
 const TEST_MODEL = "gpt-5.4"
 const CLAUDE_TEST_MODEL = "claude-sonnet-4-6"
+const RESPONSES_TEST_MODEL = "gpt-5.6-sol"
 
 function findPiBinary() {
   if (process.env.PI_BIN) return process.env.PI_BIN
@@ -80,6 +81,7 @@ function modelCatalog() {
       owned_by: "command-code",
       name: "GPT 5.4",
       context_length: 1_000_000,
+      supported_endpoints: ["/chat/completions"],
     },
     {
       id: CLAUDE_TEST_MODEL,
@@ -88,6 +90,7 @@ function modelCatalog() {
       owned_by: "command-code",
       name: "Claude Sonnet 4.6",
       context_length: 200_000,
+      supported_endpoints: ["/messages"],
     },
     {
       id: "cc-second-model",
@@ -96,6 +99,16 @@ function modelCatalog() {
       owned_by: "command-code",
       name: "Qwen 3.7 Max",
       context_length: 1_000_000,
+      supported_endpoints: ["/chat/completions"],
+    },
+    {
+      id: RESPONSES_TEST_MODEL,
+      object: "model",
+      created: 1779824324,
+      owned_by: "command-code",
+      name: "GPT 5.6 Sol",
+      context_length: 1_000_000,
+      supported_endpoints: ["/chat/completions", "/responses"],
     },
   ]
   if (includeRefreshedModel) {
@@ -109,6 +122,65 @@ function modelCatalog() {
     })
   }
   return { object: "list", data }
+}
+
+/** Minimal OpenAI Responses stream: one assistant text message, then a terminal event. */
+function writeResponsesStream(res, text) {
+  const item = {
+    type: "message",
+    id: "msg_mock",
+    role: "assistant",
+    status: "completed",
+    content: [{ type: "output_text", text, annotations: [] }],
+  }
+  const send = (event) => res.write(`data: ${JSON.stringify(event)}\n\n`)
+  send({
+    type: "response.created",
+    response: { id: "resp_mock", object: "response", status: "in_progress", output: [] },
+  })
+  send({
+    type: "response.output_item.added",
+    output_index: 0,
+    item: {
+      type: "message",
+      id: "msg_mock",
+      role: "assistant",
+      status: "in_progress",
+      content: [],
+    },
+  })
+  send({
+    type: "response.output_text.delta",
+    output_index: 0,
+    content_index: 0,
+    item_id: "msg_mock",
+    delta: text,
+  })
+  send({
+    type: "response.output_text.done",
+    output_index: 0,
+    content_index: 0,
+    item_id: "msg_mock",
+    text,
+  })
+  send({ type: "response.output_item.done", output_index: 0, item })
+  send({
+    type: "response.completed",
+    response: {
+      id: "resp_mock",
+      object: "response",
+      status: "completed",
+      output: [item],
+      usage: {
+        input_tokens: 1,
+        output_tokens: 1,
+        total_tokens: 2,
+        input_tokens_details: { cached_tokens: 0 },
+        output_tokens_details: { reasoning_tokens: 0 },
+      },
+    },
+  })
+  res.end()
 }
 
 const server = createServer((req, res) => {
@@ -130,9 +202,10 @@ const server = createServer((req, res) => {
   }
 
   const isOpenAIRequest = req.method === "POST" && pathname === "/provider/v1/chat/completions"
+  const isResponsesRequest = req.method === "POST" && pathname === "/provider/v1/responses"
   const isAnthropicRequest = req.method === "POST" && pathname === "/provider/v1/messages"
   const isGenerateRequest = req.method === "POST" && pathname === "/alpha/generate"
-  if (!isOpenAIRequest && !isAnthropicRequest && !isGenerateRequest) {
+  if (!isOpenAIRequest && !isResponsesRequest && !isAnthropicRequest && !isGenerateRequest) {
     res.writeHead(404)
     res.end("Not found")
     return
@@ -199,6 +272,10 @@ const server = createServer((req, res) => {
           ? "compaction-summary"
           : "overflow-recovered"
       : "mock-pi-ok"
+    if (isResponsesRequest) {
+      writeResponsesStream(res, text)
+      return
+    }
     if (isAnthropicRequest) {
       res.write(
         `event: message_start\ndata: ${JSON.stringify({ type: "message_start", message: { id: "mock", type: "message", role: "assistant", content: [], model: CLAUDE_TEST_MODEL, stop_reason: null, stop_sequence: null, usage: { input_tokens: 1, output_tokens: 0 } } })}\n\n`,
@@ -981,6 +1058,30 @@ try {
   assert.notEqual(noKeyPrint.code, 0)
   assert.equal(requestCount, 0, JSON.stringify(lastRequestHeaders))
   assert.doesNotMatch(noKeyPrint.stdout + noKeyPrint.stderr, /\$COMMAND_CODE_API_KEY/)
+
+  console.log("[pi-local] Responses endpoint for a model advertising /responses")
+  requestCount = 0
+  const responsesPrint = await runPi(
+    [
+      "--no-extensions",
+      "-e",
+      EXT_PATH,
+      "-p",
+      "say mock token",
+      "--provider",
+      "commandcode",
+      "--model",
+      RESPONSES_TEST_MODEL,
+    ],
+    30_000,
+  )
+  assert.equal(responsesPrint.code, 0, responsesPrint.stderr)
+  assert.match(responsesPrint.stdout, /mock-pi-ok/)
+  assert.equal(requestCount, 1)
+  assert.equal(lastRequestPath, "/provider/v1/responses")
+  assert.equal(lastRequestBody?.model, RESPONSES_TEST_MODEL)
+  assert.equal(lastRequestBody?.stream, true)
+  assert.ok(Array.isArray(lastRequestBody?.input), "Responses request should use the input array")
 
   console.log("[pi-local] Claude request through Anthropic Messages endpoint")
   requestCount = 0
