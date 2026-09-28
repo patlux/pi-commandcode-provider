@@ -86,6 +86,16 @@ Open `/model` and select one of the models provided by Command Code. Model avail
 
 Other extensions that stream with the active Command Code model, such as background agents or memory workers, use the same connection and the same credentials as the chat, so their requests count against your Command Code usage.
 
+### Endpoint selection
+
+The Provider API serves models on different wires, and `/provider/v1/models` advertises the routes each model answers on through its `supported_endpoints` field. The provider maps that to the matching wire:
+
+- Claude models answer on `/provider/v1/messages` only.
+- Models advertising `/responses` use the OpenAI Responses wire on `/provider/v1/responses`.
+- Every other model uses OpenAI Chat Completions on `/provider/v1/chat/completions`.
+
+A model whose catalog entry omits `supported_endpoints` keeps Chat Completions, which every non-Claude model serves, so discovery keeps working when the field is absent. The selection is applied per model, so a catalog that mixes wires streams each model correctly.
+
 ### Reasoning support
 
 Reasoning capability and selectable effort levels follow the official CLI catalog independently. Models can therefore be marked as reasoning-capable even when Command Code chooses their depth automatically. Models with explicit effort support register a model-specific `thinkingLevelMap`, so pi and OMP expose only valid levels. For a few reasoning models the CLI catalog ships no effort levels although the endpoint accepts `reasoning_effort`; `src/commandcode-catalog-overrides.ts` adds a manual level set for those (currently `meta/muse-spark-1.1`, `meta/muse-spark-1.2`, and `meta/muse-spark-1.2-contributor`) on top of the generated catalog. The catalog sync removes an override as soon as upstream publishes its own levels. Pi's native OpenAI- and Anthropic-compatible providers translate the selected level for Provider API accounts; the existing Command Code generate transport sends the matching `reasoning_effort` for Go accounts.

@@ -94,16 +94,60 @@ describe("commandCodeModelsFromApiResponse()", () => {
     assert.deepEqual(commandCodeModelsFromApiResponse(API_RESPONSE), EXPECTED_MODELS)
   })
 
-  it("routes Claude models to Anthropic Messages and all others to Chat Completions", () => {
+  it("routes each model to the wire its endpoints advertise", () => {
     assert.equal(apiForModelId("claude-sonnet-4-6"), "anthropic-messages")
+    assert.equal(apiForModelId("claude-sonnet-4-6", ["/messages"]), "anthropic-messages")
+    // Claude never moves off Messages, even if a catalog lists Responses by mistake.
+    assert.equal(
+      apiForModelId("claude-sonnet-4-6", ["/messages", "/responses"]),
+      "anthropic-messages",
+    )
+    // Without endpoint metadata, non-Claude models keep the always-available wire.
     assert.equal(apiForModelId("gpt-5.6-sol"), "openai-completions")
+    assert.equal(apiForModelId("gpt-5.6-sol", []), "openai-completions")
+    assert.equal(apiForModelId("gpt-5.6-sol", ["/chat/completions"]), "openai-completions")
+    assert.equal(
+      apiForModelId("gpt-5.6-sol", ["/chat/completions", "/responses"]),
+      "openai-responses",
+    )
     assert.equal(
       baseUrlForModel("https://api.commandcode.ai/provider/v1/", "openai-completions"),
       "https://api.commandcode.ai/provider/v1",
     )
     assert.equal(
+      baseUrlForModel("https://api.commandcode.ai/provider/v1/", "openai-responses"),
+      "https://api.commandcode.ai/provider/v1",
+    )
+    assert.equal(
       baseUrlForModel("https://api.commandcode.ai/provider/v1/", "anthropic-messages"),
       "https://api.commandcode.ai/provider",
+    )
+  })
+
+  it("uses supported_endpoints to pick the Responses wire", () => {
+    const models = commandCodeModelsFromApiResponse({
+      object: "list",
+      data: [
+        {
+          ...API_RESPONSE.data[0],
+          id: "gpt-5.6-sol",
+          supported_endpoints: ["/chat/completions", "/responses"],
+        },
+        {
+          ...API_RESPONSE.data[0],
+          id: "deepseek/deepseek-v4-flash-fast",
+          supported_endpoints: ["/chat/completions"],
+        },
+        {
+          ...API_RESPONSE.data[0],
+          id: "claude-sonnet-4-6",
+          supported_endpoints: ["/messages"],
+        },
+      ],
+    })
+    assert.deepEqual(
+      models.map(({ api }) => api),
+      ["openai-responses", "openai-completions", "anthropic-messages"],
     )
   })
 
@@ -292,14 +336,36 @@ describe("commandCodeModelsFromApiResponse()", () => {
 describe("commandCodeModelsFromCache()", () => {
   it("accepts the current cache format", () => {
     assert.deepEqual(
-      commandCodeModelsFromCache({ version: 1, models: EXPECTED_MODELS }),
+      commandCodeModelsFromCache({ version: 2, models: EXPECTED_MODELS }),
       EXPECTED_MODELS,
     )
   })
 
+  it("keeps the wire stored in the cache", () => {
+    const cached = commandCodeModelsFromCache({
+      version: 2,
+      models: [{ ...EXPECTED_MODELS[0], id: "gpt-5.6-sol", api: "openai-responses" }],
+    })
+    assert.equal(cached[0]?.api, "openai-responses")
+  })
+
+  it("falls back to the id rule when the cached wire is missing or invalid", () => {
+    const missing = commandCodeModelsFromCache({
+      version: 2,
+      models: [{ ...EXPECTED_MODELS[0], id: "gpt-5.6-sol", api: undefined }],
+    })
+    assert.equal(missing[0]?.api, "openai-completions")
+
+    const invalid = commandCodeModelsFromCache({
+      version: 2,
+      models: [{ ...EXPECTED_MODELS[0], id: "claude-sonnet-4-6", api: "not-a-wire" }],
+    })
+    assert.equal(invalid[0]?.api, "anthropic-messages")
+  })
+
   it("normalizes cached reasoning metadata from the model id", () => {
     const cached = commandCodeModelsFromCache({
-      version: 1,
+      version: 2,
       models: [
         {
           ...EXPECTED_MODELS[0],
@@ -312,11 +378,11 @@ describe("commandCodeModelsFromCache()", () => {
   })
 
   it("rejects empty, invalid, and unsupported caches", () => {
-    assert.throws(() => commandCodeModelsFromCache({ version: 1, models: [] }))
-    assert.throws(() => commandCodeModelsFromCache({ version: 2, models: EXPECTED_MODELS }))
+    assert.throws(() => commandCodeModelsFromCache({ version: 2, models: [] }))
+    assert.throws(() => commandCodeModelsFromCache({ version: 1, models: EXPECTED_MODELS }))
     assert.throws(() =>
       commandCodeModelsFromCache({
-        version: 1,
+        version: 2,
         models: [{ ...EXPECTED_MODELS[0], contextWindow: -1 }],
       }),
     )

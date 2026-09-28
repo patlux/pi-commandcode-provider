@@ -25,9 +25,25 @@ export const DEFAULT_MODELS_URL = `${DEFAULT_PROVIDER_API_BASE}/models`
 export const DEFAULT_MODELS_TIMEOUT_MS = 10_000
 
 const DEFAULT_MAX_OUTPUT_TOKENS = 65_536
-const MODEL_CACHE_VERSION = 1
+const MODEL_CACHE_VERSION = 2
 
-export type CommandCodeApi = "openai-completions" | "anthropic-messages"
+/**
+ * Provider API route serving a model over the OpenAI Responses wire. The
+ * models list advertises, per model, the routes that answer it.
+ */
+const RESPONSES_ENDPOINT = "/responses"
+
+export type CommandCodeApi = "openai-completions" | "openai-responses" | "anthropic-messages"
+
+const COMMAND_CODE_APIS: readonly string[] = [
+  "openai-completions",
+  "openai-responses",
+  "anthropic-messages",
+]
+
+function isCommandCodeApi(value: unknown): value is CommandCodeApi {
+  return typeof value === "string" && COMMAND_CODE_APIS.includes(value)
+}
 
 const TEXT_INPUT_ONLY = ["text"] as const
 
@@ -116,6 +132,7 @@ interface ApiModel {
   id: string
   name: string
   contextLength: number
+  supportedEndpoints?: readonly string[]
 }
 
 export interface CommandCodeModel {
@@ -127,8 +144,20 @@ export interface CommandCodeModel {
   maxTokens: number
 }
 
-export function apiForModelId(id: string): CommandCodeApi {
-  return id.startsWith("claude-") ? "anthropic-messages" : "openai-completions"
+/**
+ * Resolves a model to the Provider API wire that serves it.
+ *
+ * Claude models answer on `/v1/messages` only. Every other model answers on
+ * `/v1/chat/completions`, and `/provider/v1/models` advertises which of them
+ * also serve `/v1/responses`; those use the OpenAI Responses wire. Without
+ * endpoint metadata the model keeps Chat Completions, which every non-Claude
+ * model serves, so a catalog that omits the field never breaks.
+ */
+export function apiForModelId(id: string, supportedEndpoints?: readonly string[]): CommandCodeApi {
+  if (id.startsWith("claude-")) return "anthropic-messages"
+  return supportedEndpoints?.includes(RESPONSES_ENDPOINT)
+    ? "openai-responses"
+    : "openai-completions"
 }
 
 export function baseUrlForModel(apiBase: string, api: CommandCodeApi): string {
@@ -166,6 +195,17 @@ function stringField(record: Record<string, unknown>, key: string): string {
   return value
 }
 
+/** Optional string-array field. Unknown shapes are ignored so discovery keeps working. */
+function optionalStringArrayField(
+  record: Record<string, unknown>,
+  key: string,
+): readonly string[] | undefined {
+  const value = record[key]
+  if (!Array.isArray(value)) return undefined
+  const strings = value.filter((entry): entry is string => typeof entry === "string")
+  return strings.length > 0 ? strings : undefined
+}
+
 function booleanField(record: Record<string, unknown>, key: string): boolean {
   const value = record[key]
   if (typeof value !== "boolean") throw new Error(`Expected ${key} to be a boolean`)
@@ -183,10 +223,12 @@ function positiveNumberField(record: Record<string, unknown>, key: string): numb
 function parseApiModel(value: unknown): ApiModel {
   if (!isRecord(value)) throw new Error("Expected model entry to be an object")
 
+  const supportedEndpoints = optionalStringArrayField(value, "supported_endpoints")
   return {
     id: stringField(value, "id"),
     name: stringField(value, "name"),
     contextLength: positiveNumberField(value, "context_length"),
+    ...(supportedEndpoints ? { supportedEndpoints } : {}),
   }
 }
 
@@ -197,10 +239,11 @@ function parseCachedModel(value: unknown): CommandCodeModel {
   booleanField(value, "reasoning")
   positiveNumberField(value, "maxTokens")
   const contextWindow = positiveNumberField(value, "contextWindow")
+  const api = value.api
   return {
     id,
     name: stringField(value, "name"),
-    api: apiForModelId(id),
+    api: isCommandCodeApi(api) ? api : apiForModelId(id),
     reasoning: isReasoningModel(id),
     contextWindow,
     maxTokens: maxOutputTokensForModel(id, contextWindow),
@@ -305,7 +348,7 @@ export function commandCodeModelsFromApiResponse(value: unknown): readonly Comma
   return data.map(parseApiModel).map((model) => ({
     id: model.id,
     name: `${model.name} (CC)`,
-    api: apiForModelId(model.id),
+    api: apiForModelId(model.id, model.supportedEndpoints),
     reasoning: isReasoningModel(model.id),
     contextWindow: model.contextLength,
     maxTokens: maxOutputTokensForModel(model.id, model.contextLength),
