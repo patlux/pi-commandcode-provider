@@ -20,7 +20,7 @@ export interface TemporaryPricing {
 }
 
 export const PRICING_SOURCE_URL = "https://commandcode.ai/docs/resources/pricing-limits"
-export const PRICING_LAST_VERIFIED = "2026-09-24"
+export const PRICING_LAST_VERIFIED = "2026-09-29"
 
 export const ZERO_MODEL_COST: CommandCodeModelCost = {
   input: 0,
@@ -304,20 +304,14 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
       },
     ],
   },
-  // 40% launch discount; list price is 2 / 6 / 0.5, doubled above 200K.
+  // Post-promo list price; rates double above 200K.
   "xai/grok-4.7": {
-    input: 1.2,
-    output: 3.6,
-    cacheRead: 0.3,
+    input: 2,
+    output: 6,
+    cacheRead: 0.5,
     cacheWrite: 0,
-    tiers: [{ inputTokensAbove: 200_000, input: 2.4, output: 7.2, cacheRead: 0.6, cacheWrite: 0 }],
+    tiers: [{ inputTokensAbove: 200_000, input: 4, output: 12, cacheRead: 1, cacheWrite: 0 }],
   },
 }
 
-export const TEMPORARY_PRICING: readonly TemporaryPricing[] = [
-  {
-    models: ["xai/grok-4.7"],
-    expiresOn: "2026-09-27",
-    description: "40% launch discount",
-  },
-]
+export const TEMPORARY_PRICING: readonly TemporaryPricing[] = []

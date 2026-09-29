@@ -232,6 +232,21 @@ describe("MODEL_COSTS pricing overlay", () => {
         cacheWrite: 0,
       },
     ])
+    assertCost("xai/grok-4.7", {
+      input: 2,
+      output: 6,
+      cacheRead: 0.5,
+      cacheWrite: 0,
+    })
+    assert.deepEqual(MODEL_COSTS["xai/grok-4.7"]?.tiers, [
+      {
+        inputTokensAbove: 200_000,
+        input: 4,
+        output: 12,
+        cacheRead: 1,
+        cacheWrite: 0,
+      },
+    ])
   })
 
   it("uses reviewed rates for the September catalog additions", () => {
@@ -265,7 +280,7 @@ describe("MODEL_COSTS pricing overlay", () => {
 
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-09-24")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-09-29")
   })
 
   it("fails once temporary pricing needs review", () => {
