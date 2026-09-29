@@ -1,10 +1,10 @@
-export const COMMAND_CODE_CLI_VERSION = "1.66.0"
+export const COMMAND_CODE_CLI_VERSION = "1.69.0"
 
 export type CommandCodeInputType = "text" | "image"
 export type CommandCodeReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | "max"
 
 /**
- * Generated from command-code@1.66.0 by `npm run sync:commandcode-catalog`.
+ * Generated from command-code@1.69.0 by `npm run sync:commandcode-catalog`.
  * Do not edit manually.
  */
 export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCodeInputType[]>> = {
@@ -17,8 +17,10 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "claude-opus-5-5": ["text", "image"],
   "claude-sonnet-4-6": ["text", "image"],
   "claude-sonnet-5": ["text", "image"],
+  "claude-sonnet-5-5": ["text", "image"],
   "deepseek/deepseek-v4-flash-vision-exp": ["text", "image"],
   "deepseek/deepseek-v4.1-flash": ["text", "image"],
+  "deepseek/deepseek-v4.1-flash-fast": ["text", "image"],
   "google/gemini-3.1-flash-lite": ["text", "image"],
   "google/gemini-3.5-flash": ["text", "image"],
   "google/gemini-3.5-flash-lite": ["text", "image"],
@@ -81,11 +83,13 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "claude-opus-5-5": true,
   "claude-sonnet-4-6": true,
   "claude-sonnet-5": true,
+  "claude-sonnet-5-5": true,
   "deepseek/deepseek-v4-flash": true,
   "deepseek/deepseek-v4-flash-fast": true,
   "deepseek/deepseek-v4-flash-vision-exp": true,
   "deepseek/deepseek-v4-pro": true,
   "deepseek/deepseek-v4.1-flash": true,
+  "deepseek/deepseek-v4.1-flash-fast": true,
   "google/gemini-3.1-flash-lite": true,
   "google/gemini-3.5-flash": true,
   "google/gemini-3.5-flash-lite": true,
@@ -153,11 +157,13 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "claude-opus-5-5": ["low", "medium", "high", "xhigh", "max"],
   "claude-sonnet-4-6": ["low", "medium", "high", "xhigh", "max"],
   "claude-sonnet-5": ["low", "medium", "high", "xhigh", "max"],
+  "claude-sonnet-5-5": ["low", "medium", "high", "xhigh", "max"],
   "deepseek/deepseek-v4-flash": ["high", "max"],
   "deepseek/deepseek-v4-flash-fast": ["low", "high", "max"],
   "deepseek/deepseek-v4-flash-vision-exp": ["high", "max"],
   "deepseek/deepseek-v4-pro": ["high", "max"],
   "deepseek/deepseek-v4.1-flash": ["low", "high", "max"],
+  "deepseek/deepseek-v4.1-flash-fast": ["low", "high", "max"],
   "google/gemini-3.1-flash-lite": ["low", "medium", "high"],
   "google/gemini-3.5-flash": ["low", "medium", "high"],
   "google/gemini-3.5-flash-lite": ["low", "medium", "high"],
