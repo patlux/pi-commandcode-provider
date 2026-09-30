@@ -1,10 +1,10 @@
-export const COMMAND_CODE_CLI_VERSION = "1.69.0"
+export const COMMAND_CODE_CLI_VERSION = "1.72.4"
 
 export type CommandCodeInputType = "text" | "image"
 export type CommandCodeReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | "max"
 
 /**
- * Generated from command-code@1.69.0 by `npm run sync:commandcode-catalog`.
+ * Generated from command-code@1.72.4 by `npm run sync:commandcode-catalog`.
  * Do not edit manually.
  */
 export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCodeInputType[]>> = {
@@ -37,6 +37,7 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "gpt-6-astra": ["text", "image"],
   "gpt-6-luna": ["text", "image"],
   "gpt-6-sol": ["text", "image"],
+  "gpt-6.1-sol": ["text", "image"],
   "meta/muse-spark-1.1": ["text", "image"],
   "meta/muse-spark-1.2": ["text", "image"],
   "meta/muse-spark-1.2-contributor": ["text", "image"],
@@ -106,7 +107,9 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "gpt-6-astra": true,
   "gpt-6-luna": true,
   "gpt-6-sol": true,
+  "gpt-6.1-sol": true,
   "inclusionai/ling-3.0-flash-sante:free": true,
+  "inclusionai/ling-3.1-flash:free": true,
   "meituan/LongCat-2.0": true,
   "meta/muse-spark-1.1": true,
   "meta/muse-spark-1.2": true,
@@ -180,6 +183,8 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "gpt-6-astra": ["low", "medium", "high", "xhigh", "max"],
   "gpt-6-luna": ["low", "medium", "high", "xhigh", "max"],
   "gpt-6-sol": ["low", "medium", "high", "xhigh", "max"],
+  "gpt-6.1-sol": ["low", "medium", "high", "xhigh", "max"],
+  "inclusionai/ling-3.1-flash:free": ["low", "medium", "high"],
   "meta/muse-spark-1.1": ["low", "medium", "high", "xhigh"],
   "meta/muse-spark-1.2": ["low", "medium", "high", "xhigh"],
   "meta/muse-spark-1.2-contributor": ["low", "medium", "high", "xhigh"],
@@ -208,6 +213,7 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
 
 export const MODEL_MAX_OUTPUT_TOKENS: Readonly<Record<string, number>> = {
   "inclusionai/ling-3.0-flash-sante:free": 32_768,
+  "inclusionai/ling-3.1-flash:free": 32_768,
   "poolside/laguna-s-2.1-free": 32_768,
   "Qwen/Qwen3.8-27B": 32_768,
   "Qwen/Qwen3.8-Omni-Flash": 131_072,
