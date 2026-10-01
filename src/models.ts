@@ -1,5 +1,5 @@
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
-import { dirname } from "node:path"
+import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises"
+import { basename, dirname, join } from "node:path"
 
 import { MODEL_EFFORT_OVERRIDES } from "./commandcode-catalog-overrides.ts"
 import {
@@ -367,14 +367,57 @@ export async function loadCachedCommandCodeModels(
   }
 }
 
+/** Temporary cache files older than this are treated as orphaned and swept. */
+const STALE_TEMPORARY_CACHE_MS = 60 * 60 * 1000
+
+async function removeStaleTemporaryCaches(
+  cachePath: string,
+  currentTemporaryEntry: string,
+): Promise<void> {
+  // A host killed between the temp write and the rename below leaves an
+  // orphaned `<cache>.<pid>.tmp` behind (see #130): the background refresh
+  // is fire-and-forget, so exiting pi mid-write never reaches cleanup.
+  // Sweep those orphans on the next successful refresh. Files written
+  // recently are kept so concurrent hosts never delete each other's
+  // in-progress temp file.
+  const directory = dirname(cachePath)
+  const prefix = `${basename(cachePath)}.`
+  let entries: string[]
+  try {
+    entries = await readdir(directory)
+  } catch {
+    return
+  }
+  const now = Date.now()
+  await Promise.all(
+    entries
+      .filter(
+        (entry) =>
+          entry !== currentTemporaryEntry && entry.startsWith(prefix) && entry.endsWith(".tmp"),
+      )
+      .map(async (entry) => {
+        try {
+          const mtime = (await stat(join(directory, entry))).mtimeMs
+          if (now - mtime < STALE_TEMPORARY_CACHE_MS) return
+          await rm(join(directory, entry), { force: true })
+        } catch {
+          // Best-effort: a concurrent host may already have removed it.
+        }
+      }),
+  )
+}
+
 async function writeCommandCodeModelsCache(
   cachePath: string,
   models: readonly CommandCodeModel[],
 ): Promise<void> {
   await mkdir(dirname(cachePath), { recursive: true })
-  const temporaryPath = `${cachePath}.${process.pid}.tmp`
+  // Unique per attempt so two concurrent hosts never share a temp file.
+  const temporaryEntry = `${basename(cachePath)}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`
+  const temporaryPath = join(dirname(cachePath), temporaryEntry)
 
   try {
+    await removeStaleTemporaryCaches(cachePath, temporaryEntry)
     await writeFile(
       temporaryPath,
       `${JSON.stringify({ version: MODEL_CACHE_VERSION, models }, null, 2)}\n`,

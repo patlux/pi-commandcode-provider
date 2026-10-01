@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdtemp, mkdir, readFile, readdir, rm, utimes, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, it } from "node:test"
@@ -455,6 +455,29 @@ describe("loadCommandCodeModels()", () => {
       assert.deepEqual(result.models, [])
       assert.equal(result.source, "empty")
       assert.match(result.warning ?? "", /Unexpected token|JSON/)
+    })
+  })
+
+  it("sweeps orphaned temporary cache files when refreshing", async () => {
+    await withTemporaryCache(async ({ directory, cachePath }) => {
+      // Orphan left by a host killed mid-write (see #130): old pid-only name.
+      const orphan = `${cachePath}.123456.tmp`
+      await writeFile(orphan, "stale", "utf-8")
+      const old = new Date(Date.now() - 2 * 60 * 60 * 1000)
+      await utimes(orphan, old, old)
+      // A concurrent host's in-progress temp file must survive the sweep.
+      const concurrent = `${cachePath}.999999.tmp`
+      await writeFile(concurrent, "in progress", "utf-8")
+
+      const result = await loadCommandCodeModels({ cachePath, fetchImpl: successfulFetch() })
+
+      assert.equal(result.source, "live")
+      const entries = await readdir(directory)
+      assert.ok(!entries.includes("models.json.123456.tmp"))
+      assert.ok(entries.includes("models.json.999999.tmp"))
+      assert.ok(
+        !entries.some((entry) => entry.endsWith(".tmp") && entry !== "models.json.999999.tmp"),
+      )
     })
   })
 
