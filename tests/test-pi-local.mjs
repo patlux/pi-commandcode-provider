@@ -71,6 +71,7 @@ let overflowMode = false
 let overflowRequestCount = 0
 let modelsDelayMs = 0
 let includeRefreshedModel = false
+let includeResponsesModel = false
 
 function modelCatalog() {
   const data = [
@@ -101,7 +102,11 @@ function modelCatalog() {
       context_length: 1_000_000,
       supported_endpoints: ["/chat/completions"],
     },
-    {
+  ]
+  // The Responses mock model is only served to the Responses routing test:
+  // the RPC lifecycle test below asserts exact catalog counts (3, then 4).
+  if (includeResponsesModel) {
+    data.push({
       id: RESPONSES_TEST_MODEL,
       object: "model",
       created: 1779824324,
@@ -109,8 +114,8 @@ function modelCatalog() {
       name: "GPT 5.6 Sol",
       context_length: 1_000_000,
       supported_endpoints: ["/chat/completions", "/responses"],
-    },
-  ]
+    })
+  }
   if (includeRefreshedModel) {
     data.push({
       id: "cc-refreshed-model",
@@ -1061,6 +1066,11 @@ try {
 
   console.log("[pi-local] Responses endpoint for a model advertising /responses")
   requestCount = 0
+  // Drop the shared models cache so this step performs a live refresh that
+  // includes the gated Responses mock model (earlier steps cached the
+  // 3-model catalog, where the model is unknown and falls back to completions).
+  rmSync(join(agentDir, "commandcode-models.json"), { force: true })
+  includeResponsesModel = true
   const responsesPrint = await runPi(
     [
       "--no-extensions",
@@ -1082,6 +1092,7 @@ try {
   assert.equal(lastRequestBody?.model, RESPONSES_TEST_MODEL)
   assert.equal(lastRequestBody?.stream, true)
   assert.ok(Array.isArray(lastRequestBody?.input), "Responses request should use the input array")
+  includeResponsesModel = false
 
   console.log("[pi-local] Claude request through Anthropic Messages endpoint")
   requestCount = 0
