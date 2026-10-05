@@ -163,6 +163,8 @@ The Command Code Provider API does not currently include prices in its model cat
 
 Models missing from that table display zero cost in pi. This does **not** mean that Command Code will bill the request at zero. The Command Code Usage page remains authoritative for each request. Check the current [Command Code pricing](https://commandcode.ai/docs/resources/pricing-limits) before relying on the displayed value.
 
+A read-only companion check, `npm run check:commandcode-pricing`, compares the live Provider API catalog and the official pricing page with the static table. It never writes prices: exit code `0` means every compared rate matches, `1` means drift or an expired promotion needs manual review, and `2` means the price could not be checked. The daily catalog workflow and applicable pull requests publish the Markdown report to the GitHub Actions summary. The pricing page has no public pricing API, so the check parses its private Next.js Flight payload; if that format changes the check fails loudly instead of reporting a false pass, and prices stay manually reviewed.
+
 ## Update and remove
 
 Update installed pi packages:

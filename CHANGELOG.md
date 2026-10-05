@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add a read-only `npm run check:commandcode-pricing` command that compares the live Provider API catalog and the official pricing page against `MODEL_COSTS`, reporting missing local prices, changed base rates and context tiers, time-policy drift, and expired promotions. It runs in the daily catalog workflow and applicable pull requests, publishes its report to the Actions summary, and never edits prices.
 - Use the Provider API's OpenAI Responses wire (`/provider/v1/responses`) for models whose `/provider/v1/models` entry advertises `/responses`, keeping OpenAI Chat Completions for chat-only models and Anthropic Messages for Claude. The wire is resolved per model from `supported_endpoints`, falling back to Chat Completions when the catalog omits the field.
 
 ## 0.7.3 - 2026-09-28
