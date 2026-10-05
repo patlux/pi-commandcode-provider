@@ -1,8 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.7.4 - 2026-10-05
 
-- Use the Provider API's OpenAI Responses wire (`/provider/v1/responses`) for models whose `/provider/v1/models` entry advertises `/responses`, keeping OpenAI Chat Completions for chat-only models and Anthropic Messages for Claude. The wire is resolved per model from `supported_endpoints`, falling back to Chat Completions when the catalog omits the field.
+- Use the Provider API's OpenAI Responses wire (`/provider/v1/responses`) for models whose `/provider/v1/models` entry advertises `/responses`, keeping OpenAI Chat Completions for chat-only models and Anthropic Messages for Claude. The wire is resolved per model from `supported_endpoints`, falling back to Chat Completions when the catalog omits the field. This also enables prompt caching (`prompt_cache_key` is forwarded on `/responses` but ignored on `/chat/completions`): repeated prefixes bill at cache-read instead of full input price ([#132](https://github.com/patlux/pi-commandcode-provider/issues/132), [#133](https://github.com/patlux/pi-commandcode-provider/pull/133)).
+- Sweep orphaned `commandcode-models.json.<pid>.tmp` files older than one hour on the next successful catalog refresh, and use a unique temp name per attempt so concurrent hosts never share one. Hosts killed mid-write no longer accumulate temp files ([#130](https://github.com/patlux/pi-commandcode-provider/issues/130), [#131](https://github.com/patlux/pi-commandcode-provider/pull/131)).
+
+### Contributors
+
+- @Mario-pereyra — designed the OpenAI Responses wire and authored the routing implementation carried forward in #133 (#124).
+- @maxitromer — traced the missing cache key on the Provider API path and proposed the fix directions (#132).
 
 ## 0.7.3 - 2026-09-28
 
