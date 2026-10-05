@@ -19,7 +19,7 @@ const EXT_PATH = resolve(PROJECT_DIR, "index.ts")
 const COMPAT_CALLER_EXT_PATH = resolve(__dirname, "fixtures", "compat-caller-extension.ts")
 const TEST_MODEL = "gpt-5.4"
 const CLAUDE_TEST_MODEL = "claude-sonnet-4-6"
-const RESPONSES_TEST_MODEL = "gpt-5.6-sol"
+const RESPONSES_TEST_MODEL = "deepseek/deepseek-v4.1-flash-fast"
 
 function findPiBinary() {
   if (process.env.PI_BIN) return process.env.PI_BIN
@@ -72,6 +72,9 @@ let overflowRequestCount = 0
 let modelsDelayMs = 0
 let includeRefreshedModel = false
 let includeResponsesModel = false
+// When set, the Responses mock holds the reasoning item open until the test
+// resolves this promise, proving deltas arrive before the item completes.
+let responsesReasoningGate
 
 function modelCatalog() {
   const data = [
@@ -111,7 +114,7 @@ function modelCatalog() {
       object: "model",
       created: 1779824324,
       owned_by: "command-code",
-      name: "GPT 5.6 Sol",
+      name: "DeepSeek V4.1 Flash Fast",
       context_length: 1_000_000,
       supported_endpoints: ["/chat/completions", "/responses"],
     })
@@ -130,7 +133,7 @@ function modelCatalog() {
 }
 
 /** Minimal OpenAI Responses stream: one assistant text message, then a terminal event. */
-function writeResponsesStream(res, text) {
+async function writeResponsesStream(res, text) {
   const item = {
     type: "message",
     id: "msg_mock",
@@ -138,14 +141,58 @@ function writeResponsesStream(res, text) {
     status: "completed",
     content: [{ type: "output_text", text, annotations: [] }],
   }
-  const send = (event) => res.write(`data: ${JSON.stringify(event)}\n\n`)
+  const send = (event, name) =>
+    res.write(`${name ? `event: ${name}\n` : ""}data: ${JSON.stringify(event)}\n\n`)
   send({
     type: "response.created",
     response: { id: "resp_mock", object: "response", status: "in_progress", output: [] },
   })
+  const reasoningItem = {
+    type: "reasoning",
+    id: "rs_mock",
+    summary: [],
+    content: [{ type: "reasoning_text", text: "We think" }],
+  }
+  const textIndex = responsesReasoningGate ? 1 : 0
+  if (responsesReasoningGate) {
+    send({
+      type: "response.output_item.added",
+      output_index: 0,
+      item: { type: "reasoning", id: "rs_mock", summary: [], content: [] },
+    })
+    send(
+      {
+        type: "response.reasoning.delta",
+        output_index: 0,
+        content_index: 0,
+        item_id: "rs_mock",
+        delta: "We",
+      },
+      "response.reasoning.delta",
+    )
+    send(
+      {
+        type: "response.reasoning.delta",
+        output_index: 0,
+        content_index: 0,
+        item_id: "rs_mock",
+        delta: " think",
+      },
+      "response.reasoning.delta",
+    )
+    await responsesReasoningGate
+    send({
+      type: "response.reasoning.done",
+      output_index: 0,
+      content_index: 0,
+      item_id: "rs_mock",
+      text: "We think",
+    })
+    send({ type: "response.output_item.done", output_index: 0, item: reasoningItem })
+  }
   send({
     type: "response.output_item.added",
-    output_index: 0,
+    output_index: textIndex,
     item: {
       type: "message",
       id: "msg_mock",
@@ -156,26 +203,26 @@ function writeResponsesStream(res, text) {
   })
   send({
     type: "response.output_text.delta",
-    output_index: 0,
+    output_index: textIndex,
     content_index: 0,
     item_id: "msg_mock",
     delta: text,
   })
   send({
     type: "response.output_text.done",
-    output_index: 0,
+    output_index: textIndex,
     content_index: 0,
     item_id: "msg_mock",
     text,
   })
-  send({ type: "response.output_item.done", output_index: 0, item })
+  send({ type: "response.output_item.done", output_index: textIndex, item })
   send({
     type: "response.completed",
     response: {
       id: "resp_mock",
       object: "response",
       status: "completed",
-      output: [item],
+      output: responsesReasoningGate ? [reasoningItem, item] : [item],
       usage: {
         input_tokens: 1,
         output_tokens: 1,
@@ -278,7 +325,7 @@ const server = createServer((req, res) => {
           : "overflow-recovered"
       : "mock-pi-ok"
     if (isResponsesRequest) {
-      writeResponsesStream(res, text)
+      writeResponsesStream(res, text).catch((error) => res.destroy(error))
       return
     }
     if (isAnthropicRequest) {
@@ -376,11 +423,25 @@ function runPi(args, timeoutOrOptions = 30_000) {
   })
 }
 
+/** Observe close before shutdown so cleanup never races session-file writes. */
+function rpcChildCloseWaiter(child) {
+  const closed = new Promise((resolve) => child.once("close", resolve))
+  return async () => {
+    const timer = setTimeout(() => child.kill("SIGKILL"), 5_000)
+    try {
+      await closed
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+}
+
 async function runRpcQuery(
   timeoutMs = 30_000,
   promptMessage = "say mock token",
   extraArgs = [],
   promptFields = {},
+  options = {},
 ) {
   const child = spawn(
     PI_BIN,
@@ -393,7 +454,7 @@ async function runRpcQuery(
       "--provider",
       "commandcode",
       "--model",
-      TEST_MODEL,
+      options.model ?? TEST_MODEL,
       ...extraArgs,
     ],
     {
@@ -403,6 +464,7 @@ async function runRpcQuery(
     },
   )
 
+  const waitForClose = rpcChildCloseWaiter(child)
   let stdout = ""
   let stderr = ""
   let buffer = ""
@@ -449,6 +511,7 @@ async function runRpcQuery(
         try {
           const event = JSON.parse(trimmed)
           events.push(event)
+          options.onEvent?.(event)
           if (event.type === "response" && event.id === "prompt-1" && event.success === true) {
             sawPromptAccepted = true
           }
@@ -476,6 +539,7 @@ async function runRpcQuery(
   })
 
   const ok = await done
+  await waitForClose()
   return {
     ok,
     stdout,
@@ -508,6 +572,7 @@ async function runRpcExtensionCommands(timeoutMs = 30_000) {
     },
   )
 
+  const waitForClose = rpcChildCloseWaiter(child)
   let buffer = ""
   let stderr = ""
   const events = []
@@ -619,6 +684,7 @@ async function runRpcExtensionCommands(timeoutMs = 30_000) {
     }
   } finally {
     child.kill()
+    await waitForClose()
   }
 }
 
@@ -645,6 +711,7 @@ async function runRpcCompatCall(timeoutMs = 30_000) {
     },
   )
 
+  const waitForClose = rpcChildCloseWaiter(child)
   let buffer = ""
   let stderr = ""
 
@@ -688,6 +755,7 @@ async function runRpcCompatCall(timeoutMs = 30_000) {
     return { message: await notification, stderr }
   } finally {
     child.kill()
+    await waitForClose()
   }
 }
 
@@ -712,6 +780,7 @@ async function runRpcOverflowRecovery(timeoutMs = 60_000) {
     },
   )
 
+  const waitForClose = rpcChildCloseWaiter(child)
   let buffer = ""
   let stderr = ""
   const events = []
@@ -768,6 +837,7 @@ async function runRpcOverflowRecovery(timeoutMs = 60_000) {
   })
 
   const outcome = await result
+  await waitForClose()
   return {
     ...outcome,
     requests: overflowRequestCount,
@@ -1092,6 +1162,77 @@ try {
   assert.equal(lastRequestBody?.model, RESPONSES_TEST_MODEL)
   assert.equal(lastRequestBody?.stream, true)
   assert.ok(Array.isArray(lastRequestBody?.input), "Responses request should use the input array")
+
+  console.log("[pi-local] Responses reasoning deltas stream before the item completes")
+  requestCount = 0
+  let releaseResponsesReasoningGate
+  responsesReasoningGate = new Promise((resolve) => {
+    releaseResponsesReasoningGate = resolve
+  })
+  const thinkingDeltas = []
+  let sawThinkingEndBeforeGate = false
+  let thinkingEndCount = 0
+  try {
+    const reasoningRpc = await runRpcQuery(
+      30_000,
+      "say mock token",
+      ["--thinking", "high"],
+      {},
+      {
+        model: RESPONSES_TEST_MODEL,
+        onEvent: (event) => {
+          if (event.type !== "message_update") return
+          const assistantEvent = event.assistantMessageEvent
+          if (assistantEvent?.type === "thinking_delta") {
+            thinkingDeltas.push(assistantEvent.delta)
+            if (thinkingDeltas.length === 2) releaseResponsesReasoningGate()
+          } else if (assistantEvent?.type === "thinking_end") {
+            thinkingEndCount += 1
+            if (thinkingDeltas.length < 2) sawThinkingEndBeforeGate = true
+          }
+        },
+      },
+    )
+    assert.equal(
+      reasoningRpc.ok,
+      true,
+      JSON.stringify(
+        {
+          stderr: reasoningRpc.stderr,
+          stdout: reasoningRpc.stdout,
+          events: reasoningRpc.events.slice(-10),
+        },
+        null,
+        2,
+      ),
+    )
+    assert.equal(sawThinkingEndBeforeGate, false)
+    assert.deepEqual(thinkingDeltas, ["We", " think"])
+    assert.equal(thinkingEndCount, 1)
+    const thinkingEnd = reasoningRpc.events.find(
+      (event) =>
+        event.type === "message_update" && event.assistantMessageEvent?.type === "thinking_end",
+    )
+    assert.equal(thinkingEnd?.assistantMessageEvent?.content, "We think")
+    const finalMessage = [...reasoningRpc.events]
+      .reverse()
+      .find((event) => event.type === "message_end" && event.message?.role === "assistant")
+    const thinkingBlock = finalMessage?.message?.content?.find((block) => block.type === "thinking")
+    assert.equal(thinkingBlock?.thinking, "We think")
+    assert.equal(
+      finalMessage?.message?.content?.some(
+        (block) => block.type === "text" && block.text.includes("mock-pi-ok"),
+      ),
+      true,
+    )
+    assert.equal(lastRequestPath, "/provider/v1/responses")
+    assert.equal(requestCount, 1)
+    assert.notEqual(finalMessage?.message?.stopReason, "error")
+  } finally {
+    releaseResponsesReasoningGate()
+    responsesReasoningGate = undefined
+  }
+
   includeResponsesModel = false
 
   console.log("[pi-local] Claude request through Anthropic Messages endpoint")
@@ -1196,11 +1337,9 @@ try {
   assert.equal(overflowRpc.sawCompactionRetry, true, JSON.stringify(overflowRpc))
   assert.equal(overflowRpc.stderrHasSecrets, false)
   overflowMode = false
-
-  console.log("[pi-local] PASS")
 } finally {
   await new Promise((resolve) => server.close(resolve))
-  // RPC children can still flush session files while exiting after SIGTERM.
-  // Retry transient ENOTEMPTY, but keep a persistent cleanup failure fatal.
+  // RPC children have closed; retain retries for transient filesystem errors.
   rmSync(tempHome, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
 }
+console.log("[pi-local] PASS")

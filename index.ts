@@ -38,6 +38,7 @@ import { getApiKey as getOAuthApiKey, login, refreshToken } from "./src/oauth.ts
 import { normalizeCommandCodeMessage } from "./src/overflow.ts"
 import { MODEL_COSTS, ZERO_MODEL_COST } from "./src/pricing.ts"
 import { registerCommandCodeQuota } from "./src/quota-command.ts"
+import { normalizeCommandCodeResponsesResponse } from "./src/responses-stream.ts"
 import { createCommandCodeRuntime } from "./src/runtime.ts"
 import { createCommandCodeUsageProvider, type UsageProvider } from "./src/usage.ts"
 import { transcriptReadersFrom, withTranscriptPromptAndTools } from "./src/transcript.ts"
@@ -222,17 +223,31 @@ export default async function (pi: ExtensionAPI) {
     modelApis.get(modelId) ?? apiForModelId(modelId)
   const transport = createCommandCodeTransportRouter({
     createStream: () => new AssistantMessageEventStream(),
-    streamProvider: (model, context, options) =>
-      streamNativeProvider(
+    streamProvider: (model, context, options) => {
+      const wire = resolveModelApi(model.id)
+      const resolvedOptions: Parameters<typeof streamNativeProvider>[2] =
+        resolveStreamOptions(options)
+      const nativeOptions =
+        wire === "openai-responses"
+          ? {
+              ...resolvedOptions,
+              fetch: async (...args: Parameters<typeof fetch>) =>
+                normalizeCommandCodeResponsesResponse(
+                  await (resolvedOptions?.fetch ?? fetch)(...args),
+                ),
+            }
+          : resolvedOptions
+      return streamNativeProvider(
         {
           ...model,
-          api: resolveModelApi(model.id),
+          api: wire,
           cost: commandCodeCostRatesAt(model.id, model.cost),
           compat: model.compatConfig ?? model.compat,
         },
         context,
-        resolveStreamOptions(options),
-      ),
+        nativeOptions,
+      )
+    },
     streamGenerate: (model, context, options) =>
       streamGenerate(
         model,

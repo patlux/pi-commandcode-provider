@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Restore incremental reasoning on the Provider API OpenAI Responses wire by translating Command Code's non-standard `response.reasoning.delta` events into the canonical `response.reasoning_text.delta` before they reach pi-ai. Reasoning now streams while the reasoning item is still open instead of appearing only at `response.output_item.done`. Reproduced with `deepseek/deepseek-v4.1-flash-fast`; standard Responses events, Chat Completions, Anthropic Messages, and the generate fallback are unchanged.
+
 ## 0.7.4 - 2026-10-05
 
 - Use the Provider API's OpenAI Responses wire (`/provider/v1/responses`) for models whose `/provider/v1/models` entry advertises `/responses`, keeping OpenAI Chat Completions for chat-only models and Anthropic Messages for Claude. The wire is resolved per model from `supported_endpoints`, falling back to Chat Completions when the catalog omits the field. This also enables prompt caching (`prompt_cache_key` is forwarded on `/responses` but ignored on `/chat/completions`): repeated prefixes bill at cache-read instead of full input price ([#132](https://github.com/patlux/pi-commandcode-provider/issues/132), [#133](https://github.com/patlux/pi-commandcode-provider/pull/133)).
