@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add reviewed display pricing for the October catalog additions — `claude-sonnet-5-5`, `gpt-6.1-sol` (with its 272K long-context tier), `deepseek/deepseek-v4.1-flash-fast`, and the free `inclusionai/ling-3.1-flash:free`. Apply the DeepSeek V4 weekday peak-pricing window to `deepseek/deepseek-v4.1-flash-fast`. Models absent from `MODEL_COSTS` silently fall back to a zero display cost, so the snapshot now covers all 85 advertised models.
 - Use the Provider API's OpenAI Responses wire (`/provider/v1/responses`) for models whose `/provider/v1/models` entry advertises `/responses`, keeping OpenAI Chat Completions for chat-only models and Anthropic Messages for Claude. The wire is resolved per model from `supported_endpoints`, falling back to Chat Completions when the catalog omits the field.
 
 ## 0.7.3 - 2026-09-28

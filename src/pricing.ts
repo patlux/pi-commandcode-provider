@@ -20,7 +20,7 @@ export interface TemporaryPricing {
 }
 
 export const PRICING_SOURCE_URL = "https://commandcode.ai/docs/resources/pricing-limits"
-export const PRICING_LAST_VERIFIED = "2026-09-29"
+export const PRICING_LAST_VERIFIED = "2026-10-05"
 
 export const ZERO_MODEL_COST: CommandCodeModelCost = {
   input: 0,
@@ -40,6 +40,7 @@ export const ZERO_MODEL_COST: CommandCodeModelCost = {
 export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   // Free models
   "inclusionai/ling-3.0-flash-sante:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  "inclusionai/ling-3.1-flash:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   "poolside/laguna-s-2.1-free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   "stealth/space-bunny-alpha": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 
@@ -96,6 +97,12 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
     input: 0.15,
     output: 0.6,
     cacheRead: 0.003,
+    cacheWrite: 0,
+  },
+  "deepseek/deepseek-v4.1-flash-fast": {
+    input: 0.16,
+    output: 0.58,
+    cacheRead: 0.016,
     cacheWrite: 0,
   },
   "Qwen/Qwen3.8-Max": { input: 2, output: 6, cacheRead: 0.25, cacheWrite: 2.5 },
@@ -194,6 +201,7 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   },
 
   // Anthropic
+  "claude-sonnet-5-5": { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
   "claude-sonnet-5": { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
   "claude-sonnet-4-6": { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 },
   "claude-fable-5-1": { input: 10, output: 50, cacheRead: 0.25, cacheWrite: 12.5 },
@@ -216,6 +224,13 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
     cacheRead: 1,
     cacheWrite: 12.5,
     tiers: [{ inputTokensAbove: 272_000, input: 20, output: 75, cacheRead: 2, cacheWrite: 25 }],
+  },
+  "gpt-6.1-sol": {
+    input: 2,
+    output: 10,
+    cacheRead: 0.1,
+    cacheWrite: 2.5,
+    tiers: [{ inputTokensAbove: 272_000, input: 4, output: 15, cacheRead: 0.2, cacheWrite: 5 }],
   },
   "gpt-6-sol": {
     input: 2,

@@ -182,12 +182,13 @@ describe("calculateCommandCodeCost()", () => {
     assertClose(usage.cost.total, 1.32 + 3.96 + 0.044)
   })
 
-  it("applies peak pricing to every time-priced DeepSeek V4 model but not flash-fast", () => {
+  it("applies peak pricing to every time-priced DeepSeek V4 model but not V4 Flash Fast", () => {
     const timePriced = [
       "deepseek/deepseek-v4-pro",
       "deepseek/deepseek-v4-flash",
       "deepseek/deepseek-v4-flash-vision-exp",
       "deepseek/deepseek-v4.1-flash",
+      "deepseek/deepseek-v4.1-flash-fast",
     ]
 
     for (const modelId of timePriced) {
