@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.5 - 2026-10-06
+
+- Harden the `test-pi-local.mjs` temp-home cleanup against transient `ENOTEMPTY` when RPC children flush session files while exiting: poll with fresh removal attempts instead of relying on `maxRetries`, whose behavior on `ENOTEMPTY` varies across Node versions. Test-only change; the 0.7.4 release run failed on this cleanup after all tests had passed.
+
 ## 0.7.4 - 2026-10-05
 
 - Use the Provider API's OpenAI Responses wire (`/provider/v1/responses`) for models whose `/provider/v1/models` entry advertises `/responses`, keeping OpenAI Chat Completions for chat-only models and Anthropic Messages for Claude. The wire is resolved per model from `supported_endpoints`, falling back to Chat Completions when the catalog omits the field. This also enables prompt caching (`prompt_cache_key` is forwarded on `/responses` but ignored on `/chat/completions`): repeated prefixes bill at cache-read instead of full input price ([#132](https://github.com/patlux/pi-commandcode-provider/issues/132), [#133](https://github.com/patlux/pi-commandcode-provider/pull/133)).

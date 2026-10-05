@@ -1200,7 +1200,20 @@ try {
   console.log("[pi-local] PASS")
 } finally {
   await new Promise((resolve) => server.close(resolve))
-  // RPC children can still flush session files while exiting after SIGTERM.
-  // Retry transient ENOTEMPTY, but keep a persistent cleanup failure fatal.
-  rmSync(tempHome, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+  // RPC children can still flush session files while exiting after SIGTERM,
+  // so a single rmSync can hit transient ENOTEMPTY even with maxRetries
+  // (retry behavior on ENOTEMPTY varies across Node versions). Poll with
+  // fresh attempts instead, but keep a persistent cleanup failure fatal.
+  let lastCleanupError
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    try {
+      rmSync(tempHome, { recursive: true, force: true })
+      lastCleanupError = undefined
+      break
+    } catch (error) {
+      lastCleanupError = error
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+  }
+  if (lastCleanupError) throw lastCleanupError
 }
