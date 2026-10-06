@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add reviewed display pricing for the October catalog additions — `claude-sonnet-5-5`, `gpt-6.1-sol` (with its 272K long-context tier), `deepseek/deepseek-v4.1-flash-fast`, and the free `inclusionai/ling-3.1-flash:free`. Apply the DeepSeek V4 weekday peak-pricing window to `deepseek/deepseek-v4.1-flash-fast`. Models absent from `MODEL_COSTS` silently fall back to a zero display cost, so the snapshot now covers all 85 advertised models.
+
 ## 0.7.5 - 2026-10-06
 
 - Harden the `test-pi-local.mjs` temp-home cleanup against transient `ENOTEMPTY` when RPC children flush session files while exiting: poll with fresh removal attempts instead of relying on `maxRetries`, whose behavior on `ENOTEMPTY` varies across Node versions. Test-only change; the 0.7.4 release run failed on this cleanup after all tests had passed.
