@@ -221,6 +221,7 @@ export default async function (pi: ExtensionAPI) {
   const modelApis = new Map<string, CommandCodeApi>()
   const resolveModelApi = (modelId: string): CommandCodeApi =>
     modelApis.get(modelId) ?? apiForModelId(modelId)
+  let streamWarning: string | undefined
   const transport = createCommandCodeTransportRouter({
     createStream: () => new AssistantMessageEventStream(),
     streamProvider: (model, context, options) => {
@@ -234,6 +235,9 @@ export default async function (pi: ExtensionAPI) {
               fetch: async (...args: Parameters<typeof fetch>) =>
                 normalizeCommandCodeResponsesResponse(
                   await (resolvedOptions?.fetch ?? fetch)(...args),
+                  (warning) => {
+                    streamWarning = warning
+                  },
                 ),
             }
           : resolvedOptions
@@ -294,6 +298,7 @@ export default async function (pi: ExtensionAPI) {
       return createProviderConfig(models, apiBase, transport.stream)
     },
     getTransport: transport.getTransport,
+    getStreamWarning: () => streamWarning,
   })
 
   pi.on("session_shutdown", () => {

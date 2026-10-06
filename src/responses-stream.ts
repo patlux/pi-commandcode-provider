@@ -72,7 +72,7 @@ function parseSseField(content: string): SseField | undefined {
  * Rewrites `response.reasoning.delta` frames as `response.reasoning_text.delta`
  * frames. Everything else, including malformed JSON, is returned unchanged.
  */
-function normalizeResponsesSseFrame(frame: string): string {
+function normalizeResponsesSseFrame(frame: string, onSchemaMismatch: () => void): string {
   const lines = splitSseLines(frame)
   const dataValues: string[] = []
   for (let index = 0; index < lines.length; index += 1) {
@@ -90,8 +90,14 @@ function normalizeResponsesSseFrame(frame: string): string {
   }
   if (!isRecord(payload)) return frame
   if (payload.type !== REASONING_DELTA_EVENT) return frame
-  if (typeof payload.delta !== "string") return frame
-  if (!Number.isInteger(payload.output_index) || (payload.output_index as number) < 0) return frame
+  if (
+    typeof payload.delta !== "string" ||
+    !Number.isInteger(payload.output_index) ||
+    (payload.output_index as number) < 0
+  ) {
+    onSchemaMismatch()
+    return frame
+  }
 
   const replacement = { ...payload, type: REASONING_TEXT_DELTA_EVENT }
   const replacementLine = `data: ${JSON.stringify(replacement)}`
@@ -130,6 +136,23 @@ class ResponsesSseNormalizer {
   private buffer = ""
   private scanIndex = 0
   private lineStart = 0
+  private warned = false
+
+  constructor(private readonly onWarning?: (message: string) => void) {}
+
+  private normalize(frame: string): string {
+    return normalizeResponsesSseFrame(frame, () => {
+      if (this.warned) return
+      this.warned = true
+      try {
+        this.onWarning?.(
+          "Unsupported Command Code response.reasoning.delta shape; incremental reasoning may be unavailable. Original events were preserved.",
+        )
+      } catch {
+        // Diagnostics must not interrupt a usable response stream.
+      }
+    })
+  }
 
   push(text: string, emit: (frame: string) => void, flush: boolean): void {
     this.buffer += text
@@ -138,7 +161,7 @@ class ResponsesSseNormalizer {
 
   finish(emit: (frame: string) => void): void {
     if (this.buffer.length === 0) return
-    emit(this.buffer)
+    emit(this.normalize(this.buffer))
     this.buffer = ""
     this.scanIndex = 0
     this.lineStart = 0
@@ -168,7 +191,7 @@ class ResponsesSseNormalizer {
   private consumeLine(end: number, lineEnd: number, emit: (frame: string) => void): void {
     if (lineEnd === this.lineStart) {
       const frame = this.buffer.slice(0, end)
-      emit(normalizeResponsesSseFrame(frame))
+      emit(this.normalize(frame))
       this.buffer = this.buffer.slice(end)
       this.scanIndex = 0
       this.lineStart = 0
@@ -197,13 +220,16 @@ class ResponsesSseNormalizer {
  * Wraps a Command Code Responses HTTP response so streaming reasoning deltas
  * reach pi-ai. Returns the original response when it cannot be an SSE stream.
  */
-export function normalizeCommandCodeResponsesResponse(response: Response): Response {
+export function normalizeCommandCodeResponsesResponse(
+  response: Response,
+  onWarning?: (message: string) => void,
+): Response {
   if (!response.ok) return response
   if (response.body === null) return response
   const mimeType = response.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase()
   if (mimeType !== SSE_MIME_TYPE) return response
 
-  const normalizer = new ResponsesSseNormalizer()
+  const normalizer = new ResponsesSseNormalizer(onWarning)
   const body = response.body.pipeThrough(
     new TransformStream<Uint8Array, Uint8Array>({
       transform: (chunk, controller) => normalizer.transform(chunk, controller),

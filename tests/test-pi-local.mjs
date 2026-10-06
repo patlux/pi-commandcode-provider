@@ -400,10 +400,14 @@ function runPi(args, timeoutOrOptions = 30_000) {
       env: childEnv,
       stdio: ["ignore", "pipe", "pipe"],
     })
+    const waitForClose = rpcChildCloseWaiter(child)
     let stdout = ""
     let stderr = ""
-    const timer = setTimeout(() => {
+    let timedOut = false
+    const timer = setTimeout(async () => {
+      timedOut = true
       child.kill()
+      await waitForClose()
       resolve({
         code: -1,
         stdout,
@@ -418,7 +422,7 @@ function runPi(args, timeoutOrOptions = 30_000) {
     })
     child.on("close", (code) => {
       clearTimeout(timer)
-      resolve({ code, stdout, stderr })
+      if (!timedOut) resolve({ code, stdout, stderr })
     })
   })
 }
@@ -1339,7 +1343,19 @@ try {
   overflowMode = false
 } finally {
   await new Promise((resolve) => server.close(resolve))
-  // RPC children have closed; retain retries for transient filesystem errors.
-  rmSync(tempHome, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+  // Children have closed; retain fresh removal attempts as a filesystem
+  // backstop because maxRetries behavior on ENOTEMPTY varies across Node versions.
+  let lastCleanupError
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    try {
+      rmSync(tempHome, { recursive: true, force: true })
+      lastCleanupError = undefined
+      break
+    } catch (error) {
+      lastCleanupError = error
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+  }
+  if (lastCleanupError) throw lastCleanupError
 }
 console.log("[pi-local] PASS")

@@ -394,6 +394,78 @@ describe("Command Code Responses stream normalizer", () => {
     }
   })
 
+  it("normalizes trailing reasoning frames without adding a separator", async () => {
+    const alias = { type: "response.reasoning.delta", output_index: 0, delta: "hi" }
+    const canonical = { ...alias, type: "response.reasoning_text.delta" }
+    for (const ending of ["", "\n", "\r\n", "\r"]) {
+      const input = `event: response.reasoning.delta\ndata: ${JSON.stringify(alias)}${ending}`
+      const expected = `event: response.reasoning_text.delta\ndata: ${JSON.stringify(canonical)}${ending}`
+      assert.equal(
+        await readAll(
+          normalizeCommandCodeResponsesResponse(new Response(input, { headers: sseHeaders() })),
+        ),
+        expected,
+      )
+    }
+    const truncated = 'data: {"type":"response.reasoning.delta"'
+    assert.equal(
+      await readAll(
+        normalizeCommandCodeResponsesResponse(new Response(truncated, { headers: sseHeaders() })),
+      ),
+      truncated,
+    )
+  })
+
+  it("warns once per response about unsupported reasoning shapes without exposing data", async () => {
+    const warnings: string[] = []
+    const invalid = [
+      { type: "response.reasoning.delta", output_index: "0", delta: "private reasoning" },
+      { type: "response.reasoning.delta", output_index: -1, delta: "private reasoning" },
+      { type: "response.reasoning.delta", output_index: 0, delta: { secret: "private reasoning" } },
+      { type: "response.reasoning.delta", output_index: 0 },
+    ]
+    const input = invalid.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("")
+    const response = new Response(input, { headers: sseHeaders() })
+    assert.equal(
+      await readAll(
+        normalizeCommandCodeResponsesResponse(response, (warning) => warnings.push(warning)),
+      ),
+      input,
+    )
+    assert.equal(warnings.length, 1)
+    assert.match(warnings[0], /incremental reasoning/)
+    assert.doesNotMatch(warnings[0], /private reasoning/)
+
+    const trailing = `data: ${JSON.stringify(invalid[0])}`
+    assert.equal(
+      await readAll(
+        normalizeCommandCodeResponsesResponse(
+          new Response(trailing, { headers: sseHeaders() }),
+          () => {
+            throw new Error("diagnostic failure")
+          },
+        ),
+      ),
+      trailing,
+    )
+  })
+
+  it("does not warn for canonical reasoning or unrelated malformed frames", async () => {
+    const input =
+      'data: {"type":"response.reasoning_text.delta","output_index":0,"delta":"hi"}\n\ndata: {not json\n\n'
+    const warnings: string[] = []
+    assert.equal(
+      await readAll(
+        normalizeCommandCodeResponsesResponse(
+          new Response(input, { headers: sseHeaders() }),
+          (warning) => warnings.push(warning),
+        ),
+      ),
+      input,
+    )
+    assert.deepEqual(warnings, [])
+  })
+
   it("leaves standard and malformed frames untouched", async () => {
     const aliasInDelta = {
       type: "response.output_text.delta",

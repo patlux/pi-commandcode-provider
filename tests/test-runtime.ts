@@ -114,6 +114,37 @@ describe("Command Code runtime", () => {
     assert.equal(warn.mock.callCount(), 0)
   })
 
+  it("keeps stream warnings visible across catalog refreshes without replacing catalog warnings", async () => {
+    const pi = new ExtensionAPITestDouble()
+    const context = new CommandContext()
+    let streamWarning: string | undefined
+    let catalogWarning: string | undefined = "Catalog warning"
+    const runtime = createCommandCodeRuntime(pi, {
+      endpoint: "https://api.commandcode.ai/provider/v1/models",
+      cachePath: "/tmp/commandcode-models.json",
+      loadModels: async () => loaded([FIRST_MODEL], "live", catalogWarning),
+      loadCachedModels: async () => [],
+      createProviderConfig: (models) => ({ models }),
+      getStreamWarning: () => streamWarning,
+    })
+    await runtime.initialize()
+    streamWarning = "Unsupported reasoning shape token=user_secret_value"
+    await runtime.refresh()
+    assert.equal(runtime.getStatus().warning, "Catalog warning")
+    await pi.commands.get("commandcode-status")!("", context)
+    const notification = context.notifications.at(-1)!
+    assert.equal(notification.type, "warning")
+    assert.match(notification.message, /stream warning: Unsupported reasoning shape/)
+    assert.doesNotMatch(notification.message, /user_secret_value/)
+    assert.match(notification.message, /warning: Catalog warning/)
+    catalogWarning = undefined
+    await runtime.refresh()
+    await pi.commands.get("commandcode-status")!("", context)
+    assert.equal(context.notifications.at(-1)?.type, "warning")
+    assert.match(context.notifications.at(-1)?.message ?? "", /stream warning:/)
+    assert.equal(runtime.getStatus().warning, undefined)
+  })
+
   it("registers refresh and status commands and exposes redacted state", async () => {
     const pi = new ExtensionAPITestDouble()
     const context = new CommandContext()

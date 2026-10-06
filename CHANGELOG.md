@@ -2,7 +2,12 @@
 
 ## Unreleased
 
-- Restore incremental reasoning on the Provider API OpenAI Responses wire by translating Command Code's non-standard `response.reasoning.delta` events into the canonical `response.reasoning_text.delta` before they reach pi-ai. Reasoning now streams while the reasoning item is still open instead of appearing only at `response.output_item.done`. Reproduced with `deepseek/deepseek-v4.1-flash-fast`; standard Responses events, Chat Completions, Anthropic Messages, and the generate fallback are unchanged.
+- Restore incremental reasoning on the Provider API OpenAI Responses wire by translating Command Code's non-standard `response.reasoning.delta` events into the canonical `response.reasoning_text.delta` before they reach pi-ai, including valid trailing frames without a final blank line. Reasoning now streams while the reasoning item is still open instead of appearing only at `response.output_item.done`. Unsupported reasoning event shapes remain unchanged and produce a content-free warning in `/commandcode-status`. Reproduced with `deepseek/deepseek-v4.1-flash-fast`; standard Responses events, Chat Completions, Anthropic Messages, and the generate fallback are unchanged.
+- Add reviewed display pricing for the October catalog additions — `claude-sonnet-5-5`, `gpt-6.1-sol` (with its 272K long-context tier), `deepseek/deepseek-v4.1-flash-fast`, and the free `inclusionai/ling-3.1-flash:free`. Apply the DeepSeek V4 weekday peak-pricing window to `deepseek/deepseek-v4.1-flash-fast`. Models absent from `MODEL_COSTS` silently fall back to a zero display cost, so the snapshot now covers all 85 advertised models.
+
+## 0.7.5 - 2026-10-06
+
+- Harden the `test-pi-local.mjs` temp-home cleanup against transient `ENOTEMPTY` when RPC children flush session files while exiting: poll with fresh removal attempts instead of relying on `maxRetries`, whose behavior on `ENOTEMPTY` varies across Node versions. Test-only change; the 0.7.4 release run failed on this cleanup after all tests had passed.
 
 ## 0.7.4 - 2026-10-05
 
