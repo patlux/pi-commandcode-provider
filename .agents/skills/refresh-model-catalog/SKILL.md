@@ -36,7 +36,15 @@ Never add efforts to the generated file by hand. Manual effort policy for reason
 
 ### 3. Update display pricing (manual review)
 
-Fetch <https://commandcode.ai/docs/resources/pricing-limits> and compare against `src/pricing.ts`:
+Run the read-only checker before touching prices:
+
+```sh
+npm run check:commandcode-pricing
+```
+
+It compares the live Provider API catalog and the official pricing page against `MODEL_COSTS` and writes nothing. Investigate every reported drift and promotion by hand; never update `MODEL_COSTS` or `PRICING_LAST_VERIFIED` just to make the checker pass.
+
+Then fetch <https://commandcode.ai/docs/resources/pricing-limits> and compare against `src/pricing.ts`:
 
 - Add entries for new models and remove entries for retired models. Missing models silently display zero cost, so `MODEL_COSTS` must cover the full catalog.
 - The pricing page's "Cache Read"/"Cache Write" columns map to `cacheRead`/`cacheWrite`; a "—" column means `0`.

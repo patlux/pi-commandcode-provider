@@ -131,6 +131,12 @@ describe("MODEL_COSTS pricing overlay", () => {
       cacheRead: 0.003,
       cacheWrite: 0,
     })
+    assertCost("stepfun/Step-3.5-Flash", {
+      input: 0.09,
+      output: 0.3,
+      cacheRead: 0.02,
+      cacheWrite: 0,
+    })
     assertCost("Qwen/Qwen3.7-Max", {
       input: 2.5,
       output: 7.5,
@@ -200,6 +206,10 @@ describe("MODEL_COSTS pricing overlay", () => {
   })
 
   it("uses the documented base rates for context-dependent models", () => {
+    assertCost("Qwen/Qwen3.6-Plus", { input: 0.5, output: 3, cacheRead: 0.1, cacheWrite: 0 })
+    assert.deepEqual(MODEL_COSTS["Qwen/Qwen3.6-Plus"]?.tiers, [
+      { inputTokensAbove: 256_000, input: 2, output: 6, cacheRead: 0.2, cacheWrite: 0 },
+    ])
     assertCost("Qwen/Qwen3.7-Plus", {
       input: 0.4,
       output: 1.6,
@@ -312,7 +322,7 @@ describe("MODEL_COSTS pricing overlay", () => {
 
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-10-05")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-10-06")
   })
 
   it("fails once temporary pricing needs review", () => {
