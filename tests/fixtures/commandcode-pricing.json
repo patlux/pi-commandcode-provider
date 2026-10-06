@@ -1,5 +1,5 @@
 {
-  "verifiedAt": "2026-10-05",
+  "verifiedAt": "2026-10-06",
   "source": "https://commandcode.ai/docs/resources/pricing-limits",
   "tierPolicy": "Use request-wide input tiers; the highest threshold exceeded by input plus cache tokens applies to the full request.",
   "tiers": {
@@ -8,6 +8,7 @@
       [32000, 0.1, 0.4, 0.02, 0.125],
       [256000, 0.2, 0.8, 0.04, 0.25]
     ],
+    "Qwen/Qwen3.6-Plus": [[256000, 2, 6, 0.2, 0]],
     "gpt-6-astra": [[272000, 20, 75, 2, 25]],
     "gpt-6.1-sol": [[272000, 4, 15, 0.2, 5]],
     "gpt-6-sol": [[272000, 4, 15, 0.4, 5]],
@@ -59,7 +60,7 @@
     "meituan/LongCat-2.0": [0.3, 1.2, 0.006, 0],
     "stepfun/Step-5-Preview": [1, 2.7, 0.05, 0],
     "stepfun/Step-3.7-Flash": [0.2, 1.15, 0.04, 0],
-    "stepfun/Step-3.5-Flash": [0.1, 0.3, 0.02, 0],
+    "stepfun/Step-3.5-Flash": [0.09, 0.3, 0.02, 0],
     "xiaomi/mimo-v2.5-pro": [0.435, 0.87, 0.0036, 0],
     "xiaomi/mimo-v2.5": [0.14, 0.28, 0.0028, 0],
     "xiaomi/mimo-v2.6-pro": [0.435, 0.87, 0.0036, 0],

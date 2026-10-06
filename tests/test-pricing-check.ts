@@ -12,7 +12,7 @@ import {
   type PricingPageRow,
 } from "../.github/scripts/check-commandcode-pricing.ts"
 import { DEFAULT_MODELS_URL } from "../src/models.ts"
-import { PRICING_SOURCE_URL, type CommandCodeModelCost } from "../src/pricing.ts"
+import { MODEL_COSTS, PRICING_SOURCE_URL, type CommandCodeModelCost } from "../src/pricing.ts"
 
 const fixtureUrl = new URL("./fixtures/commandcode-pricing-page.html", import.meta.url)
 const fixtureHtml = await readFile(fixtureUrl, "utf-8")
@@ -755,19 +755,51 @@ describe("promotions and deals", () => {
     )
   })
 
-  it("reports the real Qwen 3.7 Max expired deal even when rates match", () => {
+  it("marks the reviewed Qwen 3.7 Max expired deal resolved without hiding it", () => {
     const rows = parsePricingPage(fixtureHtml)
     const row = findRow(rows, "qwen-3.7-max")
     const result = checkCommandCodePricing(
       ["Qwen/Qwen3.7-Max"],
       rows,
       { "Qwen/Qwen3.7-Max": row.cost },
-      Date.UTC(2026, 9, 5, 12, 0, 0),
+      AT_MS,
     )
+    assert.deepEqual(result.issues, [])
+    assert.equal(result.deals[0]!.resolvedExpired, true)
+    assert.match(renderPricingReport(result), /Reviewed expired deal/)
+    assert.match(renderPricingReport(result), /qwen-3\.7-max-2x-usage/)
+  })
+
+  it("still flags renewed or changed Qwen deals and changed rates", () => {
+    const row = findRow(parsePricingPage(fixtureHtml), "qwen-3.7-max")
+    const modelId = "Qwen/Qwen3.7-Max"
+    for (const change of [
+      { id: "new-deal" },
+      { expires: "2026-09-30" },
+      { discountPercent: 75 },
+      { free: true },
+      { endsWhen: "while capacity lasts" },
+    ]) {
+      const changed = { ...row, deal: { ...row.deal!, ...change } }
+      const result = checkCommandCodePricing([modelId], [changed], { [modelId]: row.cost }, AT_MS)
+      assert.deepEqual(
+        result.issues.map((issue) => issue.kind),
+        ["expired-deal"],
+      )
+    }
+    const result = checkCommandCodePricing([modelId], [row], { [modelId]: cost(1, 2, 0, 0) }, AT_MS)
     assert.deepEqual(
       result.issues.map((issue) => issue.kind),
-      ["expired-deal"],
+      ["changed-cost"],
     )
+  })
+
+  it("passes the reviewed pricing corrections through the CLI", async () => {
+    const modelIds = ["Qwen/Qwen3.6-Plus", "stepfun/Step-3.5-Flash", "Qwen/Qwen3.7-Max"]
+    const { impl } = fakeFetch({ models: modelsBody(modelIds), page: fixtureHtml })
+    const cli = await captureCli(impl, { localCosts: MODEL_COSTS })
+    assert.equal(cli.code, 0, cli.stdout)
+    assert.match(cli.stdout, /Reviewed expired deal/)
   })
 })
 

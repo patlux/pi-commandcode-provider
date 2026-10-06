@@ -51,7 +51,11 @@ export interface PricingCheckResult {
   issues: readonly PricingCheckIssue[]
   unusedPageIds: readonly string[]
   // Promotions are visible even when there is no price drift.
-  deals: readonly { modelId: string; deal: NonNullable<PricingPageRow["deal"]> }[]
+  deals: readonly {
+    modelId: string
+    deal: NonNullable<PricingPageRow["deal"]>
+    resolvedExpired?: boolean
+  }[]
 }
 
 /**
@@ -569,7 +573,11 @@ export function checkCommandCodePricing(
   }
 
   const issues: PricingCheckIssue[] = []
-  const deals: { modelId: string; deal: NonNullable<PricingPageRow["deal"]> }[] = []
+  const deals: {
+    modelId: string
+    deal: NonNullable<PricingPageRow["deal"]>
+    resolvedExpired?: boolean
+  }[] = []
 
   for (const modelId of sortedModelIds) {
     const hasLocal = Object.prototype.hasOwnProperty.call(localCosts, modelId)
@@ -609,9 +617,19 @@ export function checkCommandCodePricing(
     }
 
     if (pageRow.deal) {
-      deals.push({ modelId, deal: pageRow.deal })
       const expiry = dealExpiryMs(pageRow.deal)
-      if (expiry !== undefined && atMs >= expiry) {
+      // Reviewed on 2026-10-06: the page retains this expired badge; its table rates remain current.
+      const resolvedExpired =
+        expiry !== undefined &&
+        atMs >= expiry &&
+        modelId === "Qwen/Qwen3.7-Max" &&
+        pageRow.deal.id === "qwen-3.7-max-2x-usage" &&
+        pageRow.deal.expires === "2026-06-22" &&
+        pageRow.deal.discountPercent === 50 &&
+        pageRow.deal.free === false &&
+        pageRow.deal.endsWhen === undefined
+      deals.push({ modelId, deal: pageRow.deal, ...(resolvedExpired ? { resolvedExpired } : {}) })
+      if (expiry !== undefined && atMs >= expiry && !resolvedExpired) {
         issues.push({
           kind: "expired-deal",
           modelId,
@@ -693,16 +711,16 @@ export function renderPricingReport(result: PricingCheckResult): string {
     lines.push("_No promotions reported._", "")
   } else {
     lines.push(
-      "| Model | Deal | Discount | Free | Expires | Ends when |",
-      "| --- | --- | --- | --- | --- | --- |",
+      "| Model | Deal | Discount | Free | Expires | Ends when | Review |",
+      "| --- | --- | --- | --- | --- | --- | --- |",
     )
-    for (const { modelId, deal } of result.deals) {
+    for (const { modelId, deal, resolvedExpired } of result.deals) {
       lines.push(
         `| ${formatId(modelId)} | ${formatId(deal.id)} | ${deal.discountPercent}% | ${
           deal.free ? "yes" : "no"
         } | ${deal.expires ? formatCell(deal.expires) : "—"} | ${
           deal.endsWhen ? formatCell(deal.endsWhen) : "—"
-        } |`,
+        } | ${resolvedExpired ? "Reviewed expired deal" : "—"} |`,
       )
     }
     lines.push("")

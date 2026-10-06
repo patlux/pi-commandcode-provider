@@ -20,7 +20,7 @@ export interface TemporaryPricing {
 }
 
 export const PRICING_SOURCE_URL = "https://commandcode.ai/docs/resources/pricing-limits"
-export const PRICING_LAST_VERIFIED = "2026-10-05"
+export const PRICING_LAST_VERIFIED = "2026-10-06"
 
 export const ZERO_MODEL_COST: CommandCodeModelCost = {
   input: 0,
@@ -154,11 +154,17 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
     cacheRead: 0.26,
     cacheWrite: 1.63,
   },
-  "Qwen/Qwen3.6-Plus": { input: 0.5, output: 3, cacheRead: 0.1, cacheWrite: 0 },
+  "Qwen/Qwen3.6-Plus": {
+    input: 0.5,
+    output: 3,
+    cacheRead: 0.1,
+    cacheWrite: 0,
+    tiers: [{ inputTokensAbove: 256_000, input: 2, output: 6, cacheRead: 0.2, cacheWrite: 0 }],
+  },
   "meituan/LongCat-2.0": { input: 0.3, output: 1.2, cacheRead: 0.006, cacheWrite: 0 },
   "stepfun/Step-5-Preview": { input: 1, output: 2.7, cacheRead: 0.05, cacheWrite: 0 },
   "stepfun/Step-3.7-Flash": { input: 0.2, output: 1.15, cacheRead: 0.04, cacheWrite: 0 },
-  "stepfun/Step-3.5-Flash": { input: 0.1, output: 0.3, cacheRead: 0.02, cacheWrite: 0 },
+  "stepfun/Step-3.5-Flash": { input: 0.09, output: 0.3, cacheRead: 0.02, cacheWrite: 0 },
   // Permanent discounted rates.
   "xiaomi/mimo-v2.5-pro": { input: 0.435, output: 0.87, cacheRead: 0.0036, cacheWrite: 0 },
   "xiaomi/mimo-v2.5": { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 },
