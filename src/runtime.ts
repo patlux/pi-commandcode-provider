@@ -31,6 +31,7 @@ export interface CommandCodeRuntimeOptions<TProviderConfig> {
   loadCachedModels: () => Promise<readonly CommandCodeModel[]>
   createProviderConfig: (models: readonly CommandCodeModel[]) => TProviderConfig
   getTransport?: () => "unknown" | "provider" | "generate"
+  getStreamWarning?: () => string | undefined
   now?: () => number
   logWarning?: (message: string) => void
 }
@@ -44,6 +45,7 @@ export interface CommandCodeRuntimeStatus {
   cachePath: string
   endpoint: string
   warning?: string
+  streamWarning?: string
   refreshing: boolean
 }
 
@@ -101,6 +103,9 @@ export function formatCommandCodeStatus(status: CommandCodeRuntimeStatus): strin
   ]
 
   lines.push(`warning: ${status.warning ? redactDiagnosticText(status.warning) : "none"}`)
+  if (status.streamWarning) {
+    lines.push(`stream warning: ${redactDiagnosticText(status.streamWarning)}`)
+  }
   return lines.join("\n")
 }
 
@@ -134,6 +139,7 @@ export class CommandCodeRuntime<TProviderConfig, TContext extends CommandCodeCom
     return {
       ...this.status,
       transport: this.options.getTransport?.() ?? "unknown",
+      streamWarning: this.options.getStreamWarning?.(),
     }
   }
 
@@ -304,7 +310,10 @@ export class CommandCodeRuntime<TProviderConfig, TContext extends CommandCodeCom
       description: "Show redacted Command Code provider diagnostics",
       handler: async (_args, ctx) => {
         const status = this.getStatus()
-        ctx.ui.notify(formatCommandCodeStatus(status), status.warning ? "warning" : "info")
+        ctx.ui.notify(
+          formatCommandCodeStatus(status),
+          status.warning || status.streamWarning ? "warning" : "info",
+        )
       },
     })
   }
