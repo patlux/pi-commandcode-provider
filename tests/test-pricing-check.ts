@@ -170,6 +170,14 @@ describe("parsePricingPage with the live snapshot fixture", () => {
 })
 
 describe("parsePricingPage shape handling", () => {
+  it("accepts script end tags with HTML whitespace", () => {
+    const page = pageWithRows([{ id: "m", tiers: [{ rates: { input: 1, output: 2 } }] }])
+    for (const whitespace of [" ", "\t", "\n", "\r", "\f", " \t\n"]) {
+      const rows = parsePricingPage(page.replace("</script>", `</SCRIPT${whitespace}>`))
+      assert.equal(rows[0]!.id, "m")
+    }
+  })
+
   it("reconstructs one row split across two push chunks", () => {
     const record = rowsRecord([{ id: "split-model", tiers: [{ rates: { input: 1, output: 2 } }] }])
     const split = Math.floor(record.length / 2)
@@ -349,30 +357,27 @@ describe("advertised model without a local price", () => {
   const fixtureRows = parsePricingPage(fixtureHtml)
   const flashFastRow = findRow(fixtureRows, "deepseek-v4.1-flash-fast")
 
-  it("reports missing-local-price and time-policy, then CLI exit 1", async () => {
+  it("reports missing-local-price, then CLI exit 1", async () => {
     const { impl } = fakeFetch({ models: modelsBody(apiModels), page: fixtureHtml })
     const result = await runPricingCheck({ fetchImpl: impl, atMs: AT_MS, localCosts: {} })
-    assert.deepEqual(result.issues.map((issue) => issue.kind).sort(), [
-      "missing-local-price",
-      "time-policy",
-    ])
+    assert.deepEqual(
+      result.issues.map((issue) => issue.kind),
+      ["missing-local-price"],
+    )
 
     const cli = await captureCli(impl, { localCosts: {} })
     assert.equal(cli.code, 1)
     assert.match(cli.stdout, /deepseek\/deepseek-v4\.1-flash-fast/)
   })
 
-  it("reports only time-policy when the local rates are exact", async () => {
+  it("passes when the local rates and runtime policy match V4.1 Flash Fast", async () => {
     const localCosts = { "deepseek/deepseek-v4.1-flash-fast": flashFastRow.cost }
     const { impl } = fakeFetch({ models: modelsBody(apiModels), page: fixtureHtml })
     const result = await runPricingCheck({ fetchImpl: impl, atMs: AT_MS, localCosts })
-    assert.deepEqual(
-      result.issues.map((issue) => issue.kind),
-      ["time-policy"],
-    )
+    assert.deepEqual(result.issues, [])
 
     const cli = await captureCli(impl, { localCosts })
-    assert.equal(cli.code, 1)
+    assert.equal(cli.code, 0)
   })
 
   it("passes for a model whose page row and runtime policy agree", async () => {
@@ -832,13 +837,13 @@ describe("runner and report", () => {
   it("renders deterministic reports and escapes table cells", () => {
     const result = {
       checkedModelCount: 1,
-      issues: [{ kind: "changed-cost" as const, modelId: "m", detail: "a|b\nc" }],
+      issues: [{ kind: "changed-cost" as const, modelId: "m", detail: "a|b\nc\\|d\\" }],
       unusedPageIds: [],
       deals: [],
     }
     const report = renderPricingReport(result)
     assert.match(report, /REVIEW REQUIRED/)
-    assert.match(report, /a\\\|b c/)
+    assert.ok(report.includes("a\\|b c\\\\\\|d\\\\"))
     assert.equal(report, renderPricingReport(result))
   })
 

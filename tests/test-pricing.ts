@@ -31,6 +31,7 @@ const freeModels = new Set([
   "poolside/laguna-s-2.1-free",
   "stealth/space-bunny-alpha",
   "inclusionai/ling-3.0-flash-sante:free",
+  "inclusionai/ling-3.1-flash:free",
 ])
 
 function assertCost(
@@ -54,7 +55,7 @@ function assertCost(
 describe("MODEL_COSTS pricing overlay", () => {
   it("covers the current Command Code model catalog snapshot", () => {
     assert.equal(fixture.source, "https://api.commandcode.ai/provider/v1/models")
-    assert.match(fixture.fetchedAt, /^2026-09-24T/)
+    assert.match(fixture.fetchedAt, /^2026-10-05T/)
 
     const catalogIds = [...fixture.modelIds].sort()
     const pricedIds = Object.keys(MODEL_COSTS).sort()
@@ -278,9 +279,40 @@ describe("MODEL_COSTS pricing overlay", () => {
     })
   })
 
+  it("uses reviewed rates for the October catalog additions", () => {
+    assertCost("claude-sonnet-5-5", {
+      input: 2,
+      output: 10,
+      cacheRead: 0.2,
+      cacheWrite: 2.5,
+    })
+    assertCost("gpt-6.1-sol", { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 })
+    assert.deepEqual(MODEL_COSTS["gpt-6.1-sol"]?.tiers, [
+      {
+        inputTokensAbove: 272_000,
+        input: 4,
+        output: 15,
+        cacheRead: 0.2,
+        cacheWrite: 5,
+      },
+    ])
+    assertCost("deepseek/deepseek-v4.1-flash-fast", {
+      input: 0.16,
+      output: 0.58,
+      cacheRead: 0.016,
+      cacheWrite: 0,
+    })
+    assertCost("inclusionai/ling-3.1-flash:free", {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    })
+  })
+
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-09-29")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-10-05")
   })
 
   it("fails once temporary pricing needs review", () => {

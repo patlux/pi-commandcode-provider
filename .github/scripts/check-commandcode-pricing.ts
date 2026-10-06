@@ -73,7 +73,7 @@ const PROBE_WEEK_START_MS = Date.UTC(2026, 9, 5, 0, 0, 0)
 const PROBE_HOURS = 168
 const RATE_TOLERANCE = 1e-12
 
-const SCRIPT_TAG_RE = /<script\b[^>]*>([\s\S]*?)<\/script>/gi
+const SCRIPT_TAG_RE = /<script\b[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi
 const NEXT_PUSH_RE = /^self\.__next_f\.push\(([\s\S]*)\);?$/
 const FLIGHT_RECORD_RE = /^[0-9a-fA-F]+:([\s\S]*)$/
 const CALENDAR_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -656,6 +656,7 @@ function formatId(value: string): string {
 
 function formatCell(value: string): string {
   return value
+    .replace(/\\/g, "\\\\")
     .replace(/\|/g, "\\|")
     .replace(/[\r\n]+/g, " ")
     .replace(/`/g, "")
