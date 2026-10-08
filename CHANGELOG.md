@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fix `400 input[N].call_id` failures on the `/alpha/generate` fallback by shortening compound Responses tool-call ids (`<call_id>|<item_id>`, 73 characters in the reported session) to the 64-character wire limit. The mapping is deterministic per request and shared by tool calls and their results, so pairing is preserved and distinct ids never collide; short ids pass through unchanged and the Provider API path is untouched ([#141](https://github.com/patlux/pi-commandcode-provider/issues/141)).
+
 ## 0.7.6 - 2026-10-06
 
 - Correct the display input price for `stepfun/Step-3.5-Flash` to $0.09 per million tokens and add the `Qwen/Qwen3.6-Plus` long-context tier above 256K tokens, verified against the official pricing page on 2026-10-06. Mark the unchanged, expired `qwen-3.7-max-2x-usage` badge as reviewed in the pricing checker while keeping it visible in reports; changed deal terms and price drift still require review.
