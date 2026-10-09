@@ -16,6 +16,11 @@ import { MODEL_COSTS, PRICING_SOURCE_URL, type CommandCodeModelCost } from "../s
 
 const fixtureUrl = new URL("./fixtures/commandcode-pricing-page.html", import.meta.url)
 const fixtureHtml = await readFile(fixtureUrl, "utf-8")
+const haikuFixtureUrl = new URL(
+  "./fixtures/commandcode-pricing-page-haiku-5-5.html",
+  import.meta.url,
+)
+const haikuFixtureHtml = await readFile(haikuFixtureUrl, "utf-8")
 const AT_MS = Date.UTC(2026, 9, 5, 12, 0, 0)
 const SUPPORTED_WINDOWS = "01–04 & 06–10 UTC, Mon–Fri"
 
@@ -166,6 +171,36 @@ describe("parsePricingPage with the live snapshot fixture", () => {
   it("collapses MiniMax M3 tiers that repeat the base rates", () => {
     const row = findRow(rows, "minimax-m3")
     assert.equal(row.cost.tiers, undefined)
+  })
+})
+
+describe("parsePricingPage with the claude-haiku-5-5 fixture", () => {
+  const rows = parsePricingPage(haikuFixtureHtml)
+
+  it("extracts the labelled ≤100K / >100K bands", () => {
+    const row = findRow(rows, "claude-haiku-5-5")
+    assert.deepEqual(ratesJson(row.cost), {
+      input: 0.1,
+      output: 0.5,
+      cacheRead: 0.01,
+      cacheWrite: 0.125,
+    })
+    assert.deepEqual(row.cost.tiers, [
+      {
+        inputTokensAbove: 100_000,
+        input: 0.5,
+        output: 2.5,
+        cacheRead: 0.05,
+        cacheWrite: 0.625,
+      },
+    ])
+  })
+
+  it("agrees with the runtime pricing policy for claude-haiku-5-5", () => {
+    // Compare the fixture against the real runtime costs (not the fixture's own
+    // parsed cost) so a drift between the two would actually fail.
+    const result = checkCommandCodePricing(["claude-haiku-5-5"], rows, MODEL_COSTS, AT_MS)
+    assert.deepEqual(result.issues, [])
   })
 })
 
