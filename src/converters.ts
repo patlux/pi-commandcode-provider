@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { existsSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
@@ -219,6 +220,82 @@ interface ToolCallState {
   resultIds: ReadonlySet<string>
 }
 
+/**
+ * Bound for tool-call ids on the `/alpha/generate` wire (#141).
+ *
+ * Hosts store Responses tool-call ids compounded as `<call_id>|<item_id>`
+ * (73 characters for the observed `call_<32hex>|fc_<32hex>` shape). The
+ * generate backend rejects `call_id` values longer than 64 characters with
+ * `400 input[N].call_id`, so compound ids must be shortened before sending.
+ * The mapping is deterministic per request and shared by calls and results,
+ * so pairing is preserved and distinct ids never collide.
+ */
+const GENERATE_TOOL_CALL_ID_LIMIT = 64
+
+function generateToolCallIdHash(value: string): string {
+  return createHash("sha256").update(value, "utf8").digest("hex").slice(0, 8)
+}
+
+function shortenGenerateToolCallId(value: string): string {
+  if (value.length <= GENERATE_TOOL_CALL_ID_LIMIT) return value
+  const suffix = generateToolCallIdHash(value)
+  const head = value.replace(/[^a-zA-Z0-9_-]/g, "_").replace(/_+$/, "")
+  const keep = GENERATE_TOOL_CALL_ID_LIMIT - suffix.length - 1
+  const truncated = head.slice(0, Math.max(0, keep)).replace(/_+$/, "")
+  // Fall back to the raw hash when sanitizing leaves nothing usable.
+  return truncated ? `${truncated}_${suffix}` : suffix
+}
+
+/**
+ * Map every tool-call id referenced in this request to its generate-wire
+ * form. Short ids are reserved first and pass through unchanged; overlong
+ * ids are shortened deterministically, and on collision receive the next
+ * free `_<hash>` suffix so every distinct id still maps to a distinct value.
+ */
+function generateToolCallIdMap(messages?: readonly MessageLike[]): Map<string, string> {
+  const referenced = new Set<string>()
+  for (const message of messages ?? []) {
+    if (message.role === "assistant") {
+      for (const content of recordArray(message.content)) {
+        if (content.type === "toolCall") {
+          const id = stringValue(content.id)
+          if (id) referenced.add(id)
+        }
+      }
+    } else if (message.role === "toolResult" && message.toolCallId) {
+      referenced.add(message.toolCallId)
+    }
+  }
+
+  const used = new Set<string>()
+  const mapped = new Map<string, string>()
+  // Reserve existing short ids before any long id can claim their wire value.
+  for (const id of referenced) {
+    if (id.length <= GENERATE_TOOL_CALL_ID_LIMIT) {
+      mapped.set(id, id)
+      used.add(id)
+    }
+  }
+  for (const id of referenced) {
+    if (mapped.has(id)) continue
+    let candidate = shortenGenerateToolCallId(id)
+    if (used.has(candidate)) {
+      const base = candidate.replace(/_+$/, "")
+      let attempt = 0
+      do {
+        const suffix = generateToolCallIdHash(`${id}#${attempt}`)
+        const keep = GENERATE_TOOL_CALL_ID_LIMIT - suffix.length - 1
+        const head = base.slice(0, Math.max(0, keep)).replace(/_+$/, "")
+        candidate = head ? `${head}_${suffix}` : suffix
+        attempt += 1
+      } while (used.has(candidate))
+    }
+    mapped.set(id, candidate)
+    used.add(candidate)
+  }
+  return mapped
+}
+
 function toolCallState(messages?: readonly MessageLike[]): ToolCallState {
   const callIds = new Set<string>()
   const resultIds = new Set<string>()
@@ -248,6 +325,8 @@ export function messagesToCC(
 
   const out: unknown[] = []
   const { callIds, resultIds } = toolCallState(messages)
+  const wireIds = generateToolCallIdMap(messages)
+  const wireId = (id: string): string => wireIds.get(id) ?? id
 
   const rawMessages = messages ?? []
   for (let i = 0; i < rawMessages.length; i++) {
@@ -269,16 +348,17 @@ export function messagesToCC(
         if (content.type === "text") {
           parts.push({ type: "text", text: stringValue(content.text) ?? "" })
         } else if (content.type === "toolCall") {
-          const toolCallId = stringValue(content.id) ?? ""
+          const rawToolCallId = stringValue(content.id) ?? ""
           const toolName = stringValue(content.name) ?? ""
-          if (!toolCallId) continue
+          if (!rawToolCallId) continue
+          const toolCallId = wireId(rawToolCallId)
           parts.push({
             type: "tool-call",
             toolCallId,
             toolName,
             input: recordOrEmpty(content.arguments),
           })
-          if (!resultIds.has(toolCallId)) {
+          if (!resultIds.has(rawToolCallId)) {
             missingResults.push({
               type: "tool-result",
               toolCallId,
@@ -311,7 +391,7 @@ export function messagesToCC(
           content: [
             {
               type: "tool-result",
-              toolCallId: toolMsg.toolCallId,
+              toolCallId: wireId(toolMsg.toolCallId),
               toolName: toolMsg.toolName,
               output: toolMsg.isError
                 ? { type: "error-text", value: outputText }
