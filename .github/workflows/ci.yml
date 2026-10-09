@@ -78,6 +78,69 @@ jobs:
           OMP_COMPAT_REQUIRED: "1"
         run: node tests/test-omp-compat.mjs
 
+  pig-native:
+    name: Native PiG (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.1"
+          cache-dependency-path: packages/pig-commandcode-provider/extensions/pig-commandcode-provider/go.sum
+      - run: npm ci
+      - run: npm run check:pig-catalog
+      - run: npm run check:pig-sdk
+      - run: npm run test:pig-patches
+      - name: Check Go formatting
+        run: |
+          test -z "$(gofmt -l packages/pig-commandcode-provider/extensions/pig-commandcode-provider/*.go)"
+      - run: npm run test:pig
+      - name: Check out pinned PiG host
+        uses: actions/checkout@v4
+        with:
+          repository: MichaelKinsy/PiG
+          ref: 3452432f8b10edd244f7f44f73db8c97c00126cc
+          path: .pig-host
+          persist-credentials: false
+      - name: Apply pinned PiG compatibility patches
+        run: |
+          node scripts/apply-pig-patches.mjs "$GITHUB_WORKSPACE/.pig-host"
+          node scripts/check-pig-sdk.mjs "$GITHUB_WORKSPACE/.pig-host"
+      - name: Build task-local PiG (no installation)
+        working-directory: .pig-host
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          make node-runtime
+          patchset=$(node -e 'const fs = require("node:fs"), crypto = require("node:crypto"); process.stdout.write(crypto.createHash("sha256").update(fs.readFileSync("../patches/pig/series.json")).digest("hex").slice(0, 12))')
+          go build -buildvcs=false -trimpath -ldflags "-s -w -X main.Build=3452432f8b10+commandcode-$patchset" -o "$RUNNER_TEMP/pig-native-test" ./cmd/pig
+          echo "PIG_BIN=$RUNNER_TEMP/pig-native-test" >> "$GITHUB_ENV"
+      - name: Check host patch regressions
+        working-directory: .pig-host
+        run: |
+          go test -race ./agent ./cmd/pig -run 'TestConvertToLLMDefersSignatureNormalizationToSelectedAPI|TestNativeAuthInspectionAndLoginOwnRegistrationWithoutModelCallbacks' -count=1
+          go test -race ./coding/extension/host/subprocess -run 'TestNodeRuntimeArchiveMatchesSources|TestNodeModelCallbackCancellationPrecedesResponse' -count=1
+      - run: npm run test:pig-local
+      - run: npm run test:pig-state
+      - run: npm run test:pig-package
+      - name: Install Pi reference for three-host comparison
+        run: |
+          npm install -g @earendil-works/pi-coding-agent@latest
+          echo "PI_BIN=$(npm prefix -g)/bin/pi" >> "$GITHUB_ENV"
+      - run: npm run test:pig-comparison
+      - name: Native CLI login acceptance
+        if: ${{ !cancelled() && env.PIG_BIN != '' }}
+        run: npm run test:pig-login
+
   # ──────────────────────────────────────────────────────────
   # Code-level vulnerability scanning (SAST)
   # ──────────────────────────────────────────────────────────

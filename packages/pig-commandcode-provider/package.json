@@ -1,0 +1,28 @@
+{
+  "name": "pig-commandcode-provider",
+  "version": "0.1.0-next.0",
+  "description": "Native Go Command Code provider for PiG",
+  "keywords": [
+    "pi-package",
+    "pig",
+    "commandcode",
+    "provider"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/patlux/pi-commandcode-provider.git",
+    "directory": "packages/pig-commandcode-provider"
+  },
+  "files": [
+    "extensions/",
+    "third_party/",
+    "README.md",
+    "LICENSE"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions/pig-commandcode-provider"
+    ]
+  }
+}

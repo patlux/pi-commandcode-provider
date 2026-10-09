@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+- Share reviewed history, Generate stream and HTTP retry contracts between the
+  TypeScript and native Go providers, including tests inside the native tarball.
+  Both implementations now check the same inputs and expected behavior.
+- Bring TypeScript Generate tool handling in line with Go: reject invalid or
+  incomplete final arguments without execution or retry, retain streamed arguments
+  when the final event omits them, ignore duplicate completed tool calls, and omit
+  failed/aborted assistant turns and orphan results from replay. Match TypeScript's
+  existing tool-image omission behavior in Go for text-only models; user images
+  still require image support. Verify malformed-call recovery on all three hosts.
+- Add an independently versioned native Go development package for PiG (#143),
+  with standard transports, exact Go-plan fallback, generated catalog/pricing,
+  auth and quota callbacks, race tests, real-host and packed-artifact mock tests.
+  Include reproducible task-local PiG fixes for native CLI login, signed replay
+  and cross-SDK response/raw-event hooks, plus a package-contained SDK snapshot.
+  The package is not published; remaining validation is documented in its guide.
+  Standard OpenAI/Anthropic clients remain host-provided in both packages.
+- Harden the native PiG Generate transport: reject incomplete or invalid final
+  tool arguments before tool execution, reset idle timeouts on received bytes,
+  honor HTTP-date `Retry-After`, and cap local backoff without disabling retries.
+  Add race and real-host regressions, also exercised against the installed tarball.
+- Honor cancellation throughout native PiG login and refresh, reject invalid
+  callback keys without consuming the one-shot login, and validate complete,
+  size-bounded callback/catalog JSON. Keep the last good in-memory model catalog
+  when refresh fails instead of rolling back to an older disk cache. Omit failed
+  assistant turns and orphan tool results from native Generate replay, including
+  direct model-registry calls.
+
 ## 0.7.3-next.0 - 2026-09-26
 
 - Validate the tag-triggered release workflow end to end using npm Trusted Publishing. The workflow verifies versions and Git refs, tests the packed and registry-installed package in Pi and OMP, and creates a GitHub Release only after verification ([#117](https://github.com/patlux/pi-commandcode-provider/pull/117)).

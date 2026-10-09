@@ -244,12 +244,18 @@ export function messagesToCC(
   options: { allowImages?: boolean } = {},
 ): unknown[] {
   const allowImages = options.allowImages ?? false
-  if (!allowImages) assertTextOnlyMessages(messages)
+  // Registry callers can bypass host history repair. Failed/aborted assistant
+  // turns are not replayable, and their now-orphaned tool results are omitted.
+  const rawMessages = (messages ?? []).filter(
+    (message) =>
+      message.role !== "assistant" ||
+      (message.stopReason !== "error" && message.stopReason !== "aborted"),
+  )
+  if (!allowImages) assertTextOnlyMessages(rawMessages)
 
   const out: unknown[] = []
-  const { callIds, resultIds } = toolCallState(messages)
+  const { callIds, resultIds } = toolCallState(rawMessages)
 
-  const rawMessages = messages ?? []
   for (let i = 0; i < rawMessages.length; i++) {
     const message = rawMessages[i]
     if (message.role === "user" || message.role === "developer") {

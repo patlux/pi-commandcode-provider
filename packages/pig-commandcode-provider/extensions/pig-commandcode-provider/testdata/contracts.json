@@ -1,0 +1,543 @@
+{
+  "version": 1,
+  "history": [
+    {
+      "name": "plain user message",
+      "messages": [{ "role": "user", "content": "hello" }],
+      "expected": [{ "role": "user", "content": "hello" }]
+    },
+    {
+      "name": "failed assistant and orphan result are omitted",
+      "messages": [
+        { "role": "user", "content": "before" },
+        {
+          "role": "assistant",
+          "stopReason": "error",
+          "content": [
+            { "type": "text", "text": "failed" },
+            { "type": "toolCall", "id": "bad", "name": "lookup", "arguments": {} }
+          ]
+        },
+        {
+          "role": "toolResult",
+          "toolCallId": "bad",
+          "toolName": "lookup",
+          "content": [{ "type": "text", "text": "failed result" }]
+        },
+        { "role": "user", "content": "recover" }
+      ],
+      "expected": [
+        { "role": "user", "content": "before" },
+        { "role": "user", "content": "recover" }
+      ]
+    },
+    {
+      "name": "aborted assistant and orphan result are omitted",
+      "messages": [
+        {
+          "role": "assistant",
+          "stopReason": "aborted",
+          "content": [{ "type": "toolCall", "id": "bad", "name": "lookup", "arguments": {} }]
+        },
+        {
+          "role": "toolResult",
+          "toolCallId": "bad",
+          "toolName": "lookup",
+          "content": [{ "type": "text", "text": "failed result" }]
+        },
+        { "role": "user", "content": "recover" }
+      ],
+      "expected": [{ "role": "user", "content": "recover" }]
+    },
+    {
+      "name": "valid interrupted tool call gets an error result",
+      "messages": [
+        {
+          "role": "assistant",
+          "stopReason": "toolUse",
+          "content": [
+            { "type": "toolCall", "id": "one", "name": "lookup", "arguments": { "x": 1 } }
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "role": "assistant",
+          "content": [
+            { "type": "tool-call", "toolCallId": "one", "toolName": "lookup", "input": { "x": 1 } }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": [
+            {
+              "type": "tool-result",
+              "toolCallId": "one",
+              "toolName": "lookup",
+              "output": {
+                "type": "error-text",
+                "value": "No result — the tool call did not complete (interrupted or lost)."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "text-only tool image is omitted without failing the turn",
+      "messages": [
+        {
+          "role": "assistant",
+          "stopReason": "toolUse",
+          "content": [{ "type": "toolCall", "id": "one", "name": "lookup", "arguments": {} }]
+        },
+        {
+          "role": "toolResult",
+          "toolCallId": "one",
+          "toolName": "lookup",
+          "content": [{ "type": "image", "data": "eA==", "mimeType": "image/png" }]
+        }
+      ],
+      "expected": [
+        {
+          "role": "assistant",
+          "content": [
+            { "type": "tool-call", "toolCallId": "one", "toolName": "lookup", "input": {} }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": [
+            {
+              "type": "tool-result",
+              "toolCallId": "one",
+              "toolName": "lookup",
+              "output": {
+                "type": "text",
+                "value": "[Image omitted: model does not support images]"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "text-only mixed tool error preserves text",
+      "messages": [
+        {
+          "role": "assistant",
+          "stopReason": "toolUse",
+          "content": [{ "type": "toolCall", "id": "one", "name": "lookup", "arguments": {} }]
+        },
+        {
+          "role": "toolResult",
+          "toolCallId": "one",
+          "toolName": "lookup",
+          "isError": true,
+          "content": [
+            { "type": "text", "text": "failed" },
+            { "type": "image", "data": "eA==", "mimeType": "image/png" }
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "role": "assistant",
+          "content": [
+            { "type": "tool-call", "toolCallId": "one", "toolName": "lookup", "input": {} }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": [
+            {
+              "type": "tool-result",
+              "toolCallId": "one",
+              "toolName": "lookup",
+              "output": { "type": "error-text", "value": "failed" }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "vision tool image follows the result",
+      "allowImages": true,
+      "messages": [
+        {
+          "role": "assistant",
+          "stopReason": "toolUse",
+          "content": [{ "type": "toolCall", "id": "one", "name": "lookup", "arguments": {} }]
+        },
+        {
+          "role": "toolResult",
+          "toolCallId": "one",
+          "toolName": "lookup",
+          "content": [{ "type": "image", "data": "eA==", "mimeType": "image/png" }]
+        }
+      ],
+      "expected": [
+        {
+          "role": "assistant",
+          "content": [
+            { "type": "tool-call", "toolCallId": "one", "toolName": "lookup", "input": {} }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": [
+            {
+              "type": "tool-result",
+              "toolCallId": "one",
+              "toolName": "lookup",
+              "output": { "type": "text", "value": "" }
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": [
+            { "type": "image", "image": "data:image/png;base64,eA==", "mimeType": "image/png" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "text-only user image is rejected",
+      "messages": [
+        {
+          "role": "user",
+          "content": [{ "type": "image", "data": "eA==", "mimeType": "image/png" }]
+        }
+      ],
+      "errorContains": "does not support image"
+    }
+  ],
+  "streams": [
+    {
+      "name": "fragmented UTF-8 text and reasoning",
+      "events": [
+        { "type": "reasoning-delta", "text": "prüfen" },
+        { "type": "text-delta", "text": "Grüße 🌍" },
+        {
+          "type": "finish",
+          "finishReason": "stop",
+          "totalUsage": {
+            "inputTokens": 10,
+            "outputTokens": 2,
+            "inputTokenDetails": { "cacheReadTokens": 3, "cacheWriteTokens": 1 }
+          }
+        }
+      ],
+      "expected": {
+        "reason": "stop",
+        "content": [
+          { "type": "thinking", "thinking": "prüfen" },
+          { "type": "text", "text": "Grüße 🌍" }
+        ],
+        "eventTypes": [
+          "start",
+          "thinking_start",
+          "thinking_delta",
+          "thinking_end",
+          "text_start",
+          "text_delta",
+          "text_end",
+          "done"
+        ],
+        "usage": { "input": 6, "output": 2, "cacheRead": 3, "cacheWrite": 1, "totalTokens": 12 }
+      }
+    },
+    {
+      "name": "object tool arguments",
+      "events": [
+        { "type": "tool-call", "toolCallId": "one", "toolName": "lookup", "input": { "x": 1 } },
+        { "type": "finish", "finishReason": "tool-calls" }
+      ],
+      "expected": {
+        "reason": "toolUse",
+        "content": [{ "type": "toolCall", "id": "one", "name": "lookup", "arguments": { "x": 1 } }],
+        "toolEnds": 1
+      }
+    },
+    {
+      "name": "JSON string args alias",
+      "events": [
+        { "type": "tool-call", "toolCallId": "one", "toolName": "lookup", "args": "{\"x\":1}" },
+        { "type": "finish", "finishReason": "tool-calls" }
+      ],
+      "expected": {
+        "reason": "toolUse",
+        "content": [{ "type": "toolCall", "id": "one", "name": "lookup", "arguments": { "x": 1 } }],
+        "toolEnds": 1
+      }
+    },
+    {
+      "name": "empty arguments alias is valid",
+      "events": [
+        { "type": "tool-call", "toolCallId": "one", "toolName": "lookup", "arguments": {} },
+        { "type": "finish", "finishReason": "tool-calls" }
+      ],
+      "expected": {
+        "reason": "toolUse",
+        "content": [{ "type": "toolCall", "id": "one", "name": "lookup", "arguments": {} }],
+        "toolEnds": 1
+      }
+    },
+    {
+      "name": "streamed arguments survive final event without input",
+      "events": [
+        { "type": "tool-input-start", "id": "one", "toolName": "lookup" },
+        { "type": "tool-input-delta", "id": "one", "delta": "{\"x\":" },
+        { "type": "tool-input-delta", "id": "one", "delta": "1}" },
+        { "type": "tool-call", "toolCallId": "one" },
+        { "type": "finish", "finishReason": "tool-calls" }
+      ],
+      "expected": {
+        "reason": "toolUse",
+        "content": [{ "type": "toolCall", "id": "one", "name": "lookup", "arguments": { "x": 1 } }],
+        "eventTypes": [
+          "start",
+          "toolcall_start",
+          "toolcall_delta",
+          "toolcall_delta",
+          "toolcall_end",
+          "done"
+        ],
+        "toolEnds": 1
+      }
+    },
+    {
+      "name": "final input replaces partial input",
+      "events": [
+        { "type": "tool-input-start", "id": "one", "toolName": "lookup" },
+        { "type": "tool-input-delta", "id": "one", "delta": "{\"x\":" },
+        { "type": "tool-call", "toolCallId": "one", "input": { "x": 2 } },
+        { "type": "finish", "finishReason": "tool-calls" }
+      ],
+      "expected": {
+        "reason": "toolUse",
+        "content": [{ "type": "toolCall", "id": "one", "name": "lookup", "arguments": { "x": 2 } }],
+        "toolEnds": 1
+      }
+    },
+    {
+      "name": "duplicate tool terminal and start are ignored",
+      "events": [
+        { "type": "tool-call", "toolCallId": "one", "toolName": "lookup", "input": {} },
+        { "type": "tool-input-start", "id": "one", "toolName": "lookup" },
+        {
+          "type": "tool-call",
+          "toolCallId": "one",
+          "toolName": "lookup",
+          "input": { "ignored": true }
+        },
+        { "type": "finish", "finishReason": "tool-calls" }
+      ],
+      "expected": {
+        "reason": "toolUse",
+        "content": [{ "type": "toolCall", "id": "one", "name": "lookup", "arguments": {} }],
+        "eventTypes": ["start", "toolcall_start", "toolcall_end", "done"],
+        "toolEnds": 1
+      }
+    },
+    {
+      "name": "interleaved tool arguments remain separate",
+      "events": [
+        { "type": "tool-input-start", "id": "one", "toolName": "lookup" },
+        { "type": "tool-input-start", "id": "two", "toolName": "lookup" },
+        { "type": "tool-input-delta", "id": "one", "delta": "{\"x\":1}" },
+        { "type": "tool-call", "toolCallId": "two", "input": {} },
+        { "type": "tool-call", "toolCallId": "one" },
+        { "type": "finish", "finishReason": "tool-calls" }
+      ],
+      "expected": {
+        "reason": "toolUse",
+        "content": [
+          { "type": "toolCall", "id": "one", "name": "lookup", "arguments": { "x": 1 } },
+          { "type": "toolCall", "id": "two", "name": "lookup", "arguments": {} }
+        ],
+        "toolEnds": 2
+      }
+    },
+    {
+      "name": "malformed arguments are not repaired or retried",
+      "events": [
+        { "type": "tool-call", "toolCallId": "one", "toolName": "lookup", "input": "{\"x\":" },
+        { "type": "finish", "finishReason": "tool-calls" }
+      ],
+      "expected": { "reason": "error", "toolEnds": 0, "errorContains": "tool call arguments" }
+    },
+    {
+      "name": "array arguments are rejected",
+      "events": [{ "type": "tool-call", "toolCallId": "one", "toolName": "lookup", "input": [] }],
+      "expected": { "reason": "error", "toolEnds": 0, "errorContains": "tool call arguments" }
+    },
+    {
+      "name": "null does not fall through to an alias",
+      "events": [
+        {
+          "type": "tool-call",
+          "toolCallId": "one",
+          "toolName": "lookup",
+          "input": null,
+          "args": {}
+        }
+      ],
+      "expected": { "reason": "error", "toolEnds": 0, "errorContains": "tool call arguments" }
+    },
+    {
+      "name": "scalar arguments are rejected",
+      "events": [{ "type": "tool-call", "toolCallId": "one", "toolName": "lookup", "args": true }],
+      "expected": { "reason": "error", "toolEnds": 0, "errorContains": "tool call arguments" }
+    },
+    {
+      "name": "encoded null arguments are rejected",
+      "events": [
+        { "type": "tool-call", "toolCallId": "one", "toolName": "lookup", "arguments": "null" }
+      ],
+      "expected": { "reason": "error", "toolEnds": 0, "errorContains": "tool call arguments" }
+    },
+    {
+      "name": "missing arguments are rejected",
+      "events": [{ "type": "tool-call", "toolCallId": "one", "toolName": "lookup" }],
+      "expected": { "reason": "error", "toolEnds": 0, "errorContains": "tool call arguments" }
+    },
+    {
+      "name": "missing name is rejected",
+      "events": [{ "type": "tool-call", "toolCallId": "one", "input": {} }],
+      "expected": { "reason": "error", "toolEnds": 0, "errorContains": "missing name" }
+    },
+    {
+      "name": "blank ID is rejected",
+      "events": [{ "type": "tool-call", "toolCallId": " ", "toolName": "lookup", "input": {} }],
+      "expected": { "reason": "error", "toolEnds": 0, "errorContains": "missing ID" }
+    },
+    {
+      "name": "partial arguments at finish are rejected",
+      "events": [
+        { "type": "tool-input-start", "id": "one", "toolName": "lookup" },
+        { "type": "tool-input-delta", "id": "one", "delta": "{\"x\":" },
+        { "type": "finish", "finishReason": "tool-calls" }
+      ],
+      "expected": { "reason": "error", "toolEnds": 0, "errorContains": "incomplete tool arguments" }
+    },
+    {
+      "name": "abort is terminal without retry",
+      "events": [{ "type": "abort" }],
+      "expected": { "reason": "aborted", "toolEnds": 0 }
+    },
+    {
+      "name": "truncated visible text is not retried",
+      "events": [{ "type": "text-delta", "text": "partial" }],
+      "expected": { "reason": "error", "errorContains": "no finish event" }
+    },
+    {
+      "name": "upstream failure after text is not retried",
+      "events": [
+        { "type": "text-delta", "text": "partial" },
+        { "type": "finish", "rawFinishReason": "upstream_error" }
+      ],
+      "expected": { "reason": "error", "errorContains": "upstream connection failed" }
+    },
+    {
+      "name": "length finish",
+      "events": [{ "type": "finish", "finishReason": "length" }],
+      "expected": { "reason": "length", "content": [] }
+    },
+    {
+      "name": "max_tokens finish",
+      "events": [{ "type": "finish", "finishReason": "max_tokens" }],
+      "expected": { "reason": "length", "content": [] }
+    },
+    {
+      "name": "max-tokens finish",
+      "events": [{ "type": "finish", "finishReason": "max-tokens" }],
+      "expected": { "reason": "length", "content": [] }
+    },
+    {
+      "name": "max_output_tokens finish",
+      "events": [{ "type": "finish", "finishReason": "max_output_tokens" }],
+      "expected": { "reason": "length", "content": [] }
+    },
+    {
+      "name": "unknown finish defaults to stop",
+      "events": [{ "type": "finish", "finishReason": "other" }],
+      "expected": { "reason": "stop", "content": [] }
+    }
+  ],
+  "retries": [
+    {
+      "name": "503 retries with capped backoff",
+      "status": 503,
+      "retryAfter": "",
+      "maxRetries": 1,
+      "maxRetryDelayMs": 1,
+      "requests": 2,
+      "reason": "stop"
+    },
+    {
+      "name": "429 zero delay retries",
+      "status": 429,
+      "retryAfter": "0",
+      "maxRetries": 1,
+      "maxRetryDelayMs": 1,
+      "requests": 2,
+      "reason": "stop"
+    },
+    {
+      "name": "server seconds exceeding cap fail",
+      "status": 429,
+      "retryAfter": "60",
+      "maxRetries": 1,
+      "maxRetryDelayMs": 1,
+      "requests": 1,
+      "reason": "error"
+    },
+    {
+      "name": "HTTP date exceeding cap fails",
+      "status": 503,
+      "retryAfter": "Wed, 01 Jan 2098 00:00:00 GMT",
+      "maxRetries": 1,
+      "maxRetryDelayMs": 1,
+      "requests": 1,
+      "reason": "error"
+    },
+    {
+      "name": "past HTTP date retries immediately",
+      "status": 503,
+      "retryAfter": "Sat, 01 Jan 2000 00:00:00 GMT",
+      "maxRetries": 1,
+      "maxRetryDelayMs": 1,
+      "requests": 2,
+      "reason": "stop"
+    },
+    {
+      "name": "oversized server delay does not overflow",
+      "status": 429,
+      "retryAfter": "1e100",
+      "maxRetries": 1,
+      "maxRetryDelayMs": 1,
+      "requests": 1,
+      "reason": "error"
+    },
+    {
+      "name": "401 never retries",
+      "status": 401,
+      "retryAfter": "0",
+      "maxRetries": 2,
+      "maxRetryDelayMs": 1,
+      "requests": 1,
+      "reason": "error"
+    },
+    {
+      "name": "disabled retries",
+      "status": 503,
+      "retryAfter": "0",
+      "maxRetries": 0,
+      "maxRetryDelayMs": 1,
+      "requests": 1,
+      "reason": "error"
+    }
+  ]
+}

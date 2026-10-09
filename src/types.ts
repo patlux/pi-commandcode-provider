@@ -85,6 +85,7 @@ export interface ModelLike {
 
 export interface MessageLike {
   role: string
+  stopReason?: TerminalReason
   content?: unknown
   toolCallId?: string
   toolName?: string

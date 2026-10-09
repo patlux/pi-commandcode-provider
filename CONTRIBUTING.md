@@ -89,6 +89,76 @@ To test a packed artifact with real Pi and OMP against mock APIs, run
 `npm run test:release-package -- /path/to/package.tgz`; both hosts and Bun are required.
 Validate workflow edits with `actionlint`.
 
+### Native PiG package
+
+The separate native package guide documents the pinned host and bundled SDK.
+Follow the [patch build guide](patches/pig/README.md) to build the required patched
+PiG task-locally; do not replace a user's installed binary. With `PIG_BIN` set, run:
+
+```sh
+npm run check:pig-catalog
+npm run check:pig-sdk
+npm run test:pig-patches
+npm run test:pig
+npm run test:pig-local
+npm run test:pig-state
+npm run test:pig-package
+npm run test:pig-comparison
+npm run test:pig-login
+```
+
+Set `PI_BIN` for the third-host comparison. `npm run benchmark:pig` records repeated
+cold-extension/warm-start measurements. Native tests fail rather than skip when
+`PIG_BIN` is absent. They use mock endpoints and synthetic credentials only.
+The exact tarball is tested outside the checkout, including PiG installation,
+discovery and removal. `npm run generate:pig-catalog` exports authoritative TS
+metadata and reviewed prices; it does not fetch or approve new prices.
+`test:pig-login` verifies actual CLI login, validation, persistence and reuse in a
+new process. It and the three-host signed-reasoning comparison pass on the patched
+host and remain required CI gates. Response/raw-event observer assertions cover
+both transports. Native SDK sources are package-owned; the Go replacement must
+stay inside the installed package. `check:pig-sdk` verifies its reviewed hashes
+and optionally compares it to an absolute patched PiG checkout path.
+See the native guide for optional bounded live profiles; do not execute them
+without separate paid-test/credential authorization.
+
+The native package has its own version. Existing release automation does not
+publish it. Do not add native tags/publication to the root package release flow.
+
+### Shared TypeScript/Go contracts
+
+Run `npm run test:contracts` to check both native implementations against the same
+reviewed JSON fixtures. Use `npm run test:contracts:ts` or
+`npm run test:contracts:go` for one language. No host binary, credentials or network
+listener is needed. Go dependencies must already be cached for a fully offline run.
+
+The single fixture source is
+`packages/pig-commandcode-provider/extensions/pig-commandcode-provider/testdata/contracts.json`.
+It lives inside the native package so `go test` also checks the exact installed
+artifact without a sibling checkout. TypeScript reads that file directly; do not
+copy it or generate expectations from either implementation's output.
+
+The two thin drivers exercise production history conversion, the Generate stream
+parser and HTTP retry handling. The stream cases feed one byte at a time, including
+UTF-8 boundaries, and check terminal events, completed tools, content and usage.
+Invalid tool arguments must fail without completion or retry. Failed/aborted
+assistant history is omitted, and text-only models omit tool images while retaining
+text or an omission notice. User images still require image support.
+
+For a cross-language regression, add an input and explicit expected behavior to
+this fixture, demonstrate failure, then fix the affected implementation. Keep
+runtime-specific cancellation, timers, auth, observer and race tests in their
+existing suites. These contracts are not exhaustive host or protocol parity.
+The real three-host comparison also reuses the invalid-tool fixture and verifies
+recovery; it checks streamed arguments and duplicate terminal events in real tool
+roundtrips. `npm test` and `test:unit` include the TS driver; `test:pig` and the
+installed-native-package test include the Go driver, so existing CI gates run both.
+
+Model metadata and reviewed prices continue to use the existing TS-to-Go catalog
+generator. There is no shared runtime, subprocess bridge or new dependency. Only
+move further rules into shared data when they are genuinely declarative; do not
+build a second programming language in JSON.
+
 ## Pull request guidelines
 
 - Keep PRs focused on one problem or feature.

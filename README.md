@@ -31,6 +31,15 @@ omp plugin install pi-commandcode-provider
 
 Restart OMP or run `/reload`, then use `/login` and select **Use a subscription** followed by **Command Code**.
 
+## Native PiG development package
+
+A separate native Go package is being developed for PiG in this repository. See
+[the native package guide](packages/pig-commandcode-provider/README.md) for its
+required host patches, bundled SDK, installation, verification and current
+limitations. It is not published and does not replace this TypeScript package
+for Pi or Oh My Pi.
+Do not load both Command Code packages into the same PiG profile.
+
 ## Authentication
 
 ### Login dialog

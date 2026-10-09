@@ -86,6 +86,25 @@ function retryDelayMs(
   return Math.min(exponential + jitter, maxDelayMs)
 }
 
+// Protocol-invalid tool calls must never be repaired into executable input or
+// retried, even if validation fails before a visible content block is emitted.
+class InvalidToolCallError extends Error {}
+
+function finalToolArguments(value: unknown): Record<string, unknown> {
+  if (typeof value === "string") {
+    try {
+      const parsed: unknown = JSON.parse(value)
+      value = parsed
+    } catch {
+      throw new InvalidToolCallError("invalid tool call arguments: expected a complete JSON object")
+    }
+  }
+  if (!isRecord(value)) {
+    throw new InvalidToolCallError("invalid tool call arguments: expected a complete JSON object")
+  }
+  return value
+}
+
 function defaultUsage(): Usage {
   return {
     input: 0,
@@ -285,6 +304,7 @@ export function createStreamCommandCode(deps: CoreDependencies) {
         string,
         { contentIndex: number; toolCall: ToolCallContent; partialArgs: string }
       >()
+      const completedToolCalls = new Set<string>()
       let finished = false
 
       const abortUpstream = () => {
@@ -401,7 +421,7 @@ export function createStreamCommandCode(deps: CoreDependencies) {
             endTextBlock()
             endThinking()
             const id = stringValue(event.id)
-            if (!id || streamingToolCalls.has(id)) break
+            if (!id || streamingToolCalls.has(id) || completedToolCalls.has(id)) break
 
             const toolCall: ToolCallContent = {
               type: "toolCall",
@@ -446,15 +466,27 @@ export function createStreamCommandCode(deps: CoreDependencies) {
             endTextBlock()
             endThinking()
             const id = stringValue(event.toolCallId) ?? ""
+            if (!id.trim()) throw new InvalidToolCallError("tool call missing ID")
+            if (completedToolCalls.has(id)) break
             const active = streamingToolCalls.get(id)
+            const name = stringValue(event.toolName) || active?.toolCall.name || ""
+            if (!name.trim()) throw new InvalidToolCallError("tool call missing name")
+            let input: unknown = active?.partialArgs
+            for (const field of ["input", "args", "arguments"]) {
+              if (Object.hasOwn(event, field)) {
+                input = event[field]
+                break
+              }
+            }
+            const args = finalToolArguments(input)
             const toolCall: ToolCallContent = active?.toolCall ?? {
               type: "toolCall",
               id,
-              name: stringValue(event.toolName) ?? "",
+              name,
               arguments: {},
             }
-            toolCall.name = stringValue(event.toolName) ?? toolCall.name
-            toolCall.arguments = recordOrEmpty(event.input ?? event.args ?? event.arguments)
+            toolCall.name = name
+            toolCall.arguments = args
 
             let contentIndex: number
             if (active) {
@@ -475,6 +507,7 @@ export function createStreamCommandCode(deps: CoreDependencies) {
               toolCall,
               partial: output,
             })
+            completedToolCalls.add(id)
             break
           }
 
@@ -487,6 +520,9 @@ export function createStreamCommandCode(deps: CoreDependencies) {
               throw new Error(
                 `Provider finished with reason "${rawFinishReason}" — upstream connection failed mid-stream`,
               )
+            }
+            if (streamingToolCalls.size > 0) {
+              throw new InvalidToolCallError("stream finished with incomplete tool arguments")
             }
             const usage = commandCodeUsage(event)
             if (usage) {
@@ -753,7 +789,10 @@ export function createStreamCommandCode(deps: CoreDependencies) {
               }
 
               // Never retry after visible content was emitted (including timeout mid-stream).
-              const canRetry = output.content.length === 0 && attempt < maxRetries
+              const canRetry =
+                !(streamError instanceof InvalidToolCallError) &&
+                output.content.length === 0 &&
+                attempt < maxRetries
               if (canRetry) {
                 output.content.length = 0
                 textBlock = undefined
