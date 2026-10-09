@@ -1,16 +1,24 @@
-export const COMMAND_CODE_CLI_VERSION = "1.72.4"
+export const COMMAND_CODE_CLI_VERSION = "1.79.2"
 
 export type CommandCodeInputType = "text" | "image"
-export type CommandCodeReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | "max"
+export type CommandCodeReasoningEffort =
+  | "off"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
+  | "max"
 
 /**
- * Generated from command-code@1.72.4 by `npm run sync:commandcode-catalog`.
+ * Generated from command-code@1.79.2 by `npm run sync:commandcode-catalog`.
  * Do not edit manually.
  */
 export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCodeInputType[]>> = {
   "claude-fable-5": ["text", "image"],
   "claude-fable-5-1": ["text", "image"],
   "claude-haiku-4-5-20251001": ["text", "image"],
+  "claude-haiku-5-5": ["text", "image"],
   "claude-opus-4-7": ["text", "image"],
   "claude-opus-4-8": ["text", "image"],
   "claude-opus-5": ["text", "image"],
@@ -44,6 +52,7 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "meta/muse-spark-1.3": ["text", "image"],
   "meta/muse-spark-1.3-contributor": ["text", "image"],
   "MiniMaxAI/MiniMax-M3": ["text", "image"],
+  "mistral/mistral-large-4": ["text", "image"],
   "moonshotai/Kimi-K2.5": ["text", "image"],
   "moonshotai/Kimi-K2.6": ["text", "image"],
   "moonshotai/Kimi-K2.7-Code": ["text", "image"],
@@ -58,8 +67,6 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "Qwen/Qwen3.8-Max-0902": ["text", "image"],
   "Qwen/Qwen3.8-Omni-Flash": ["text", "image"],
   "sakana/fugu-ultra": ["text", "image"],
-  "stealth/pixel-canary": ["text", "image"],
-  "stealth/space-bunny-alpha": ["text", "image"],
   "stepfun/Step-3.7-Flash": ["text", "image"],
   "stepfun/Step-5-Preview": ["text", "image"],
   "thinkingmachines/inkling": ["text", "image"],
@@ -78,6 +85,7 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
 export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "claude-fable-5": true,
   "claude-fable-5-1": true,
+  "claude-haiku-5-5": true,
   "claude-opus-4-7": true,
   "claude-opus-4-8": true,
   "claude-opus-5": true,
@@ -117,6 +125,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "meta/muse-spark-1.3": true,
   "meta/muse-spark-1.3-contributor": true,
   "MiniMaxAI/MiniMax-M3": true,
+  "mistral/mistral-large-4": true,
   "moonshotai/Kimi-K2.7-Code": true,
   "moonshotai/Kimi-K2.7-Code-Highspeed": true,
   "moonshotai/Kimi-K3": true,
@@ -133,8 +142,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "Qwen/Qwen3.8-Max-0902": true,
   "Qwen/Qwen3.8-Omni-Flash": true,
   "sakana/fugu-ultra": true,
-  "stealth/pixel-canary": true,
-  "stealth/space-bunny-alpha": true,
+  "stealth/glyph-cluster:free": true,
   "stepfun/Step-3.5-Flash": true,
   "stepfun/Step-3.7-Flash": true,
   "stepfun/Step-5-Preview": true,
@@ -154,6 +162,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
 export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasoningEffort[]>> = {
   "claude-fable-5": ["low", "medium", "high", "xhigh", "max"],
   "claude-fable-5-1": ["low", "medium", "high", "xhigh", "max"],
+  "claude-haiku-5-5": ["low", "medium", "high", "xhigh", "max"],
   "claude-opus-4-7": ["low", "medium", "high", "xhigh", "max"],
   "claude-opus-4-8": ["low", "medium", "high", "xhigh", "max"],
   "claude-opus-5": ["low", "medium", "high", "xhigh", "max"],
@@ -161,12 +170,12 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "claude-sonnet-4-6": ["low", "medium", "high", "xhigh", "max"],
   "claude-sonnet-5": ["low", "medium", "high", "xhigh", "max"],
   "claude-sonnet-5-5": ["low", "medium", "high", "xhigh", "max"],
-  "deepseek/deepseek-v4-flash": ["high", "max"],
+  "deepseek/deepseek-v4-flash": ["off", "high", "max"],
   "deepseek/deepseek-v4-flash-fast": ["low", "high", "max"],
-  "deepseek/deepseek-v4-flash-vision-exp": ["high", "max"],
-  "deepseek/deepseek-v4-pro": ["high", "max"],
-  "deepseek/deepseek-v4.1-flash": ["low", "high", "max"],
-  "deepseek/deepseek-v4.1-flash-fast": ["low", "high", "max"],
+  "deepseek/deepseek-v4-flash-vision-exp": ["off", "high", "max"],
+  "deepseek/deepseek-v4-pro": ["off", "high", "max"],
+  "deepseek/deepseek-v4.1-flash": ["off", "low", "high", "max"],
+  "deepseek/deepseek-v4.1-flash-fast": ["off", "low", "high", "max"],
   "google/gemini-3.1-flash-lite": ["low", "medium", "high"],
   "google/gemini-3.5-flash": ["low", "medium", "high"],
   "google/gemini-3.5-flash-lite": ["low", "medium", "high"],
@@ -191,6 +200,7 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "meta/muse-spark-1.3": ["low", "medium", "high", "xhigh", "max"],
   "meta/muse-spark-1.3-contributor": ["low", "medium", "high", "xhigh"],
   "MiniMaxAI/MiniMax-M3": ["low", "medium", "high"],
+  "mistral/mistral-large-4": ["low", "medium", "high"],
   "moonshotai/Kimi-K3": ["low", "high", "max"],
   "Qwen/Qwen3.8-27B": ["low", "medium", "xhigh"],
   "Qwen/Qwen3.8-Flash": ["low", "medium", "xhigh"],
@@ -198,8 +208,7 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "Qwen/Qwen3.8-Max-0902": ["low", "medium", "xhigh"],
   "Qwen/Qwen3.8-Omni-Flash": ["low", "medium", "xhigh"],
   "sakana/fugu-ultra": ["high", "xhigh"],
-  "stealth/pixel-canary": ["low", "medium", "xhigh"],
-  "stealth/space-bunny-alpha": ["low", "medium", "high"],
+  "stealth/glyph-cluster:free": ["low", "medium", "high", "xhigh"],
   "stepfun/Step-5-Preview": ["low", "medium", "high"],
   "tencent/hy4-preview": ["low", "medium", "high"],
   "xai/grok-4.5": ["low", "medium", "high"],
@@ -214,11 +223,11 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
 export const MODEL_MAX_OUTPUT_TOKENS: Readonly<Record<string, number>> = {
   "inclusionai/ling-3.0-flash-sante:free": 32_768,
   "inclusionai/ling-3.1-flash:free": 32_768,
+  "mistral/mistral-large-4": 262_144,
   "poolside/laguna-s-2.1-free": 32_768,
   "Qwen/Qwen3.8-27B": 32_768,
   "Qwen/Qwen3.8-Omni-Flash": 131_072,
-  "stealth/pixel-canary": 131_072,
-  "stealth/space-bunny-alpha": 524_288,
+  "stealth/glyph-cluster:free": 256_000,
   "z-ai/glm-5.3-flash": 131_072,
   "z-ai/glm-5.3-flashx": 131_072,
 }

@@ -140,7 +140,7 @@ describe("Command Code model metadata checker", () => {
       `export const COMMAND_CODE_CLI_VERSION = "1.33.0"
 
 export type CommandCodeInputType = "text" | "image"
-export type CommandCodeReasoningEffort = "minimal" | "low" | "medium" | "high" | "xhigh" | "max"
+export type CommandCodeReasoningEffort = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max"
 
 /**
  * Generated from command-code@1.33.0 by \`npm run sync:commandcode-catalog\`.

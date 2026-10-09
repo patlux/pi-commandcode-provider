@@ -8,7 +8,11 @@ import { after, before, beforeEach, describe, it } from "node:test"
 
 import { COMMAND_CODE_CLI_VERSION } from "../src/commandcode-catalog.ts"
 import type { AssistantMessageEvent } from "../src/core.ts"
-import { MODEL_EFFORTS, thinkingLevelMapForEfforts } from "../src/models.ts"
+import {
+  MODEL_EFFORTS,
+  thinkingLevelMapForEfforts,
+  thinkingMetadataForModel,
+} from "../src/models.ts"
 import {
   collectEvents,
   createTestDeps,
@@ -953,10 +957,15 @@ describe("streamCommandCode — request serialization", () => {
   })
 
   it("omits reasoning_effort for off, unsupported, and unknown reasoning levels", async () => {
+    // Build from the canonical metadata so this pins the `thinking.effortMap`
+    // path that `mappedReasoningEffort` prefers, not only the legacy
+    // `thinkingLevelMap` fallback exercised above.
+    const metadata = thinkingMetadataForModel("deepseek/deepseek-v4-flash")
+    assert.ok(metadata, "deepseek-v4-flash should have reasoning metadata")
     const model = makeModel({
       id: "deepseek/deepseek-v4-flash",
       reasoning: true,
-      thinkingLevelMap: thinkingLevelMapForEfforts(MODEL_EFFORTS["deepseek/deepseek-v4-flash"]),
+      ...metadata,
     })
 
     for (const reasoning of ["off", "low"] as const) {
