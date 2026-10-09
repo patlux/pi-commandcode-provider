@@ -248,9 +248,9 @@ function shortenGenerateToolCallId(value: string): string {
 
 /**
  * Map every tool-call id referenced in this request to its generate-wire
- * form. Short ids pass through unchanged; overlong ids are shortened
- * deterministically, and on collision the later id keeps the next free
- * `_<hash>` suffix so every distinct id still maps to a distinct value.
+ * form. Short ids are reserved first and pass through unchanged; overlong
+ * ids are shortened deterministically, and on collision receive the next
+ * free `_<hash>` suffix so every distinct id still maps to a distinct value.
  */
 function generateToolCallIdMap(messages?: readonly MessageLike[]): Map<string, string> {
   const referenced = new Set<string>()
@@ -269,7 +269,15 @@ function generateToolCallIdMap(messages?: readonly MessageLike[]): Map<string, s
 
   const used = new Set<string>()
   const mapped = new Map<string, string>()
+  // Reserve existing short ids before any long id can claim their wire value.
   for (const id of referenced) {
+    if (id.length <= GENERATE_TOOL_CALL_ID_LIMIT) {
+      mapped.set(id, id)
+      used.add(id)
+    }
+  }
+  for (const id of referenced) {
+    if (mapped.has(id)) continue
     let candidate = shortenGenerateToolCallId(id)
     if (used.has(candidate)) {
       const base = candidate.replace(/_+$/, "")

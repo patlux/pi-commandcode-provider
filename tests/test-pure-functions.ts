@@ -1047,6 +1047,43 @@ describe("messagesToCC()", () => {
     assert.equal(objectAt(result, ["1", "content", "0", "toolCallId"]), "c1")
   })
 
+  for (const longFirst of [true, false]) {
+    it(`preserves a colliding short id when the ${longFirst ? "long" : "short"} id comes first`, () => {
+      const longId = `call_${"a".repeat(32)}|fc_${"b".repeat(32)}`
+      const standalone = messagesToCC([
+        {
+          role: "assistant",
+          content: [{ type: "toolCall", id: longId, name: "bash", arguments: {} }],
+        },
+      ])
+      const shortId = String(objectAt(standalone, ["0", "content", "0", "toolCallId"]))
+      assert.equal(shortId.length, 64)
+      const ids = longFirst ? [longId, shortId] : [shortId, longId]
+      const result = messagesToCC([
+        {
+          role: "assistant",
+          content: ids.map((id) => ({ type: "toolCall", id, name: "bash", arguments: {} })),
+        },
+        ...ids.map((id) => ({
+          role: "toolResult",
+          toolCallId: id,
+          toolName: "bash",
+          content: [{ type: "text", text: "ok" }],
+        })),
+      ])
+
+      const wireIds = ids.map((_, index) =>
+        String(objectAt(result, ["0", "content", String(index), "toolCallId"])),
+      )
+      assert.equal(wireIds[ids.indexOf(shortId)], shortId)
+      assert.equal(new Set(wireIds).size, ids.length)
+      for (const [index, wireId] of wireIds.entries()) {
+        assert.ok(wireId.length <= 64)
+        assert.equal(objectAt(result, [String(index + 1), "content", "0", "toolCallId"]), wireId)
+      }
+    })
+  }
+
   it("keeps distinct overlong tool-call ids distinct on the generate wire", () => {
     const first = `call_${"a".repeat(32)}|fc_${"b".repeat(32)}`
     const second = `call_${"a".repeat(31)}c|fc_${"b".repeat(32)}`
