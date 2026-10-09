@@ -1,0 +1,39 @@
+diff --git a/test/parity/interfaces/pig-go.json b/test/parity/interfaces/pig-go.json
+--- a/test/parity/interfaces/pig-go.json
++++ b/test/parity/interfaces/pig-go.json
+@@ -4062,6 +4062,17 @@
+       "shapeHash": "sha256:51e29b075d475b717419ac567507722984f63c03377db79222d129a92aba1d5f"
+     },
+     {
++      "id": "go:github.com/MichaelKinsy/PiG/agent#normalizeMessages",
++      "package": "github.com/MichaelKinsy/PiG/agent",
++      "name": "normalizeMessages",
++      "kind": "function",
++      "exported": false,
++      "shape": {
++        "type": "func(msgs []AgentMessage, model *github.com/MichaelKinsy/PiG/ai.Model, normalizeReplay bool) []AgentMessage"
++      },
++      "shapeHash": "sha256:6be2b770cb816d98119e7f2cd5ea279fe939a75c85a400dc3c8c86e582252a17"
++    },
++    {
+       "id": "go:github.com/MichaelKinsy/PiG/agent#optionalProxyString",
+       "package": "github.com/MichaelKinsy/PiG/agent",
+       "name": "optionalProxyString",
+@@ -47215,6 +47226,17 @@
+       "shapeHash": "sha256:c3b1e781a23f558277c68a84d82b715582b0c5e2c3e4501cd49366e25f075c0f"
+     },
+     {
++      "id": "go:github.com/MichaelKinsy/PiG/cmd/pig#newAuthExtensionHost",
++      "package": "github.com/MichaelKinsy/PiG/cmd/pig",
++      "name": "newAuthExtensionHost",
++      "kind": "function",
++      "exported": false,
++      "shape": {
++        "type": "func(cwd string) *github.com/MichaelKinsy/PiG/coding/extension/host/subprocess.Host"
++      },
++      "shapeHash": "sha256:7f8cb6d60006ff348ba69e32a95d8fc5ab9a1744c47902f953f662cfba76e16c"
++    },
++    {
+       "id": "go:github.com/MichaelKinsy/PiG/cmd/pig#newCLIRetirement",
+       "package": "github.com/MichaelKinsy/PiG/cmd/pig",
+       "name": "newCLIRetirement",

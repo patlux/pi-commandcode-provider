@@ -1,0 +1,516 @@
+diff --git a/coding/extension/host/subprocess/native_provider.go b/coding/extension/host/subprocess/native_provider.go
+--- a/coding/extension/host/subprocess/native_provider.go
++++ b/coding/extension/host/subprocess/native_provider.go
+@@ -114,6 +114,12 @@
+ 	if options.OnPayload != nil {
+ 		callbacks = append(callbacks, "onPayload")
+ 	}
++	if options.OnResponse != nil {
++		callbacks = append(callbacks, "onResponse")
++	}
++	if options.OnProviderStreamEvent != nil {
++		callbacks = append(callbacks, "onProviderStreamEvent")
++	}
+ 	args := map[string]any{"method": method, "params": map[string]any{"model": extension.ModelInfo(model), "context": map[string]any{"messages": transcript.Messages()}, "options": nativeStreamOptions(options), "callbacks": callbacks}}
+ 	go func() {
+ 		operation, cancel := context.WithCancelCause(ctx)
+@@ -140,22 +146,46 @@
+ 			}
+ 			terminal = event.EventType() == ai.EventDone || event.EventType() == ai.EventError
+ 		}, func(raw json.RawMessage) (json.RawMessage, error) {
+-			if options.OnPayload == nil {
+-				return nil, errors.New("native stream has no payload callback")
+-			}
+ 			var callback struct {
++				Method string `json:"method"`
+ 				Params struct {
+-					Payload any `json:"value"`
++					Value json.RawMessage `json:"value"`
+ 				} `json:"params"`
+ 			}
+ 			if err := json.Unmarshal(raw, &callback); err != nil {
+ 				return nil, err
+ 			}
+-			result, err := options.OnPayload(callback.Params.Payload, model)
+-			if err != nil {
+-				return nil, err
+-			}
+-			return json.Marshal(result)
++			switch callback.Method {
++			case "onPayload":
++				if options.OnPayload != nil {
++					var value any
++					if err := json.Unmarshal(callback.Params.Value, &value); err != nil {
++						return nil, err
++					}
++					result, err := options.OnPayload(value, model)
++					if err != nil {
++						return nil, err
++					}
++					return json.Marshal(result)
++				}
++			case "onResponse":
++				if options.OnResponse != nil {
++					var response ai.ProviderResponse
++					if err := json.Unmarshal(callback.Params.Value, &response); err != nil {
++						return nil, err
++					}
++					return nil, options.OnResponse(operation, response, model)
++				}
++			case "onProviderStreamEvent":
++				if options.OnProviderStreamEvent != nil {
++					var value any
++					if err := json.Unmarshal(callback.Params.Value, &value); err != nil {
++						return nil, err
++					}
++					return nil, options.OnProviderStreamEvent(operation, value, model)
++				}
++			}
++			return nil, fmt.Errorf("native stream callback %q is not advertised", callback.Method)
+ 		})
+ 		if terminal {
+ 			return
+diff --git a/coding/extension/host/subprocess/protocol.go b/coding/extension/host/subprocess/protocol.go
+--- a/coding/extension/host/subprocess/protocol.go
++++ b/coding/extension/host/subprocess/protocol.go
+@@ -306,15 +306,16 @@
+ // ModelStreamCall invokes a registry stream or an already-resolved API leaf.
+ // Callback capabilities remain scoped to StreamID and the originating connection.
+ type ModelStreamCall struct {
+-	StreamID         string          `json:"streamId"`
+-	Simple           bool            `json:"simple,omitempty"`
+-	APIRequest       bool            `json:"apiRequest,omitempty"`
+-	Fetch            bool            `json:"fetch,omitempty"`
+-	OnPayload        bool            `json:"onPayload,omitempty"`
+-	OnResponse       bool            `json:"onResponse,omitempty"`
+-	TransformHeaders bool            `json:"transformHeaders,omitempty"`
+-	Model            map[string]any  `json:"model"`
+-	Request          json.RawMessage `json:"request"`
++	StreamID              string          `json:"streamId"`
++	Simple                bool            `json:"simple,omitempty"`
++	APIRequest            bool            `json:"apiRequest,omitempty"`
++	Fetch                 bool            `json:"fetch,omitempty"`
++	OnPayload             bool            `json:"onPayload,omitempty"`
++	OnResponse            bool            `json:"onResponse,omitempty"`
++	OnProviderStreamEvent bool            `json:"onProviderStreamEvent,omitempty"`
++	TransformHeaders      bool            `json:"transformHeaders,omitempty"`
++	Model                 map[string]any  `json:"model"`
++	Request               json.RawMessage `json:"request"`
+ }
+ 
+ const MethodModelStreamCallback = "model_stream_callback"
+diff --git a/coding/extension/host/subprocess/model_stream_callbacks.go b/coding/extension/host/subprocess/model_stream_callbacks.go
+--- a/coding/extension/host/subprocess/model_stream_callbacks.go
++++ b/coding/extension/host/subprocess/model_stream_callbacks.go
+@@ -61,6 +61,12 @@
+ 			return err
+ 		}
+ 	}
++	if request.OnProviderStreamEvent {
++		callbacks.OnProviderStreamEvent = func(ctx context.Context, data any, _ *ai.Model) error {
++			_, err := invoke(ctx, "onProviderStreamEvent", data)
++			return err
++		}
++	}
+ 	if request.TransformHeaders {
+ 		callbacks.TransformHeaders = func(ctx context.Context, headers ai.ProviderHeaders) (ai.ProviderHeaders, error) {
+ 			result, err := invoke(ctx, "transformHeaders", headers)
+diff --git a/coding/extension/model_stream.go b/coding/extension/model_stream.go
+--- a/coding/extension/model_stream.go
++++ b/coding/extension/model_stream.go
+@@ -10,11 +10,12 @@
+ // ModelStreamRequest carries a resolved API-leaf request and connection-owned
+ // callbacks. API leaves use the caller's model/auth, not the parent catalog.
+ type ModelStreamRequest struct {
+-	API              bool
+-	Fetch            *http.Client
+-	OnPayload        func(any, *ai.Model) (any, error)
+-	OnResponse       func(context.Context, ai.ProviderResponse, *ai.Model) error
+-	TransformHeaders func(context.Context, ai.ProviderHeaders) (ai.ProviderHeaders, error)
++	API                   bool
++	Fetch                 *http.Client
++	OnPayload             func(any, *ai.Model) (any, error)
++	OnResponse            func(context.Context, ai.ProviderResponse, *ai.Model) error
++	OnProviderStreamEvent func(context.Context, any, *ai.Model) error
++	TransformHeaders      func(context.Context, ai.ProviderHeaders) (ai.ProviderHeaders, error)
+ }
+ 
+ type modelStreamRequestKey struct{}
+diff --git a/internal/codingagent/interactive_extensions.go b/internal/codingagent/interactive_extensions.go
+--- a/internal/codingagent/interactive_extensions.go
++++ b/internal/codingagent/interactive_extensions.go
+@@ -1724,6 +1724,7 @@
+ 	options.Fetch = bridgeRequest.Fetch
+ 	options.OnPayload = bridgeRequest.OnPayload
+ 	options.OnResponse = bridgeRequest.OnResponse
++	options.OnProviderStreamEvent = bridgeRequest.OnProviderStreamEvent
+ 	options.TransformHeaders = bridgeRequest.TransformHeaders
+ 	return bindings.SessionHandle.StreamModel(ctx, llmModel, ai.Context{SystemPrompt: systemPrompt, Messages: messages, Tools: tools}, options), nil
+ }
+diff --git a/coding/extension/host/subprocess/runtime-node/runtime.mjs b/coding/extension/host/subprocess/runtime-node/runtime.mjs
+--- a/coding/extension/host/subprocess/runtime-node/runtime.mjs
++++ b/coding/extension/host/subprocess/runtime-node/runtime.mjs
+@@ -3798,9 +3798,9 @@
+     // An AbortSignal (upstream options.signal) cannot cross the process
+     // boundary: its abort cancels the host request instead, and the provider
+     // ends the stream as upstream does for an aborted request.
+-    const { signal, onPayload, onResponse, transformHeaders, fetch, ...requestOptions } = options ?? {};
++    const { signal, onPayload, onResponse, onProviderStreamEvent, transformHeaders, fetch, ...requestOptions } = options ?? {};
+     const fetchCallbacks = typeof fetch === "function" ? modelFetchCallbacks(fetch, signal) : {};
+-    const callbacks = { model, onPayload, onResponse, transformHeaders, ...fetchCallbacks };
++    const callbacks = { model, onPayload, onResponse, onProviderStreamEvent, transformHeaders, ...fetchCallbacks };
+     this.modelStreamCallbacks.set(streamId, callbacks);
+     let onAbort;
+     if (signal && typeof signal.addEventListener === "function") {
+@@ -3820,7 +3820,7 @@
+       this.modelStreamCallbacks.delete(streamId);
+       if (onAbort) signal.removeEventListener("abort", onAbort);
+     };
+-    void this.call("modelStream", { streamId, model, simple, apiRequest, fetch: typeof fetch === "function", onPayload: typeof onPayload === "function", onResponse: typeof onResponse === "function", transformHeaders: typeof transformHeaders === "function", request: { ...context, ...requestOptions } }).then(
++    void this.call("modelStream", { streamId, model, simple, apiRequest, fetch: typeof fetch === "function", onPayload: typeof onPayload === "function", onResponse: typeof onResponse === "function", onProviderStreamEvent: typeof onProviderStreamEvent === "function", transformHeaders: typeof transformHeaders === "function", request: { ...context, ...requestOptions } }).then(
+       () => setImmediate(() => settle()),
+       (error) => setImmediate(() => settle(error)),
+     );
+diff --git a/coding/extension/host/subprocess/runtime-node/provider-object.mjs b/coding/extension/host/subprocess/runtime-node/provider-object.mjs
+--- a/coding/extension/host/subprocess/runtime-node/provider-object.mjs
++++ b/coding/extension/host/subprocess/runtime-node/provider-object.mjs
+@@ -185,7 +185,7 @@
+       runtime.modelStreams.set(streamId, stream);
+       const { signal, ...data } = options;
+       const callbacks = {};
+-      for (const name of ["onPayload", "onResponse", "transformHeaders"]) {
++      for (const name of ["onPayload", "onResponse", "onProviderStreamEvent", "transformHeaders"]) {
+         if (typeof data[name] !== "function") continue;
+         const fn = data[name];
+         callbacks[name] = ({ value }) => fn(value, model);
+diff --git a/coding/extension/host/subprocess/model_fetch_cancellation_test.go b/coding/extension/host/subprocess/model_fetch_cancellation_test.go
+--- a/coding/extension/host/subprocess/model_fetch_cancellation_test.go
++++ b/coding/extension/host/subprocess/model_fetch_cancellation_test.go
+@@ -20,7 +20,7 @@
+ import { Runtime } from %q;
+ 
+ for (const api of ["openai-completions", "openai-responses", "anthropic-messages"]) {
+-  for (const callback of ["fetch", "onPayload", "onResponse", "transformHeaders"]) {
++  for (const callback of ["fetch", "onPayload", "onResponse", "onProviderStreamEvent", "transformHeaders"]) {
+     for (const phase of ["during callback", "before callback", "ordinary error"]) {
+       const runtime = new Runtime("/ext/callback-cancellation.mjs");
+       const caller = new AbortController();
+diff --git a/extensions/sdk/provider.go b/extensions/sdk/provider.go
+--- a/extensions/sdk/provider.go
++++ b/extensions/sdk/provider.go
+@@ -31,11 +31,13 @@
+ type ProviderStreamFunc func(model, transcriptOrHandle map[string]any, options ProviderStreamOptions) (*ModelEventStream, error)
+ 
+ type ProviderStreamOptions struct {
+-	Signal           context.Context
+-	Values           map[string]any
+-	OnPayload        func(any, map[string]any) (any, error)
+-	OnResponse       func(map[string]any, map[string]any) error
+-	TransformHeaders func(map[string]string) (map[string]string, error)
++	Signal     context.Context
++	Values     map[string]any
++	OnPayload  func(any, map[string]any) (any, error)
++	OnResponse func(map[string]any, map[string]any) error
++	// OnProviderStreamEvent observes parsed provider data before normalization.
++	OnProviderStreamEvent func(any, map[string]any) error
++	TransformHeaders      func(map[string]string) (map[string]string, error)
+ }
+ 
+ type ProviderAuth struct {
+diff --git a/extensions/sdk/provider_dispatch.go b/extensions/sdk/provider_dispatch.go
+--- a/extensions/sdk/provider_dispatch.go
++++ b/extensions/sdk/provider_dispatch.go
+@@ -190,6 +190,12 @@
+ 				return err
+ 			}
+ 		}
++		if slices.Contains(args.Callbacks, "onProviderStreamEvent") {
++			options.OnProviderStreamEvent = func(value any, model map[string]any) error {
++				_, err := providerCallbackValue[any](ctx, req.Tool, "onProviderStreamEvent", map[string]any{"value": value, "model": model})
++				return err
++			}
++		}
+ 		if slices.Contains(args.Callbacks, "transformHeaders") {
+ 			options.TransformHeaders = func(value map[string]string) (map[string]string, error) {
+ 				return providerCallbackValue[map[string]string](ctx, req.Tool, "transformHeaders", map[string]any{"value": value})
+diff --git a/extensions/sdk/provider_proxy.go b/extensions/sdk/provider_proxy.go
+--- a/extensions/sdk/provider_proxy.go
++++ b/extensions/sdk/provider_proxy.go
+@@ -318,6 +318,13 @@
+ 			return nil, options.OnResponse(args.Value, model)
+ 		})
+ 	}
++	if options.OnProviderStreamEvent != nil {
++		callbacks["onProviderStreamEvent"] = decodedProviderCallback(func(args struct {
++			Value any `json:"value"`
++		}) (any, error) {
++			return nil, options.OnProviderStreamEvent(args.Value, model)
++		})
++	}
+ 	if options.TransformHeaders != nil {
+ 		callbacks["transformHeaders"] = decodedProviderCallback(func(args struct {
+ 			Value map[string]string `json:"value"`
+@@ -326,7 +333,7 @@
+ 		})
+ 	}
+ 	names := []string{}
+-	for _, name := range []string{"onPayload", "onResponse", "transformHeaders"} {
++	for _, name := range []string{"onPayload", "onResponse", "onProviderStreamEvent", "transformHeaders"} {
+ 		if callbacks[name] != nil {
+ 			names = append(names, name)
+ 		}
+diff --git a/extensions/sdk-py/pig_sdk/provider.py b/extensions/sdk-py/pig_sdk/provider.py
+--- a/extensions/sdk-py/pig_sdk/provider.py
++++ b/extensions/sdk-py/pig_sdk/provider.py
+@@ -111,6 +111,7 @@
+     signal: ProviderSignal | None = None
+     on_payload: Callable[[Any, dict], Any] | None = None
+     on_response: Callable[[dict, dict], None] | None = None
++    on_provider_stream_event: Callable[[Any, dict], None] | None = None
+     transform_headers: Callable[[dict], dict] | None = None
+ 
+ 
+@@ -269,7 +270,7 @@
+     if args.get("aborted"):
+         options.signal = ProviderSignal()
+         options.signal.set()
+-    for wire, field_name in (("onPayload", "on_payload"), ("onResponse", "on_response"), ("transformHeaders", "transform_headers")):
++    for wire, field_name in (("onPayload", "on_payload"), ("onResponse", "on_response"), ("onProviderStreamEvent", "on_provider_stream_event"), ("transformHeaders", "transform_headers")):
+         if wire in args.get("callbacks", []):
+             setattr(options, field_name, lambda value, model=None, wire=wire: callback(wire, {"value": value, "model": model}))
+     if method == "cancelDeferred":
+@@ -352,7 +353,7 @@
+             with extension._model_stream_lock:
+                 extension._model_streams[stream_id] = stream
+             callbacks = {}
+-            for wire, name in (("onPayload", "on_payload"), ("onResponse", "on_response"), ("transformHeaders", "transform_headers")):
++            for wire, name in (("onPayload", "on_payload"), ("onResponse", "on_response"), ("onProviderStreamEvent", "on_provider_stream_event"), ("transformHeaders", "transform_headers")):
+                 fn = getattr(options, name)
+                 if fn:
+                     callbacks[wire] = (lambda args, fn=fn: fn(args["value"])) if wire == "transformHeaders" else (lambda args, fn=fn: fn(args["value"], model))
+diff --git a/extensions/sdk-rs/src/provider.rs b/extensions/sdk-rs/src/provider.rs
+--- a/extensions/sdk-rs/src/provider.rs
++++ b/extensions/sdk-rs/src/provider.rs
+@@ -176,6 +176,8 @@
+     pub on_payload:
+         Option<Arc<dyn Fn(Value, ProviderModel) -> ProviderResult<Value> + Send + Sync>>,
+     pub on_response: Option<Arc<dyn Fn(Value, ProviderModel) -> ProviderResult<()> + Send + Sync>>,
++    pub on_provider_stream_event:
++        Option<Arc<dyn Fn(Value, ProviderModel) -> ProviderResult<()> + Send + Sync>>,
+     pub transform_headers: Option<Arc<dyn Fn(Value) -> ProviderResult<Value> + Send + Sync>>,
+ }
+ /// What an image or classifier implementation receives besides the model and the request: the resolved request options, and the request's cancellation.
+@@ -620,6 +622,13 @@
+                         Ok(())
+                     }))
+                 }
++                if flags.contains(&json!("onProviderStreamEvent")) {
++                    let callback = callback.clone();
++                    options.on_provider_stream_event = Some(Arc::new(move |value, model| {
++                        callback("onProviderStreamEvent", json!({"value":value,"model":model.as_ref()}))?;
++                        Ok(())
++                    }))
++                }
+                 if flags.contains(&json!("transformHeaders")) {
+                     let callback = callback.clone();
+                     options.transform_headers = Some(Arc::new(move |value| {
+diff --git a/extensions/sdk-rs/src/provider/proxy.rs b/extensions/sdk-rs/src/provider/proxy.rs
+--- a/extensions/sdk-rs/src/provider/proxy.rs
++++ b/extensions/sdk-rs/src/provider/proxy.rs
+@@ -135,6 +135,17 @@
+             let model = model.clone();
+             callbacks.insert(
+                 "onResponse".into(),
++                Arc::new(move |args| {
++                    callback(args["value"].clone(), model.clone())?;
++                    Ok(Value::Null)
++                }),
++            );
++        }
++        if let Some(callback) = options.on_provider_stream_event {
++            names.push("onProviderStreamEvent");
++            let model = model.clone();
++            callbacks.insert(
++                "onProviderStreamEvent".into(),
+                 Arc::new(move |args| {
+                     callback(args["value"].clone(), model.clone())?;
+                     Ok(Value::Null)
+diff --git a/test/extension-conformance/provider_object_test.go b/test/extension-conformance/provider_object_test.go
+--- a/test/extension-conformance/provider_object_test.go
++++ b/test/extension-conformance/provider_object_test.go
+@@ -1,10 +1,13 @@
+ package extensionconformance
+ 
+ import (
++	"context"
+ 	"encoding/json"
++	"errors"
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
++	"reflect"
+ 	"strings"
+ 	"testing"
+ 
+@@ -134,13 +137,64 @@
+ 	if model == nil {
+ 		t.Fatal("native provider model missing from host runtime")
+ 	}
+-	stream := services.ModelRuntime().StreamSimple(t.Context(), model, ai.Context{Messages: []ai.Message{ai.UserMessage{Content: ai.UserText("host turn")}}}, ai.StreamOptions{})
++	order := []string{}
++	options := ai.StreamOptions{
++		OnResponse: func(ctx context.Context, response ai.ProviderResponse, received *ai.Model) error {
++			if response.Status != 201 || response.Headers["x-observed"] != "native" || received.ID != model.ID {
++				t.Errorf("response: %+v model: %+v", response, received)
++			}
++			order = append(order, "response")
++			return ctx.Err()
++		},
++		OnProviderStreamEvent: func(ctx context.Context, data any, received *ai.Model) error {
++			if !reflect.DeepEqual(data, map[string]any{"type": "raw-native", "sequence": float64(7)}) || received.ID != model.ID {
++				t.Errorf("raw event: %+v model: %+v", data, received)
++			}
++			order = append(order, "raw")
++			return ctx.Err()
++		},
++	}
++	request := ai.Context{Messages: []ai.Message{ai.UserMessage{Content: ai.UserText("host turn")}}}
++	stream := services.ModelRuntime().StreamSimple(t.Context(), model, request, options)
+ 	message := stream.Result()
+ 	if message.StopReason != ai.StopReasonStop {
+ 		t.Fatalf("host native stream: %+v", message)
+ 	}
+ 	if len(message.Content) != 1 || message.Content[0].(ai.TextContent).Text != "simple" {
+ 		t.Fatalf("host native result: %+v", message)
++	}
++	if !reflect.DeepEqual(order, []string{"response", "raw"}) {
++		t.Fatalf("callbacks before terminal result: %v", order)
++	}
++	for _, failure := range []string{"response", "raw", "cancel"} {
++		ctx, cancel := context.WithCancel(t.Context())
++		probe := options
++		seenRaw := false
++		probe.OnResponse = func(context.Context, ai.ProviderResponse, *ai.Model) error {
++			if failure == "response" {
++				return errors.New("observer failed")
++			}
++			return nil
++		}
++		probe.OnProviderStreamEvent = func(callbackCtx context.Context, _ any, _ *ai.Model) error {
++			seenRaw = true
++			if failure == "cancel" {
++				cancel()
++				<-callbackCtx.Done()
++				return callbackCtx.Err()
++			}
++			return errors.New("observer failed")
++		}
++		result := services.ModelRuntime().StreamSimple(ctx, model, request, probe).Result()
++		cancel()
++		// Cancellation can race the remote provider's setup rejection. Neither
++		// outcome may become a successful terminal result or leave the callback live.
++		if result.StopReason != ai.StopReasonError && !(failure == "cancel" && result.StopReason == ai.StopReasonAborted) {
++			t.Fatalf("%s callback: %+v", failure, result)
++		}
++		if failure == "response" && seenRaw {
++			t.Fatal("raw callback ran after response rejection")
++		}
+ 	}
+ 	path := filepath.Join(dir, "result.json")
+ 	for _, item := range loaded {
+diff --git a/test/extension-conformance/testfixture/providerobject/extension.go b/test/extension-conformance/testfixture/providerobject/extension.go
+--- a/test/extension-conformance/testfixture/providerobject/extension.go
++++ b/test/extension-conformance/testfixture/providerobject/extension.go
+@@ -26,6 +26,16 @@
+ 	model := map[string]any{"id": "carrier-model", "name": "Carrier", "provider": "carrier-provider", "api": "openai-completions", "baseUrl": "http://127.0.0.1:9", "reasoning": false, "input": []string{"text"}, "cost": map[string]int{"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0}, "contextWindow": 4000, "maxTokens": 100}
+ 	models := []map[string]any{model}
+ 	stream := func(m, _ map[string]any, options sdk.ProviderStreamOptions) (*sdk.ModelEventStream, error) {
++		if options.OnResponse != nil {
++			if err := options.OnResponse(map[string]any{"status": 201, "headers": map[string]string{"x-observed": "native"}}, m); err != nil {
++				return nil, err
++			}
++		}
++		if options.OnProviderStreamEvent != nil {
++			if err := options.OnProviderStreamEvent(map[string]any{"type": "raw-native", "sequence": 7}, m); err != nil {
++				return nil, err
++			}
++		}
+ 		meta, _ := options.Values["metadata"].(map[string]any)
+ 		if meta["fail"] == true {
+ 			return nil, errors.New("carrier stream failed")
+diff --git a/test/extension-conformance/testdata/provider-object-python/provider_object.py b/test/extension-conformance/testdata/provider-object-python/provider_object.py
+--- a/test/extension-conformance/testdata/provider-object-python/provider_object.py
++++ b/test/extension-conformance/testdata/provider-object-python/provider_object.py
+@@ -1,7 +1,7 @@
+ import json
+ import os
+ import threading
+-from dataclasses import asdict
++from dataclasses import asdict, replace
+ import pig_sdk as sdk
+ 
+ 
+@@ -18,6 +18,10 @@
+     model = {"id": "carrier-model", "name": "Carrier", "provider": "carrier-provider", "api": "openai-completions", "baseUrl": "http://127.0.0.1:9", "reasoning": False, "input": ["text"], "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0}, "contextWindow": 4000, "maxTokens": 100}
+     models = [model]
+     def stream(model, context, options):
++        if options.on_response:
++            options.on_response({"status": 201, "headers": {"x-observed": "native"}}, model)
++        if options.on_provider_stream_event:
++            options.on_provider_stream_event({"type": "raw-native", "sequence": 7}, model)
+         meta = options.values.get("metadata", {})
+         if meta.get("fail"):
+             raise RuntimeError("carrier stream failed")
+@@ -56,11 +60,11 @@
+             refresh=lambda credential, signal: {**credential, "access": "rotated", "expires": 200},
+             to_auth=lambda credential: {"apiKey": credential["access"], "baseUrl": "https://carrier.invalid"},
+             is_subscription=True, login_label="Carrier login")),
+-        get_models, stream, lambda model, context, options: stream(model, context, sdk.ProviderStreamOptions({"metadata": {"method": "simple"}}, options.signal)),
++        get_models, stream, lambda model, context, options: stream(model, context, replace(options, values={"metadata": {"method": "simple"}})),
+         base_url=model["baseUrl"], headers={"X-Carrier": "present"},
+         filter_models=lambda models, credential: models[:1] if (credential or {}).get("key") == "selected" else [],
+         refresh_models=refresh,
+-        fetch_deferred=lambda model, handle, options: stream(model, {}, sdk.ProviderStreamOptions({"metadata": {"method": handle["id"]}}, options.signal)),
++        fetch_deferred=lambda model, handle, options: stream(model, {}, replace(options, values={"metadata": {"method": handle["id"]}})),
+         cancel_deferred=cancel_deferred)
+ 
+ 
+diff --git a/test/extension-conformance/testdata/provider-object-rust/src/lib.rs b/test/extension-conformance/testdata/provider-object-rust/src/lib.rs
+--- a/test/extension-conformance/testdata/provider-object-rust/src/lib.rs
++++ b/test/extension-conformance/testdata/provider-object-rust/src/lib.rs
+@@ -23,6 +23,12 @@
+     );
+     let models = Arc::new(Mutex::new(vec![model.clone()]));
+     let stream: ProviderStreamFn = Arc::new(|model, _, options| {
++        if let Some(callback) = &options.on_response {
++            callback(json!({"status":201,"headers":{"x-observed":"native"}}), model.clone())?;
++        }
++        if let Some(callback) = &options.on_provider_stream_event {
++            callback(json!({"type":"raw-native","sequence":7}), model.clone())?;
++        }
+         let meta = &options.values["metadata"];
+         if meta["fail"] == true {
+             return Err("carrier stream failed".into());
+diff --git a/test/parity/scenarios/testdata/extension-provider-carrier-owner.mjs b/test/parity/scenarios/testdata/extension-provider-carrier-owner.mjs
+--- a/test/parity/scenarios/testdata/extension-provider-carrier-owner.mjs
++++ b/test/parity/scenarios/testdata/extension-provider-carrier-owner.mjs
+@@ -26,8 +26,17 @@
+       if (options.signal.aborted) abort();
+       else options.signal.addEventListener("abort", abort, { once: true });
+     } else {
+-      message.content = [{ type: "text", text: options.metadata?.method ?? "carrier answer" }];
+-      events.push({ type: "done", reason: "stop", message });
++      const finish = async () => {
++        await options.onResponse?.({status:201, headers:{"x-observed":"native"}}, model);
++        await options.onProviderStreamEvent?.({type:"raw-native", sequence:7}, model);
++        message.content = [{ type: "text", text: options.metadata?.method ?? "carrier answer" }];
++        events.push({ type: "done", reason: "stop", message });
++      };
++      finish().catch(error => {
++        message.stopReason = options.signal?.aborted ? "aborted" : "error";
++        message.errorMessage = String(error);
++        events.push({type:"error", reason:message.stopReason, error:message});
++      });
+     }
+     return events;
+   };

@@ -1,0 +1,21 @@
+{
+  "baseRevision": "3452432f8b10edd244f7f44f73db8c97c00126cc",
+  "patches": [
+    {
+      "file": "0001-native-cli-auth.patch",
+      "sha256": "ff6b1676a9ad3a6fe7714d405f47545f362bffd2cd174ca67bb0697181b93432"
+    },
+    {
+      "file": "0002-defer-replay-normalization.patch",
+      "sha256": "853cc166e1d94204e424f66cfcb59d4830dcecdb059554f61ea025241686268c"
+    },
+    {
+      "file": "0003-provider-observers.patch",
+      "sha256": "a9642c0b960a8f99689294f2865733183bbff9da168fcb49eb4ca6cc4a8d6323"
+    },
+    {
+      "file": "0004-generated-go-interface.patch",
+      "sha256": "e2fd2c05ac4b2ca538493c9e59c399529faa577d79af5a30155d8ca07b40d89d"
+    }
+  ]
+}

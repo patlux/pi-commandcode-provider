@@ -1,0 +1,107 @@
+diff --git a/agent/messages.go b/agent/messages.go
+--- a/agent/messages.go
++++ b/agent/messages.go
+@@ -8,10 +8,10 @@
+ )
+ 
+ // ConvertToLLM converts AgentMessages to the wire format expected by the AI provider.
+-// It calls NormalizeMessages first to filter errored/aborted assistant messages and
+-// insert synthetic tool results for orphaned tool calls.
++// It repairs tool flow and filters incomplete turns. Signed content remains intact
++// until the selected API normalizes replay; a wrapper model may delegate to another API.
+ func ConvertToLLM(msgs []AgentMessage, model *ai.Model) []ai.Message {
+-	msgs = NormalizeMessages(msgs, model)
++	msgs = normalizeMessages(msgs, model, false)
+ 	out := make([]ai.Message, 0, len(msgs))
+ 	for _, m := range msgs {
+ 		switch {
+diff --git a/agent/transform.go b/agent/transform.go
+--- a/agent/transform.go
++++ b/agent/transform.go
+@@ -59,6 +59,10 @@
+ // is normalized are copied; other non-modified entries share their underlying
+ // struct pointers with msgs.
+ func NormalizeMessages(msgs []AgentMessage, model *ai.Model) []AgentMessage {
++	return normalizeMessages(msgs, model, true)
++}
++
++func normalizeMessages(msgs []AgentMessage, model *ai.Model, normalizeReplay bool) []AgentMessage {
+ 	if len(msgs) == 0 {
+ 		return msgs
+ 	}
+@@ -144,10 +148,12 @@
+ 			// provider converter sees them (upstream transform-messages.ts
+ 			// isSameModel branch). Copy the assistant message only when a block
+ 			// actually changed, so unmodified turns still share their pointer.
+-			if norm, changed := normalizeAssistantReplayBlocks(msg.Assistant.Content, sameModel(msg.Assistant, model)); changed {
+-				cp := *msg.Assistant
+-				cp.Content = norm
+-				msg.Assistant = &cp
++			if normalizeReplay {
++				if norm, changed := normalizeAssistantReplayBlocks(msg.Assistant.Content, sameModel(msg.Assistant, model)); changed {
++					cp := *msg.Assistant
++					cp.Content = norm
++					msg.Assistant = &cp
++				}
+ 			}
+ 
+ 			// Collect tool_use IDs for orphan detection.
+diff --git a/agent/messages_provider_replay_test.go b/agent/messages_provider_replay_test.go
+new file mode 100644
+--- /dev/null
++++ b/agent/messages_provider_replay_test.go
+@@ -0,0 +1,54 @@
++package agent
++
++import (
++	"reflect"
++	"testing"
++
++	"github.com/MichaelKinsy/PiG/ai"
++)
++
++func TestConvertToLLMDefersSignatureNormalizationToSelectedAPI(t *testing.T) {
++	// Pi's core/messages.ts convertToLlm retains assistant content. The API leaf's
++	// transformMessages decides replay validity, not the registered wrapper API.
++	for _, api := range []ai.API{ai.APIAnthropicMessages, ai.APIOpenAICompletions, ai.APIOpenAIResponses} {
++		t.Run(string(api), func(t *testing.T) {
++			content := []ai.AssistantContentBlock{
++				ai.ThinkingContent{Thinking: "reason", ThinkingSignature: "signed"},
++				ai.ThinkingContent{ThinkingSignature: "redacted", Redacted: true},
++				ai.TextContent{Text: "answer", TextSignature: "text-signature"},
++				ai.ToolCall{ID: "tool", Name: "read", Arguments: ai.JsonObject{}, ThoughtSignature: "tool-signature"},
++			}
++			message := &AssistantMessage{Role: RoleAssistant, Provider: "wrapped", ModelID: "model", API: api, Content: content, StopReason: ai.StopReasonToolUse}
++			target := &ai.Model{ID: "model", Provider: ai.NewOpenAIProvider(ai.OpenAIConfig{ProviderID: "wrapped", Model: "model"}), ProviderMeta: ai.ProviderMetadata{ProviderID: "wrapped", API: "wrapper-api"}}
++			converted := ConvertToLLM([]AgentMessage{{Assistant: message}}, target)
++			got := converted[0].(ai.AssistantMessage)
++			if !reflect.DeepEqual(got.Content, content) {
++				t.Fatalf("wrapper conversion changed signed content: %#v", got.Content)
++			}
++			leaf := *target
++			leaf.ProviderMeta.API = api
++			if replay := ai.TransformMessages(converted, &leaf, nil)[0].(ai.AssistantMessage); !reflect.DeepEqual(replay.Content, content) {
++				t.Fatalf("same API lost signatures: %#v", replay.Content)
++			}
++			leaf.ProviderMeta.ProviderID = "foreign"
++			replay := ai.TransformMessages(converted, &leaf, nil)[0].(ai.AssistantMessage)
++			for _, block := range replay.Content {
++				switch b := block.(type) {
++				case ai.ThinkingContent:
++					t.Fatal("foreign API kept thinking")
++				case ai.TextContent:
++					if b.TextSignature != "" {
++						t.Fatal("foreign API kept text signature")
++					}
++				case ai.ToolCall:
++					if b.ThoughtSignature != "" {
++						t.Fatal("foreign API kept tool signature")
++					}
++				}
++			}
++			if !reflect.DeepEqual(message.Content, content) {
++				t.Fatal("history mutated")
++			}
++		})
++	}
++}

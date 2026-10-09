@@ -1,0 +1,135 @@
+diff --git a/cmd/pig/auth_contributions.go b/cmd/pig/auth_contributions.go
+--- a/cmd/pig/auth_contributions.go
++++ b/cmd/pig/auth_contributions.go
+@@ -15,6 +15,7 @@
+ 	"syscall"
+ 
+ 	"github.com/MichaelKinsy/PiG/ai"
++	"github.com/MichaelKinsy/PiG/coding/extension"
+ 	"github.com/MichaelKinsy/PiG/coding/extension/host/cellpack"
+ 	"github.com/MichaelKinsy/PiG/coding/extension/host/fusepack"
+ 	"github.com/MichaelKinsy/PiG/coding/extension/host/runtimecell"
+@@ -308,8 +309,7 @@
+ 	configs = slices.Clone(configs)
+ 	slices.SortFunc(configs, func(a, b subprocess.ExtConfig) int { return strings.Compare(a.Name, b.Name) })
+ 	for _, config := range configs {
+-		host := subprocess.NewHostWithConfigRoot(r.cwd, codingagent.ConfigRoot())
+-		host.SetMode("print")
++		host := newAuthExtensionHost(r.cwd)
+ 		loaded, loadErrors := host.LoadAll(r.ctx, []subprocess.ExtConfig{config})
+ 		for _, loadErr := range loadErrors {
+ 			r.addDiagnostic(config.Name, loadErr)
+@@ -357,8 +357,7 @@
+ 				break
+ 			}
+ 		}
+-		host := subprocess.NewHostWithConfigRoot(r.cwd, codingagent.ConfigRoot())
+-		host.SetMode("print")
++		host := newAuthExtensionHost(r.cwd)
+ 		loaded, loadErrors := host.LoadEmbeddedCells(r.ctx, embeddedCellsFromCellpack([]cellpack.LoadedCell{cell}))
+ 		for _, loadErr := range loadErrors {
+ 			r.addDiagnostic(cell.Extensions[0].Name, loadErr)
+@@ -490,10 +489,18 @@
+ 	return selected
+ }
+ 
++func newAuthExtensionHost(cwd string) *subprocess.Host {
++	host := subprocess.NewHostWithConfigRoot(cwd, codingagent.ConfigRoot())
++	host.SetMode("print")
++	// Auth commands need connection-owned OAuth proxies, not a Model Runtime.
++	// Accept the declaration without running model refresh or auth resolution.
++	host.SetNativeProviderCallback(func(context.Context, *extension.NativeProvider) error { return nil })
++	return host
++}
++
+ func (r *authContributionRegistry) extensionHost() *subprocess.Host {
+ 	if r.host == nil {
+-		r.host = subprocess.NewHostWithConfigRoot(r.cwd, codingagent.ConfigRoot())
+-		r.host.SetMode("print")
++		r.host = newAuthExtensionHost(r.cwd)
+ 	}
+ 	return r.host
+ }
+diff --git a/cmd/pig/auth_native_contributions_test.go b/cmd/pig/auth_native_contributions_test.go
+new file mode 100644
+--- /dev/null
++++ b/cmd/pig/auth_native_contributions_test.go
+@@ -0,0 +1,78 @@
++package main
++
++import (
++	"context"
++	"fmt"
++	"os"
++	"path/filepath"
++	"strings"
++	"testing"
++
++	"github.com/MichaelKinsy/PiG/ai"
++	"github.com/MichaelKinsy/PiG/coding/extension/host/subprocess"
++)
++
++func TestNativeAuthInspectionAndLoginOwnRegistrationWithoutModelCallbacks(t *testing.T) {
++	home := t.TempDir()
++	t.Setenv("PIG_HOME", home)
++	t.Setenv("PIG_CODING_AGENT_DIR", filepath.Join(home, "agent"))
++	t.Cleanup(ai.ResetOAuthProviders)
++	root := t.TempDir()
++	marker := filepath.Join(root, "model-callback")
++	entry := filepath.Join(root, "native.mjs")
++	// Pre-session auth inspection reads runtime declarations, not model or session capabilities.
++	source := fmt.Sprintf(`import {writeFileSync} from "node:fs";
++export default pi => {
++ const unexpected = () => {writeFileSync(%q, "called"); throw new Error("unexpected model callback")};
++ pi.on("session_start", unexpected);
++ pi.registerProvider({id:"native-auth-test",name:"Native auth test",getModels:()=>[],refreshModels:unexpected,
++ auth:{oauth:{name:"Native login",login:async interaction=>({type:"oauth",access:await interaction.prompt({type:"secret",message:"Token"}),refresh:"r",expires:4102444800000}),refresh:async credential=>credential,toAuth:credential=>({apiKey:credential.access})}},
++ stream:unexpected,streamSimple:unexpected});
++};`, marker)
++	if err := os.WriteFile(entry, []byte(source), 0600); err != nil {
++		t.Fatal(err)
++	}
++	config := subprocess.ExtConfig{Name: "native", Source: entry, Enabled: true}
++	ctx, cancel := context.WithCancel(t.Context())
++	registry := &authContributionRegistry{cwd: root, targets: map[string]authContribution{}, owners: map[string]string{}, configs: map[string]subprocess.ExtConfig{"native": config}, loaded: map[string]struct{}{}, ctx: ctx, cancel: cancel}
++	defer registry.close()
++	if err := registry.inspectConfigs([]subprocess.ExtConfig{config}); err != nil {
++		t.Fatal(err)
++	}
++	if len(registry.diagnostics) != 0 {
++		t.Fatalf("inspection diagnostics: %+v", registry.diagnostics)
++	}
++	if target, ok := registry.target("native-auth-test"); !ok || target.Extension != "native" {
++		t.Fatalf("native target: %+v, %t", target, ok)
++	}
++	if _, ok := ai.GetOAuthProvider("native-auth-test"); ok {
++		t.Fatal("inspection leaked OAuth registration")
++	}
++	provider, err := registry.load("native-auth-test")
++	if err != nil {
++		t.Fatal(err)
++	}
++	credentials, err := provider.Login(ai.OAuthLoginCallbacks{OnPrompt: func(prompt ai.OAuthPrompt) (string, error) {
++		if prompt.Message != "Token" {
++			t.Errorf("prompt: %+v", prompt)
++		}
++		return "synthetic-native-key", nil
++	}})
++	if err != nil || credentials.Access != "synthetic-native-key" {
++		t.Fatalf("login: %+v, %v", credentials, err)
++	}
++	if _, err := os.Stat(marker); !os.IsNotExist(err) {
++		t.Fatalf("auth executed model/session callback: %v", err)
++	}
++	registry.close()
++	if _, ok := ai.GetOAuthProvider("native-auth-test"); ok {
++		t.Fatal("login shutdown leaked OAuth registration")
++	}
++
++	other := config
++	other.Name = "other-native"
++	registry.ctx, registry.cancel = context.WithCancel(t.Context())
++	if err := registry.inspectConfigs([]subprocess.ExtConfig{other}); err == nil || !strings.Contains(err.Error(), "duplicate auth target") {
++		t.Fatalf("duplicate native auth: %v", err)
++	}
++}
