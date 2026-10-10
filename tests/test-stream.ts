@@ -777,6 +777,42 @@ describe("streamCommandCode — request serialization", () => {
     assert.equal(headers["x-session-id"], undefined)
   })
 
+  it("replays previous assistant reasoning in the generate request history", async () => {
+    server.mockResponse({
+      type: "success",
+      events: [JSON.stringify({ type: "finish", finishReason: "stop" })],
+    })
+    const { streamCommandCode } = createTestDeps({ apiBase: server.baseUrl() })
+
+    await collectEvents(
+      streamCommandCode(
+        makeModel(),
+        makeContext({
+          messages: [
+            { role: "user", content: "think of a number" },
+            {
+              role: "assistant",
+              content: [
+                { type: "thinking", thinking: "my number is 57" },
+                { type: "text", text: "ready" },
+              ],
+            },
+            { role: "user", content: "is it bigger than 50?" },
+          ],
+        }),
+        { apiKey: "mock-key" },
+      ),
+    )
+
+    assert.deepEqual(objectAt(server.lastRequestBody(), ["params", "messages", "1"]), {
+      role: "assistant",
+      content: [
+        { type: "reasoning", text: "my number is 57" },
+        { type: "text", text: "ready" },
+      ],
+    })
+  })
+
   it("normalizes nullable tool parameters only for Gemini on the generate wire (#99)", async () => {
     server.mockResponse({
       type: "success",

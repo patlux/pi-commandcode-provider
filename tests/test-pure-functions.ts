@@ -4,7 +4,7 @@
  */
 
 import assert from "node:assert/strict"
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, it } from "node:test"
@@ -713,9 +713,11 @@ describe("messagesToCC()", () => {
 
     assert.equal(objectAt(result, ["0", "role"]), "user")
     assert.equal(objectAt(result, ["1", "role"]), "assistant")
-    assert.equal(objectAt(result, ["1", "content", "0", "type"]), "text")
-    assert.equal(objectAt(result, ["1", "content", "1", "type"]), "tool-call")
-    assert.equal(objectAt(result, ["1", "content", "2"]), undefined)
+    assert.equal(objectAt(result, ["1", "content", "0", "type"]), "reasoning")
+    assert.equal(objectAt(result, ["1", "content", "0", "text"]), "I will read")
+    assert.equal(objectAt(result, ["1", "content", "1", "type"]), "text")
+    assert.equal(objectAt(result, ["1", "content", "2", "type"]), "tool-call")
+    assert.equal(objectAt(result, ["1", "content", "3"]), undefined)
     assert.equal(objectAt(result, ["2", "role"]), "tool")
     assert.equal(objectAt(result, ["2", "content", "0", "output", "value"]), "hello\nworld")
   })
@@ -942,7 +944,7 @@ describe("messagesToCC()", () => {
     assert.equal(objectAt(result, ["2", "content", "0", "output", "value"]), "plain result")
   })
 
-  it("drops previous assistant reasoning while preserving text and tool calls", () => {
+  it("replays previous assistant reasoning while preserving text and tool calls", () => {
     const result = messagesToCC([
       { role: "user", content: "first question" },
       {
@@ -957,12 +959,18 @@ describe("messagesToCC()", () => {
 
     assert.deepEqual(result, [
       { role: "user", content: "first question" },
-      { role: "assistant", content: [{ type: "text", text: "first answer" }] },
+      {
+        role: "assistant",
+        content: [
+          { type: "reasoning", text: "private reasoning from turn one" },
+          { type: "text", text: "first answer" },
+        ],
+      },
       { role: "user", content: "follow-up question" },
     ])
   })
 
-  it("omits assistant turns that contain only previous reasoning", () => {
+  it("keeps assistant turns that contain only previous reasoning", () => {
     const result = messagesToCC([
       { role: "user", content: "first question" },
       {
@@ -974,8 +982,23 @@ describe("messagesToCC()", () => {
 
     assert.deepEqual(result, [
       { role: "user", content: "first question" },
+      {
+        role: "assistant",
+        content: [{ type: "reasoning", text: "private reasoning" }],
+      },
       { role: "user", content: "follow-up question" },
     ])
+  })
+
+  it("replays cumulative reasoning for text-only assistant turns in a tool-enabled session (#146 fixtures)", () => {
+    const session = JSON.parse(
+      readFileSync(new URL("./fixtures/issue-146-session.json", import.meta.url), "utf8"),
+    ) as { messages: Parameters<typeof messagesToCC>[0] }
+    const expected = JSON.parse(
+      readFileSync(new URL("./fixtures/issue-146-generate-turn3.json", import.meta.url), "utf8"),
+    ) as { messages: ReturnType<typeof messagesToCC> }
+
+    assert.deepEqual(messagesToCC(session.messages), expected.messages)
   })
 
   it("synthesizes missing results for orphaned tool calls", () => {
