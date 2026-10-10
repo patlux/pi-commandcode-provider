@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Replay prior assistant reasoning on the generate transport so the model can see its own earlier thinking on follow-up turns, matching the official Command Code CLI (`toWireMessages` in `command-code@1.79.2`) and pi's native providers. Prior reasoning was dropped in 0.5.0, which made multi-turn tasks whose state lives only in thinking — plans, games, consistency checks — silently re-decide on the fallback transport.
+- Replay prior assistant reasoning on the generate transport so the model can see its own earlier thinking on follow-up turns, matching the Command Code CLI's `/alpha/generate` wire (`toWireMessages` in `command-code@1.79.2`), which replays every thinking block as a `reasoning` part with no model check and no signature. Prior reasoning was dropped in 0.5.0, which made multi-turn tasks whose state lives only in thinking — plans, games, consistency checks — silently re-decide on the fallback transport.
 
 ## 0.7.6 - 2026-10-06
 
