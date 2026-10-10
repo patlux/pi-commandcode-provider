@@ -1,0 +1,59 @@
+{
+  "note": "Sanitized history of a live 3-turn guessing-game session on the generate fallback (deepseek/deepseek-v4.1-flash, thinking max, tools=[read]). Each assistant turn carries hidden thinking plus visible text and no tool calls; the final assistant reply is omitted because it is not part of the turn-3 request.",
+  "model": "deepseek/deepseek-v4.1-flash",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Let's play a guessing game. Think of a number between 1 and 100 and I'll guess. After each guess, tell me if it's higher or lower."
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "The user wants to play a guessing game. They want me to think of a number between 1 and 100, and they'll guess. After each guess I tell them higher or lower.\n\nThis is a roleplay task. I need to pick a number and keep it consistent. Let me pick something like 42... no, too obvious. Let me pick 73. Actually, any number works. I'll pick 37 or 73. Let me go with 73.\n\nI should just respond playfully, tell them I've thought of a number, and invite their first guess. I need to remember the number throughout the conversation. Let me pick 73.\n\nKeep response concise."
+        },
+        {
+          "type": "text",
+          "text": "I've got one. It's between 1 and 100 — go ahead and make your first guess!"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "66"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "The number is 73. 66 is lower than 73, so I say higher."
+        },
+        {
+          "type": "text",
+          "text": "Higher!"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "50"
+        }
+      ]
+    }
+  ]
+}

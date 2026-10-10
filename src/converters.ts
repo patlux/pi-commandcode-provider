@@ -268,6 +268,11 @@ export function messagesToCC(
       for (const content of recordArray(message.content)) {
         if (content.type === "text") {
           parts.push({ type: "text", text: stringValue(content.text) ?? "" })
+        } else if (content.type === "thinking") {
+          // The official Command Code CLI replays prior assistant reasoning as
+          // `reasoning` parts (toWireMessages), and dropping it leaves the model
+          // unable to see its own earlier thinking on follow-up turns.
+          parts.push({ type: "reasoning", text: stringValue(content.thinking) ?? "" })
         } else if (content.type === "toolCall") {
           const toolCallId = stringValue(content.id) ?? ""
           const toolName = stringValue(content.name) ?? ""

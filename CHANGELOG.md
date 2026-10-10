@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Replay prior assistant reasoning on the generate transport so the model can see its own earlier thinking on follow-up turns, matching the Command Code CLI's `/alpha/generate` wire (`toWireMessages` in `command-code@1.79.2`), which replays every thinking block as a `reasoning` part with no model check and no signature. Prior reasoning was dropped in 0.5.0, which made multi-turn tasks whose state lives only in thinking — plans, games, consistency checks — silently re-decide on the fallback transport.
+
 ## 0.7.6 - 2026-10-06
 
 - Correct the display input price for `stepfun/Step-3.5-Flash` to $0.09 per million tokens and add the `Qwen/Qwen3.6-Plus` long-context tier above 256K tokens, verified against the official pricing page on 2026-10-06. Mark the unchanged, expired `qwen-3.7-max-2x-usage` badge as reviewed in the pricing checker while keeping it visible in reports; changed deal terms and price drift still require review.
