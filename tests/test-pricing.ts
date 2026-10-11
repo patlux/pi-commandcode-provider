@@ -29,7 +29,7 @@ const pricingFixtureUrl = new URL("./fixtures/commandcode-pricing.json", import.
 const pricingFixture = JSON.parse(await readFile(pricingFixtureUrl, "utf-8")) as PricingSnapshot
 const freeModels = new Set([
   "poolside/laguna-s-2.1-free",
-  "stealth/space-bunny-alpha",
+  "stealth/glyph-cluster:free",
   "inclusionai/ling-3.0-flash-sante:free",
   "inclusionai/ling-3.1-flash:free",
 ])
@@ -55,7 +55,7 @@ function assertCost(
 describe("MODEL_COSTS pricing overlay", () => {
   it("covers the current Command Code model catalog snapshot", () => {
     assert.equal(fixture.source, "https://api.commandcode.ai/provider/v1/models")
-    assert.match(fixture.fetchedAt, /^2026-10-05T/)
+    assert.match(fixture.fetchedAt, /^2026-10-09T/)
 
     const catalogIds = [...fixture.modelIds].sort()
     const pricedIds = Object.keys(MODEL_COSTS).sort()
@@ -293,8 +293,35 @@ describe("MODEL_COSTS pricing overlay", () => {
     assertCost("claude-sonnet-5-5", {
       input: 2,
       output: 10,
-      cacheRead: 0.2,
+      cacheRead: 0.1,
       cacheWrite: 2.5,
+    })
+    assertCost("claude-haiku-5-5", {
+      input: 0.1,
+      output: 0.5,
+      cacheRead: 0.01,
+      cacheWrite: 0.125,
+    })
+    assert.deepEqual(MODEL_COSTS["claude-haiku-5-5"]?.tiers, [
+      {
+        inputTokensAbove: 100_000,
+        input: 0.5,
+        output: 2.5,
+        cacheRead: 0.05,
+        cacheWrite: 0.625,
+      },
+    ])
+    assertCost("mistral/mistral-large-4", {
+      input: 1.36,
+      output: 4.18,
+      cacheRead: 0.14,
+      cacheWrite: 0,
+    })
+    assertCost("stealth/glyph-cluster:free", {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
     })
     assertCost("gpt-6.1-sol", { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 })
     assert.deepEqual(MODEL_COSTS["gpt-6.1-sol"]?.tiers, [
@@ -322,7 +349,7 @@ describe("MODEL_COSTS pricing overlay", () => {
 
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-10-06")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-10-09")
   })
 
   it("fails once temporary pricing needs review", () => {
