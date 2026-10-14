@@ -1,4 +1,4 @@
-export const COMMAND_CODE_CLI_VERSION = "1.79.2"
+export const COMMAND_CODE_CLI_VERSION = "1.82.1"
 
 export type CommandCodeInputType = "text" | "image"
 export type CommandCodeReasoningEffort =
@@ -11,7 +11,7 @@ export type CommandCodeReasoningEffort =
   | "max"
 
 /**
- * Generated from command-code@1.79.2 by `npm run sync:commandcode-catalog`.
+ * Generated from command-code@1.82.1 by `npm run sync:commandcode-catalog`.
  * Do not edit manually.
  */
 export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCodeInputType[]>> = {
@@ -35,6 +35,7 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "google/gemini-3.6-flash": ["text", "image"],
   "google/gemini-3.7-flash": ["text", "image"],
   "google/gemini-3.8-flash": ["text", "image"],
+  "google/gemini-4-argon": ["text", "image"],
   "gpt-5.3-codex": ["text", "image"],
   "gpt-5.4": ["text", "image"],
   "gpt-5.4-mini": ["text", "image"],
@@ -51,6 +52,7 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "meta/muse-spark-1.2-contributor": ["text", "image"],
   "meta/muse-spark-1.3": ["text", "image"],
   "meta/muse-spark-1.3-contributor": ["text", "image"],
+  "meta/muse-wonder-1.0": ["text", "image"],
   "MiniMaxAI/MiniMax-M3": ["text", "image"],
   "mistral/mistral-large-4": ["text", "image"],
   "moonshotai/Kimi-K2.5": ["text", "image"],
@@ -105,6 +107,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "google/gemini-3.6-flash": true,
   "google/gemini-3.7-flash": true,
   "google/gemini-3.8-flash": true,
+  "google/gemini-4-argon": true,
   "gpt-5.3-codex": true,
   "gpt-5.4": true,
   "gpt-5.4-mini": true,
@@ -124,6 +127,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "meta/muse-spark-1.2-contributor": true,
   "meta/muse-spark-1.3": true,
   "meta/muse-spark-1.3-contributor": true,
+  "meta/muse-wonder-1.0": true,
   "MiniMaxAI/MiniMax-M3": true,
   "mistral/mistral-large-4": true,
   "moonshotai/Kimi-K2.7-Code": true,
@@ -182,6 +186,7 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "google/gemini-3.6-flash": ["low", "medium", "high"],
   "google/gemini-3.7-flash": ["low", "medium", "high"],
   "google/gemini-3.8-flash": ["low", "medium", "high"],
+  "google/gemini-4-argon": ["low", "medium", "high"],
   "gpt-5.3-codex": ["low", "medium", "high", "xhigh"],
   "gpt-5.4": ["low", "medium", "high", "xhigh"],
   "gpt-5.4-mini": ["low", "medium", "high"],
@@ -199,6 +204,7 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "meta/muse-spark-1.2-contributor": ["low", "medium", "high", "xhigh"],
   "meta/muse-spark-1.3": ["low", "medium", "high", "xhigh", "max"],
   "meta/muse-spark-1.3-contributor": ["low", "medium", "high", "xhigh"],
+  "meta/muse-wonder-1.0": ["low", "medium", "high", "xhigh"],
   "MiniMaxAI/MiniMax-M3": ["low", "medium", "high"],
   "mistral/mistral-large-4": ["low", "medium", "high"],
   "moonshotai/Kimi-K3": ["low", "high", "max"],
