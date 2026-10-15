@@ -7,6 +7,7 @@ export interface CommandCodeUi {
 export interface CommandCodeCommandContext {
   ui: CommandCodeUi
   waitForIdle?: () => Promise<void>
+  model?: { id: string; provider: string }
 }
 
 export interface CommandCodeRuntimeApi<
@@ -31,6 +32,7 @@ export interface CommandCodeRuntimeOptions<TProviderConfig> {
   loadCachedModels: () => Promise<readonly CommandCodeModel[]>
   createProviderConfig: (models: readonly CommandCodeModel[]) => TProviderConfig
   getTransport?: () => "unknown" | "provider" | "generate"
+  getRoutingStatus?: (model: CommandCodeCommandContext["model"]) => string
   getStreamWarning?: () => string | undefined
   now?: () => number
   logWarning?: (message: string) => void
@@ -311,7 +313,9 @@ export class CommandCodeRuntime<TProviderConfig, TContext extends CommandCodeCom
       handler: async (_args, ctx) => {
         const status = this.getStatus()
         ctx.ui.notify(
-          formatCommandCodeStatus(status),
+          [formatCommandCodeStatus(status), this.options.getRoutingStatus?.(ctx.model)]
+            .filter(Boolean)
+            .join("\n"),
           status.warning || status.streamWarning ? "warning" : "info",
         )
       },

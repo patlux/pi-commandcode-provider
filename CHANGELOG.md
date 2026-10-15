@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `/commandcode-endpoint <model-id> auto|responses|chat-completions` for persistent per-model Provider API routing. Choices survive catalog refreshes and restarts, are validated against the model wire, and are shown in `/commandcode-status` (#156). No automatic mid-stream endpoint switching is performed.
+
 ## 0.7.8 - 2026-10-15
 
 - Redact sensitive text in direct stream errors and normalized context-overflow messages before returning them to the host. This closes two error-reporting paths that did not use the shared redactor; it is defensive hardening, not a claim of a confirmed credential leak ([#155](https://github.com/patlux/pi-commandcode-provider/pull/155)).

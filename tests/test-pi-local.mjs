@@ -6,7 +6,15 @@
 
 import assert from "node:assert/strict"
 import { spawn, spawnSync } from "node:child_process"
-import { accessSync, constants, mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs"
+import {
+  accessSync,
+  constants,
+  mkdtempSync,
+  rmSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+} from "node:fs"
 import { createServer } from "node:http"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, join, resolve } from "node:path"
@@ -656,6 +664,22 @@ async function runRpcExtensionCommands(timeoutMs = 30_000) {
       await new Promise((resolve) => setTimeout(resolve, 100))
     }
 
+    send({
+      id: "endpoint-choice",
+      type: "prompt",
+      message: `/commandcode-endpoint ${TEST_MODEL} chat-completions`,
+    })
+    await waitFor(
+      (event) =>
+        event.type === "extension_ui_request" &&
+        event.message?.includes("Applies to the next request"),
+    )
+    assert.equal(
+      JSON.parse(readFileSync(join(agentDir, "commandcode-routing.json"), "utf8")).models[
+        TEST_MODEL
+      ],
+      "chat-completions",
+    )
     includeRefreshedModel = true
     send({ id: "refresh", type: "prompt", message: "/commandcode-refresh" })
     await waitFor((event) => event.type === "response" && event.id === "refresh" && event.success)
@@ -679,6 +703,16 @@ async function runRpcExtensionCommands(timeoutMs = 30_000) {
         event.message.includes("model count: 4"),
     )
 
+    assert.match(statusAfter.message, /model endpoint: openai-completions.*user override/)
+    send({
+      id: "endpoint-auto",
+      type: "prompt",
+      message: `/commandcode-endpoint ${TEST_MODEL} auto`,
+    })
+    await waitFor(
+      (event) =>
+        event.type === "extension_ui_request" && event.message?.includes("(catalog). Applies"),
+    )
     return {
       commandNames,
       statusBefore: statusBefore.message,
@@ -1166,6 +1200,29 @@ try {
   assert.equal(lastRequestBody?.model, RESPONSES_TEST_MODEL)
   assert.equal(lastRequestBody?.stream, true)
   assert.ok(Array.isArray(lastRequestBody?.input), "Responses request should use the input array")
+
+  console.log(
+    "[pi-local] persisted endpoint override survives process restart and live catalog refresh",
+  )
+  writeFileSync(
+    join(agentDir, "commandcode-routing.json"),
+    JSON.stringify({ version: 1, models: { [RESPONSES_TEST_MODEL]: "chat-completions" } }),
+  )
+  const overridden = await runPi([
+    "--no-extensions",
+    "-e",
+    EXT_PATH,
+    "-p",
+    "say mock token",
+    "--provider",
+    "commandcode",
+    "--model",
+    RESPONSES_TEST_MODEL,
+  ])
+  assert.equal(overridden.code, 0, overridden.stderr)
+  assert.equal(lastRequestPath, "/provider/v1/chat/completions")
+  assert.ok(Array.isArray(lastRequestBody.messages))
+  rmSync(join(agentDir, "commandcode-routing.json"))
 
   console.log("[pi-local] Responses reasoning deltas stream before the item completes")
   requestCount = 0

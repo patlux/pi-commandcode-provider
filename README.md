@@ -96,6 +96,18 @@ The Provider API serves models on different wires, and `/provider/v1/models` adv
 
 A model whose catalog entry omits `supported_endpoints` keeps Chat Completions, which every non-Claude model serves, so discovery keeps working when the field is absent. The selection is applied per model, so a catalog that mixes wires streams each model correctly.
 
+### Persistent endpoint overrides
+
+Use `/commandcode-endpoint <model-id> chat-completions` to select Chat Completions for one model, for example:
+
+```txt
+/commandcode-endpoint zai-org/GLM-5.3 chat-completions
+```
+
+Use `responses` to select Responses where the catalog advertises it, or `auto` to restore catalog routing. Claude models require `auto` (Anthropic Messages). The command waits for the current turn to finish and affects subsequent requests; it never retries a partial stream on another endpoint. `/commandcode-status` shows the effective model endpoint and whether it came from the catalog or a user override. The account transport (`provider` or `generate`) is independent; endpoint overrides apply only to Provider API requests.
+
+Choices are stored in `commandcode-routing.json` inside the host agent directory, separate from the generated model cache. They survive refreshes, restarts and package updates. Do not edit the model cache. A malformed routing file blocks Provider API requests rather than silently ignoring your selection; correct the file and reload. Changes made to the file externally require a reload. Concurrent commands from separate host processes are not coordinated; use one host to change routing settings.
+
 ### Reasoning support
 
 Reasoning capability and selectable effort levels follow the official CLI catalog independently. Models can therefore be marked as reasoning-capable even when Command Code chooses their depth automatically. Models with explicit effort support register a model-specific `thinkingLevelMap`, so pi and OMP expose only valid levels. For a few reasoning models the CLI catalog ships no effort levels although the endpoint accepts `reasoning_effort`; `src/commandcode-catalog-overrides.ts` adds a manual level set for those on top of the generated catalog (currently empty because upstream publishes every level). The catalog sync removes an override as soon as upstream publishes its own levels. Pi's native OpenAI- and Anthropic-compatible providers translate the selected level for Provider API accounts; the existing Command Code generate transport sends the matching `reasoning_effort` for Go accounts.

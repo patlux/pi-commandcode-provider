@@ -40,6 +40,13 @@ import { MODEL_COSTS, ZERO_MODEL_COST } from "./src/pricing.ts"
 import { registerCommandCodeQuota } from "./src/quota-command.ts"
 import { normalizeCommandCodeResponsesResponse } from "./src/responses-stream.ts"
 import { createCommandCodeRuntime } from "./src/runtime.ts"
+import {
+  isEndpointChoice,
+  loadEndpointOverrides,
+  resolveEndpoint,
+  saveEndpointChoice,
+  type EndpointOverrides,
+} from "./src/routing.ts"
 import { createCommandCodeUsageProvider, type UsageProvider } from "./src/usage.ts"
 import { transcriptReadersFrom, withTranscriptPromptAndTools } from "./src/transcript.ts"
 import { createCommandCodeTransportRouter } from "./src/transport.ts"
@@ -218,14 +225,55 @@ export default async function (pi: ExtensionAPI) {
   // The host dispatches every Command Code model through one custom api id, so
   // the wire each model answers on is resolved here from the catalog that
   // `createProviderConfig` registered. Unknown ids fall back to the id rule.
-  const modelApis = new Map<string, CommandCodeApi>()
-  const resolveModelApi = (modelId: string): CommandCodeApi =>
-    modelApis.get(modelId) ?? apiForModelId(modelId)
+  const catalogModels = new Map<string, CommandCodeModel>()
+  const routingPath = join(getAgentDir(), "commandcode-routing.json")
+  let routing: EndpointOverrides = {}
+  let routingWarning: string | undefined
+  try {
+    routing = await loadEndpointOverrides(routingPath)
+  } catch (error) {
+    routingWarning = error instanceof Error ? error.message : "Invalid routing configuration"
+  }
+  const resolveModelApi = (modelId: string): CommandCodeApi => {
+    if (routingWarning) throw new Error(routingWarning)
+    const model = catalogModels.get(modelId)
+    return model ? resolveEndpoint(model, routing) : apiForModelId(modelId)
+  }
+  pi.registerCommand("commandcode-endpoint", {
+    description: "Choose a persistent model endpoint: <model-id> auto|responses|chat-completions",
+    handler: async (args, ctx) => {
+      const [modelId, choice, extra] = args.trim().split(/\s+/)
+      const model = catalogModels.get(modelId ?? "")
+      if (!model || !isEndpointChoice(choice) || extra) {
+        ctx.ui.notify(
+          "Usage: /commandcode-endpoint <catalog-model-id> auto|responses|chat-completions",
+          "warning",
+        )
+        return
+      }
+      await ctx.waitForIdle()
+      try {
+        resolveEndpoint(model, { [model.id]: choice })
+        routing = await saveEndpointChoice(routingPath, model.id, choice)
+        routingWarning = undefined
+        ctx.ui.notify(
+          `Command Code endpoint for ${model.id}: ${resolveModelApi(model.id)} (${choice === "auto" ? "catalog" : "user override"}). Applies to the next request and survives refresh/restart.`,
+          "info",
+        )
+      } catch (error) {
+        ctx.ui.notify(
+          error instanceof Error ? error.message : "Could not save routing configuration",
+          "error",
+        )
+      }
+    },
+  })
   let streamWarning: string | undefined
   const transport = createCommandCodeTransportRouter({
     createStream: () => new AssistantMessageEventStream(),
     streamProvider: (model, context, options) => {
       const wire = resolveModelApi(model.id)
+      const catalogModel = catalogModels.get(model.id)
       const resolvedOptions: Parameters<typeof streamNativeProvider>[2] =
         resolveStreamOptions(options)
       const nativeOptions =
@@ -246,7 +294,12 @@ export default async function (pi: ExtensionAPI) {
           ...model,
           api: wire,
           cost: commandCodeCostRatesAt(model.id, model.cost),
-          compat: model.compatConfig ?? model.compat,
+          compat: {
+            ...(model.compatConfig ?? model.compat),
+            // A selected host model can outlive a command or background refresh.
+            // Wire-specific defaults must follow the actual request, not that stale model.
+            ...(catalogModel ? compatForModel({ ...catalogModel, api: wire }) : {}),
+          },
         },
         context,
         nativeOptions,
@@ -294,8 +347,18 @@ export default async function (pi: ExtensionAPI) {
       }),
     loadCachedModels: () => loadCachedCommandCodeModels(modelsCachePath),
     createProviderConfig: (models) => {
-      for (const model of models) modelApis.set(model.id, model.api)
+      catalogModels.clear()
+      for (const model of models) catalogModels.set(model.id, model)
       return createProviderConfig(models, apiBase, transport.stream)
+    },
+    getRoutingStatus: (model) => {
+      if (routingWarning) return `routing warning: ${routingWarning}`
+      if (model?.provider !== "commandcode") return "model endpoint: no Command Code model selected"
+      try {
+        return `model endpoint: ${resolveModelApi(model.id)} (${routing[model.id] ?? "auto"}; ${routing[model.id] ? "user override" : "catalog"})`
+      } catch (error) {
+        return `routing warning: ${error instanceof Error ? error.message : "Invalid route"}`
+      }
     },
     getTransport: transport.getTransport,
     getStreamWarning: () => streamWarning,
