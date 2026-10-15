@@ -33,6 +33,7 @@ export interface CommandCodeRuntimeOptions<TProviderConfig> {
   createProviderConfig: (models: readonly CommandCodeModel[]) => TProviderConfig
   getTransport?: () => "unknown" | "provider" | "generate"
   getRoutingStatus?: (model: CommandCodeCommandContext["model"]) => string
+  getDiagnostics?: (model: CommandCodeCommandContext["model"]) => string
   getStreamWarning?: () => string | undefined
   now?: () => number
   logWarning?: (message: string) => void
@@ -289,6 +290,12 @@ export class CommandCodeRuntime<TProviderConfig, TContext extends CommandCodeCom
   }
 
   private registerCommands(): void {
+    this.pi.registerCommand("commandcode-diagnostics", {
+      description: "Show a content-free support report (no prompts, keys or local paths)",
+      handler: async (_args, ctx) => {
+        ctx.ui.notify(this.options.getDiagnostics?.(ctx.model) ?? "Diagnostics unavailable", "info")
+      },
+    })
     this.pi.registerCommand("commandcode-refresh", {
       description: "Refresh the Command Code model catalog",
       handler: async (_args, ctx) => {
@@ -313,7 +320,11 @@ export class CommandCodeRuntime<TProviderConfig, TContext extends CommandCodeCom
       handler: async (_args, ctx) => {
         const status = this.getStatus()
         ctx.ui.notify(
-          [formatCommandCodeStatus(status), this.options.getRoutingStatus?.(ctx.model)]
+          [
+            formatCommandCodeStatus(status),
+            this.options.getRoutingStatus?.(ctx.model),
+            this.options.getDiagnostics?.(ctx.model),
+          ]
             .filter(Boolean)
             .join("\n"),
           status.warning || status.streamWarning ? "warning" : "info",

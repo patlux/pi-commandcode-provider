@@ -1,0 +1,34 @@
+name: Bug report
+description: Report a reproducible provider problem
+title: "Bug: "
+body:
+  - type: markdown
+    attributes:
+      value: "Do not paste API keys, auth files, prompts, private tool results, or full session exports. Use a synthetic reproduction."
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Safe diagnostics
+      description: "Run /commandcode-diagnostics in the failing instance and paste its output. This report excludes prompts, credentials and local paths. If the extension does not load, give the plugin, Pi/OMP, Node/Bun and OS versions instead."
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: plan
+    attributes:
+      label: Plan
+      options: [GOAT, Pro, Max, Team, Provider, Go, Unknown]
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: "Steps, expected/actual behavior, exact model ID, and whether this followed a model switch, compaction, update or session resume. Use synthetic data."
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Error and timing
+      description: "Share the error code and approximate timestamp. Review/redact any error text yourself; do not include entire request or response bodies."

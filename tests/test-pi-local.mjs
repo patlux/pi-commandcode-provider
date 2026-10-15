@@ -704,6 +704,14 @@ async function runRpcExtensionCommands(timeoutMs = 30_000) {
     )
 
     assert.match(statusAfter.message, /model endpoint: openai-completions.*user override/)
+    send({ id: "safe-diagnostics", type: "prompt", message: "/commandcode-diagnostics" })
+    const report = await waitFor(
+      (event) => event.type === "extension_ui_request" && event.message?.startsWith("plugin:"),
+    )
+    assert.match(report.message, /host: pi/)
+    assert.match(report.message, /catalog CLI:/)
+    assert.doesNotMatch(report.message, /cache path:|https?:|mock-key|Bearer/)
+    assert.ok(commandNames.includes("commandcode-diagnostics"))
     send({
       id: "endpoint-auto",
       type: "prompt",

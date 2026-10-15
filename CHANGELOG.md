@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add content-free `/commandcode-diagnostics` reports, per-request body-chunk timing and error categories, explicit unknown-price warnings, and a structured GitHub bug form. Generate requests now honor the caller's fetch hook so both transports can be measured without retaining request bodies.
+
 - Add `/commandcode-endpoint <model-id> auto|responses|chat-completions` for persistent per-model Provider API routing. Choices survive catalog refreshes and restarts, are validated against the model wire, and are shown in `/commandcode-status` (#156). No automatic mid-stream endpoint switching is performed.
 
 ## 0.7.8 - 2026-10-15

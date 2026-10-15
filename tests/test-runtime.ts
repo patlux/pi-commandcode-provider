@@ -1,3 +1,4 @@
+import "./test-diagnostics.ts"
 import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
@@ -163,7 +164,10 @@ describe("Command Code runtime", () => {
     })
 
     const initialization = runtime.initialize()
-    assert.deepEqual([...pi.commands.keys()], ["commandcode-refresh", "commandcode-status"])
+    assert.deepEqual(
+      [...pi.commands.keys()],
+      ["commandcode-diagnostics", "commandcode-refresh", "commandcode-status"],
+    )
     await Promise.resolve()
     assert.equal(runtime.getStatus().refreshing, true)
     assert.equal(runtime.getStatus().lastAttempt, now)

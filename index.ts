@@ -15,6 +15,9 @@ import {
   type ProviderConfig,
 } from "@earendil-works/pi-coding-agent"
 import { join } from "node:path"
+import { readFile } from "node:fs/promises"
+import * as hostPackage from "@earendil-works/pi-coding-agent"
+import { createRequestDiagnostics, formatDiagnostics, priceStatus } from "./src/diagnostics.ts"
 
 import { getConfiguredApiKey } from "./src/api-key.ts"
 import { pickCommandCodeApiKey, withResolvedCommandCodeApiKey } from "./src/converters.ts"
@@ -197,6 +200,31 @@ function legacyApiBase(providerApiBase: string): string {
 }
 
 export default async function (pi: ExtensionAPI) {
+  const packageData: unknown = JSON.parse(
+    await readFile(new URL("./package.json", import.meta.url), "utf8"),
+  )
+  const pluginVersion =
+    typeof packageData === "object" &&
+    packageData !== null &&
+    "version" in packageData &&
+    typeof packageData.version === "string"
+      ? packageData.version
+      : "unknown"
+  const hostVersion =
+    "VERSION" in hostPackage && typeof hostPackage.VERSION === "string"
+      ? hostPackage.VERSION
+      : "unknown"
+  const diagnostics = createRequestDiagnostics()
+  const warnedPrices = new Set<string>()
+  pi.on("before_agent_start", (_event, ctx) => {
+    if (ctx.model?.provider !== "commandcode" || warnedPrices.has(ctx.model.id)) return
+    if (priceStatus(ctx.model.id) === "known") return
+    warnedPrices.add(ctx.model.id)
+    ctx.ui.notify(
+      "Command Code display price is unknown or needs review. A zero estimate does not mean free usage; check /commandcode-diagnostics.",
+      "warning",
+    )
+  })
   // Hosts may select their built-in Command Code model before loading extensions.
   // Rebind that stale selection to our registered transport before the first turn.
   pi.on("session_start", async (_event, ctx) => {
@@ -320,8 +348,20 @@ export default async function (pi: ExtensionAPI) {
   // custom api there so those calls reach the same transport. The registry
   // resolves no credentials for extension providers, so fall back to the
   // configured key when the caller passes none or a placeholder.
+  const measuredStream = (
+    model: Parameters<typeof transport.stream>[0],
+    context: Parameters<typeof transport.stream>[1],
+    options?: Parameters<typeof transport.stream>[2],
+  ) =>
+    diagnostics.stream(
+      transport.stream,
+      () => new AssistantMessageEventStream(),
+      model,
+      context,
+      resolveStreamOptions(options),
+    )
   const compatStream: CompatStreamFunction = (model, context, options) =>
-    transport.stream(model, context, resolveStreamOptions(options)) as AssistantMessageEventStream
+    measuredStream(model, context, options) as AssistantMessageEventStream
   registerCompatApiProvider(compatStream)
 
   pi.on("message_end", async (event, ctx) => {
@@ -349,7 +389,25 @@ export default async function (pi: ExtensionAPI) {
     createProviderConfig: (models) => {
       catalogModels.clear()
       for (const model of models) catalogModels.set(model.id, model)
-      return createProviderConfig(models, apiBase, transport.stream)
+      return createProviderConfig(models, apiBase, measuredStream)
+    },
+    getDiagnostics: (model) => {
+      let route = "not selected"
+      if (model?.provider === "commandcode") {
+        try {
+          route = `${transport.getTransport()}/${resolveModelApi(model.id)} (${routing[model.id] ?? "auto"})`
+        } catch {
+          route = "invalid routing configuration"
+        }
+      }
+      return formatDiagnostics({
+        pluginVersion,
+        host: compatApiProviderRegistrar() ? "pi" : "omp-compatible",
+        hostVersion,
+        modelId: model?.provider === "commandcode" ? model.id : undefined,
+        route,
+        request: diagnostics.snapshot(),
+      })
     },
     getRoutingStatus: (model) => {
       if (routingWarning) return `routing warning: ${routingWarning}`
