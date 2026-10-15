@@ -51,11 +51,13 @@ export COMMAND_CODE_API_KEY="user_..."
 
 ### Auth file
 
-The provider also reads existing credentials from:
+The provider also reads existing credentials from, in this order:
 
 - `~/.commandcode/auth.json`
-- `~/.pi/agent/auth.json`
+- `~/.pi/agent/auth.json` (or `$PI_CODING_AGENT_DIR/auth.json` when pi runs with that variable)
 - `~/.omp/agent/auth.json`
+
+Both transports and the quota commands use the same lookup.
 
 Supported examples:
 
@@ -132,8 +134,8 @@ When a valid cache exists, the provider registers the cached catalog immediately
 
 While pi is running, use these provider commands without restarting:
 
-- `/commandcode-refresh` fetches and re-registers the current model catalog. Overlapping refreshes are coalesced, and a failed refresh keeps the last valid catalog active.
-- `/commandcode-status` shows redacted discovery diagnostics, including the source, model count, timestamps, cache path, endpoint, and warning. If a Responses reasoning event has an unsupported shape, a separate stream warning remains visible until the extension is reloaded or the host restarts. The event is preserved unchanged; no reasoning text is included in the warning.
+- `/commandcode-refresh` fetches and re-registers the current model catalog, and forgets the probed transport so the next request tries the Provider API again (for example after upgrading a Go account). Overlapping refreshes are coalesced, and a failed refresh keeps the last valid catalog active.
+- `/commandcode-status` shows redacted discovery diagnostics, including the source, model count, timestamps, cache path, endpoint, and warning. If a Responses reasoning event has an unsupported shape, a separate stream warning reflects the most recent Responses request and clears once a later request streams cleanly. The event is preserved unchanged; no reasoning text is included in the warning.
 - `/commandcode-quota` shows your Command Code account usage and quota in a dashboard-style layout: credits remaining and used with a percentage, monthly/purchased/free sources, the current plan, available usage totals, the API key name, and the 5-hour and weekly usage windows.
 
 The `commandcode-quota` command reads from the Command Code alpha usage endpoints (the same ones the `cmd` CLI `/usage` command uses): `whoami`, `billing/credits`, `billing/subscriptions`, and `usage/summary`. It authenticates with the same API key the provider already uses. If the command cannot reach those endpoints or an endpoint schema changes, unavailable sections are reported explicitly instead of being displayed as zero usage. Output is plain text (via `ui.notify`) so it works across pi and compatible hosts such as OMP.
@@ -142,9 +144,19 @@ On Oh My Pi the provider also registers an OMP usage provider through the `usage
 
 Set `CMD_ZDR=1` to send Command Code's documented `x-cmd-zdr: 1` zero-data-retention header. The legacy `COMMANDCODE_ZDR=1` alias remains supported.
 
+### Request metadata on the generate transport
+
+The legacy `/alpha/generate` fallback used by Go accounts mirrors the official CLI's request shape, which includes metadata the Provider API path does not send:
+
+- the absolute working directory (`config.workingDir`) and a slug derived from it (`x-project-slug`);
+- the host session id (`x-session-id`) and, when it is a UUID, the same value as `threadId`;
+- `x-taste-learning`, the CLI's opt-in for Command Code's server-side taste learning. The CLI sends its `tasteLearning` setting (default on); this extension never reads the learned profile back, so it sends `false` unless `COMMANDCODE_TASTE_LEARNING=1` is set, and always `false` under `CMD_ZDR=1`.
+
+No other local files, git state, memory, or skills are sent; those request fields stay empty.
+
 The following environment variables are intended for tests, local mocks, and compatible API endpoints:
 
-- `COMMANDCODE_API_BASE`
+- `COMMANDCODE_API_BASE` (Provider API base; the alpha endpoints used by `/login` key validation and `/commandcode-quota` are derived from it without the `/provider/v1` suffix)
 - `COMMANDCODE_MODELS_URL`
 - `COMMANDCODE_MODELS_CACHE`
 - `COMMANDCODE_MODELS_TIMEOUT_MS` (defaults to 10 seconds; invalid or non-positive values use the default)

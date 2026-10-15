@@ -7,7 +7,7 @@
  * `tests/test-cost.ts` locks this implementation to the pi-ai original.
  */
 
-import type { ModelCostRates, ModelLike, Usage } from "./types.ts"
+import type { ModelCostRates, ModelCostTier, ModelLike, Usage } from "./types.ts"
 
 const DEEPSEEK_V4_TIME_PRICED_MODELS = new Set([
   "deepseek/deepseek-v4-pro",
@@ -30,23 +30,30 @@ export function isDeepSeekV4Peak(atMs: number): boolean {
   return (hour >= 1 && hour < 4) || (hour >= 6 && hour < 10)
 }
 
-/**
- * Select request-time rates for both the native provider transport and the
- * local generate fallback. DeepSeek V4 peak rates are exactly 2x off-peak.
- */
-export function commandCodeCostRatesAt(
-  modelId: string,
-  rates: ModelCostRates,
-  atMs: number = Date.now(),
-): ModelCostRates {
-  if (!DEEPSEEK_V4_TIME_PRICED_MODELS.has(modelId) || !isDeepSeekV4Peak(atMs)) return rates
-
+function doubledRates<T extends ModelCostRates>(rates: T): T {
   return {
+    ...rates,
     input: rates.input * 2,
     output: rates.output * 2,
     cacheRead: rates.cacheRead * 2,
     cacheWrite: rates.cacheWrite * 2,
   }
+}
+
+/**
+ * Select request-time rates for both the native provider transport and the
+ * local generate fallback. DeepSeek V4 peak rates are exactly 2x off-peak.
+ * Context tiers on a full model cost table are kept and doubled alongside
+ * the base rates so the host's tier selection still applies during peak.
+ */
+export function commandCodeCostRatesAt<
+  T extends ModelCostRates & { tiers?: readonly ModelCostTier[] },
+>(modelId: string, rates: T, atMs: number = Date.now()): T {
+  if (!DEEPSEEK_V4_TIME_PRICED_MODELS.has(modelId) || !isDeepSeekV4Peak(atMs)) return rates
+
+  const doubled = doubledRates(rates)
+  if (!rates.tiers) return doubled
+  return { ...doubled, tiers: rates.tiers.map((tier) => doubledRates(tier)) }
 }
 
 export function calculateCommandCodeCost(

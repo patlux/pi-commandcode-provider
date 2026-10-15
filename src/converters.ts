@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto"
-import { existsSync, readFileSync } from "node:fs"
-import { homedir } from "node:os"
-import { join } from "node:path"
 
 import type { MessageLike, StopReason, ToolLike } from "./types.ts"
 import { geminiSafeJsonSchema, toJsonSchema } from "./json-schema.ts"
 
 export { toJsonSchema } from "./json-schema.ts"
+// The generate transport reads ambient credentials through the same reader
+// as the Provider API path and the quota commands (README "Auth file" order).
+export { getConfiguredApiKey as getApiKey } from "./api-key.ts"
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -36,24 +36,6 @@ export function recordOrEmpty(value: unknown): Record<string, unknown> {
 
 export function numberValue(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined
-}
-
-function defaultAuthPaths(home: string): string[] {
-  return [
-    join(home, ".commandcode", "auth.json"),
-    join(home, ".omp", "agent", "auth.json"),
-    join(home, ".pi", "agent", "auth.json"),
-  ]
-}
-
-function apiKeyFromCredentialRecord(value: unknown): string | undefined {
-  if (!isRecord(value)) return undefined
-
-  const type = stringValue(value.type)
-  if (type === "api") return stringValue(value.key)
-  if (type === "oauth") return stringValue(value.access)
-
-  return stringValue(value.key) ?? stringValue(value.access)
 }
 
 function imageParts(value: unknown): readonly Record<string, unknown>[] {
@@ -97,46 +79,6 @@ function userContentToCommandCode(content: unknown, allowImages: boolean): unkno
     }
     return []
   })
-}
-
-export function getApiKey(
-  options: {
-    env?: NodeJS.ProcessEnv
-    authPaths?: readonly string[]
-    homeDir?: () => string
-  } = {},
-): string | undefined {
-  const env = options.env ?? process.env
-  if (env.COMMAND_CODE_API_KEY) return env.COMMAND_CODE_API_KEY
-  if (env.COMMANDCODE_API_KEY) return env.COMMANDCODE_API_KEY
-
-  const home = options.homeDir?.() ?? homedir()
-  const authPaths = options.authPaths ?? defaultAuthPaths(home)
-
-  for (const authPath of authPaths) {
-    try {
-      if (!existsSync(authPath)) continue
-      const parsed: unknown = JSON.parse(readFileSync(authPath, "utf-8"))
-      if (!isRecord(parsed)) continue
-
-      // Legacy: direct apiKey or commandcode field.
-      const apiKey = stringValue(parsed.apiKey)
-      if (apiKey) return apiKey
-      const commandcode = stringValue(parsed.commandcode)
-      if (commandcode) return commandcode
-
-      // pi stores OAuth credentials as {"commandcode": {"type":"oauth","access":"..."}}.
-      // The official Command Code CLI stores API credentials under "command-code".
-      const providerKey =
-        apiKeyFromCredentialRecord(parsed.commandcode) ??
-        apiKeyFromCredentialRecord(parsed["command-code"])
-      if (providerKey) return providerKey
-    } catch {
-      // Ignore malformed or unreadable auth files.
-    }
-  }
-
-  return undefined
 }
 
 // Hosts such as OMP may pass a literal env-var name as the "resolved" registry

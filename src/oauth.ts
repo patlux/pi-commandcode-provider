@@ -20,6 +20,8 @@ const STUDIO_BASE_URL = "https://commandcode.ai"
 const TEN_YEARS_MS = 10 * 365 * 24 * 60 * 60 * 1000 // API keys don't expire
 const DEFAULT_AUTH_TIMEOUT_MS = 120_000
 const DEFAULT_API_BASE = "https://api.commandcode.ai"
+const DEFAULT_PROVIDER_API_BASE = `${DEFAULT_API_BASE}/provider/v1`
+export const VALIDATE_API_KEY_TIMEOUT_MS = 15_000
 
 export interface OAuthLoginCallbacks {
   onAuth(params: { url: string }): void
@@ -96,22 +98,54 @@ export function sanitizeApiKey(input: string): string {
     .trim()
 }
 
+/**
+ * Base of the alpha endpoints used for key validation. Mirrors index.ts: the
+ * configured `COMMANDCODE_API_BASE` is the Provider API base, and the alpha
+ * endpoints live next to it without the `/provider/v1` suffix.
+ */
+export function validationApiBase(env: NodeJS.ProcessEnv = process.env): string {
+  const providerApiBase = env.COMMANDCODE_API_BASE || DEFAULT_PROVIDER_API_BASE
+  return providerApiBase.replace(/\/provider\/v1\/?$/, "")
+}
+
 export async function validateApiKey(
   apiKey: string,
-  options: { fetchImpl?: typeof fetch; apiBase?: string } = {},
+  options: { fetchImpl?: typeof fetch; apiBase?: string; timeoutMs?: number } = {},
 ): Promise<void> {
+  const timeoutMs = options.timeoutMs ?? VALIDATE_API_KEY_TIMEOUT_MS
+  // AbortSignal is cooperative: a custom fetch may ignore it, so the deadline
+  // also races the request. /login must never hang on a stalled whoami.
+  const controller = new AbortController()
+  let rejectDeadline: ((error: Error) => void) | undefined
+  const deadline = new Promise<never>((_resolve, reject) => {
+    rejectDeadline = reject
+  })
+  const timer = setTimeout(() => {
+    const error = new Error(
+      `Could not validate the Command Code API key: request timed out after ${timeoutMs}ms`,
+    )
+    controller.abort(error)
+    rejectDeadline?.(error)
+  }, timeoutMs)
+
   let response: Response
   try {
-    response = await (options.fetchImpl ?? fetch)(
-      `${options.apiBase ?? DEFAULT_API_BASE}/alpha/whoami`,
-      {
+    response = await Promise.race([
+      (options.fetchImpl ?? fetch)(`${options.apiBase ?? validationApiBase()}/alpha/whoami`, {
         headers: { Authorization: `Bearer ${apiKey}` },
-      },
-    )
+        signal: controller.signal,
+      }),
+      deadline,
+    ])
   } catch (error) {
+    if (controller.signal.aborted && controller.signal.reason instanceof Error) {
+      throw controller.signal.reason
+    }
     throw new Error(
       `Could not validate the Command Code API key: ${error instanceof Error ? error.message : String(error)}`,
     )
+  } finally {
+    clearTimeout(timer)
   }
 
   if (response.status === 401) throw new Error("Invalid Command Code API key")

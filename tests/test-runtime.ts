@@ -3,6 +3,7 @@ import { describe, it } from "node:test"
 
 import {
   createCommandCodeRuntime,
+  redactDiagnosticText,
   type CommandCodeCommandContext,
   type CommandCodeRuntimeApi,
 } from "../src/runtime.ts"
@@ -85,6 +86,20 @@ function deferred<T>(): {
   })
   return { promise, resolve: resolvePromise, reject: rejectPromise }
 }
+
+describe("redactDiagnosticText()", () => {
+  it("strips URL queries and applies the shared credential redaction", () => {
+    const redacted = redactDiagnosticText(
+      "GET https://api.commandcode.ai/provider/v1/models?api_key=user_secret_value#frag failed: " +
+        "Bearer user_secret_value access_token=user_secret_value sk-abcdefghijklmnopqrstuvwxyz",
+    )
+    assert.doesNotMatch(redacted, /user_secret_value/)
+    assert.doesNotMatch(redacted, /sk-abcdefghijklmnopqrstuvwxyz/)
+    assert.match(redacted, /https:\/\/api\.commandcode\.ai\/provider\/v1\/models failed/)
+    assert.match(redacted, /Bearer \[redacted\]/)
+    assert.match(redacted, /access_token=\[redacted\]/)
+  })
+})
 
 describe("Command Code runtime", () => {
   it("keeps default warning diagnostics off the console and available in status", async (t) => {
@@ -264,6 +279,37 @@ describe("Command Code runtime", () => {
     assert.equal(context.notifications.at(-1)?.type, "info")
     assert.match(context.notifications.at(-1)?.message ?? "", /2 models from live/)
     assert.deepEqual(pi.providers.at(-1)?.models, [FIRST_MODEL, SECOND_MODEL])
+  })
+
+  it("resets the transport probe when the user refreshes the catalog", async () => {
+    const pi = new ExtensionAPITestDouble()
+    const context = new CommandContext()
+    let transport: "unknown" | "provider" | "generate" = "generate"
+    let resetCalls = 0
+    const runtime = createCommandCodeRuntime(pi, {
+      endpoint: "https://api.commandcode.ai/provider/v1/models",
+      cachePath: "/tmp/commandcode-models.json",
+      loadModels: async () => loaded([FIRST_MODEL]),
+      loadCachedModels: async () => [],
+      createProviderConfig: (models) => ({ models }),
+      getTransport: () => transport,
+      resetTransport: () => {
+        resetCalls += 1
+        transport = "unknown"
+      },
+      logWarning: () => {},
+    })
+
+    await runtime.initialize()
+    assert.equal(resetCalls, 0, "startup and background refreshes keep the probe")
+    assert.equal(runtime.getStatus().transport, "generate")
+
+    const refreshCommand = pi.commands.get("commandcode-refresh")
+    assert.ok(refreshCommand)
+    await refreshCommand("", context)
+    assert.equal(resetCalls, 1)
+    assert.equal(runtime.getStatus().transport, "unknown")
+    assert.equal(context.notifications.at(-1)?.type, "info")
   })
 
   it("registers the cached catalog immediately and refreshes it in the background", async () => {

@@ -775,10 +775,34 @@ describe("streamCommandCode — request serialization", () => {
     assert.equal(headers.authorization, "Bearer mock-key")
     assert.equal(headers["x-command-code-version"], COMMAND_CODE_CLI_VERSION)
     assert.equal(headers["x-project-slug"], "repo")
-    assert.equal(headers["x-taste-learning"], "true")
+    assert.equal(headers["x-taste-learning"], "false")
     assert.equal(headers["user-agent"], "cli")
     assert.equal(headers["x-co-flag"], undefined)
     assert.equal(headers["x-session-id"], undefined)
+  })
+
+  it("opts into taste learning only when enabled and never under ZDR", async () => {
+    server.mockResponse({
+      type: "success",
+      events: [JSON.stringify({ type: "finish", finishReason: "stop" })],
+    })
+
+    const cases: readonly { env: NodeJS.ProcessEnv; expected: string }[] = [
+      { env: {}, expected: "false" },
+      { env: { COMMANDCODE_TASTE_LEARNING: "1" }, expected: "true" },
+      { env: { COMMANDCODE_TASTE_LEARNING: "0" }, expected: "false" },
+      { env: { COMMANDCODE_TASTE_LEARNING: "1", CMD_ZDR: "1" }, expected: "false" },
+      { env: { COMMANDCODE_TASTE_LEARNING: "1", COMMANDCODE_ZDR: "1" }, expected: "false" },
+    ]
+    for (const testCase of cases) {
+      const { streamCommandCode } = createTestDeps({ apiBase: server.baseUrl(), env: testCase.env })
+      await collectEvents(streamCommandCode(makeModel(), makeContext(), { apiKey: "mock-key" }))
+      assert.equal(
+        server.lastRequestHeaders()["x-taste-learning"],
+        testCase.expected,
+        JSON.stringify(testCase.env),
+      )
+    }
   })
 
   it("replays previous assistant reasoning in the generate request history", async () => {

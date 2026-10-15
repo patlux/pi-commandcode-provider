@@ -122,6 +122,48 @@ describe("Command Code transport router", () => {
     assert.equal(generateCalls, 2)
   })
 
+  it("re-probes the Provider API after an explicit reset with the same key", async () => {
+    // An account upgraded from Go keeps the same key; /commandcode-refresh
+    // resets the sticky generate choice so the next request tries again.
+    let providerCalls = 0
+    let generateCalls = 0
+    let upgraded = false
+    const upgradeBody = JSON.stringify({ error: { code: "upgrade_required" } })
+    const currentResponse = () =>
+      upgraded ? new Response("ok", { status: 200 }) : new Response(upgradeBody, { status: 403 })
+    const router = createCommandCodeTransportRouter({
+      createStream: createTestEventStream,
+      streamProvider: (_model, _context, options) => {
+        providerCalls += 1
+        return providerStream(currentResponse(), "provider", options)
+      },
+      streamGenerate: () => {
+        generateCalls += 1
+        return completedStream("generate")
+      },
+    })
+    const options: StreamOptions = {
+      apiKey: "same-key",
+      fetch: () => Promise.resolve(currentResponse()),
+    }
+
+    await collectEvents(router.stream(makeModel(), makeContext(), options))
+    assert.equal(router.getTransport(), "generate")
+
+    upgraded = true
+    await collectEvents(router.stream(makeModel(), makeContext(), options))
+    assert.equal(router.getTransport(), "generate", "generate stays sticky without a reset")
+    assert.equal(providerCalls, 1)
+
+    router.reset()
+    assert.equal(router.getTransport(), "unknown")
+    const events = await collectEvents(router.stream(makeModel(), makeContext(), options))
+    assert.equal(events.at(-1)?.type, "done")
+    assert.equal(router.getTransport(), "provider")
+    assert.equal(providerCalls, 2)
+    assert.equal(generateCalls, 2)
+  })
+
   it("re-detects the transport after the API key changes", async () => {
     let providerCalls = 0
     let generateCalls = 0

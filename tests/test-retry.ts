@@ -295,6 +295,69 @@ describe("streamCommandCode — timeout", () => {
 
     assert.equal(server.requestCount(), 1)
     assert.deepEqual(eventTypes(events), ["start", "text_start", "text_delta", "error"])
+    const error = events.at(-1)
+    if (error?.type !== "error") throw new Error("expected error")
+    // A stalled body is a timeout, not a user cancellation.
+    assert.equal(error.reason, "error")
+    assert.equal(error.error.stopReason, "error")
+    assert.match(error.error.errorMessage ?? "", /timed out after 50ms/)
+  })
+
+  it("retries when the body stalls after the headers and a content-free event", async () => {
+    // The first event flushes the response headers, so the timeout fires while
+    // reading the body rather than while waiting for fetch() to resolve.
+    server.mockResponseQueue([
+      {
+        type: "success",
+        events: [JSON.stringify({ type: "reasoning-start" })],
+        hangAfterLast: true,
+      },
+      {
+        type: "success",
+        events: [
+          JSON.stringify({ type: "text-delta", text: "ok" }),
+          JSON.stringify({ type: "finish", finishReason: "stop" }),
+        ],
+      },
+    ])
+    const { streamCommandCode } = createTestDeps({ apiBase: server.baseUrl() })
+
+    const events = await collectEvents(
+      streamCommandCode(makeModel(), makeContext(), {
+        apiKey: TEST_API_KEY,
+        timeoutMs: 50,
+        maxRetries: 2,
+      }),
+      5_000,
+    )
+
+    assert.equal(server.requestCount(), 2)
+    assert.deepEqual(eventTypes(events), ["start", "text_start", "text_delta", "text_end", "done"])
+  })
+
+  it("reports a timeout when the body stalls after the headers and retries are exhausted", async () => {
+    server.mockResponse({
+      type: "success",
+      events: [JSON.stringify({ type: "reasoning-start" })],
+      hangAfterLast: true,
+    })
+    const { streamCommandCode } = createTestDeps({ apiBase: server.baseUrl() })
+
+    const events = await collectEvents(
+      streamCommandCode(makeModel(), makeContext(), {
+        apiKey: TEST_API_KEY,
+        timeoutMs: 50,
+        maxRetries: 0,
+      }),
+      5_000,
+    )
+
+    assert.equal(server.requestCount(), 1)
+    assert.deepEqual(eventTypes(events), ["start", "error"])
+    const error = events.at(-1)
+    if (error?.type !== "error") throw new Error("expected error")
+    assert.equal(error.reason, "error")
+    assert.match(error.error.errorMessage ?? "", /timed out after 50ms/)
   })
 
   it("emits error when all retry attempts time out", async () => {

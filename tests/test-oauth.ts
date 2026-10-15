@@ -9,7 +9,14 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
 import { startAuthServer, type AuthCallback } from "../src/auth-server.ts"
-import { getApiKey, login, refreshToken, sanitizeApiKey, validateApiKey } from "../src/oauth.ts"
+import {
+  getApiKey,
+  login,
+  refreshToken,
+  sanitizeApiKey,
+  validateApiKey,
+  validationApiBase,
+} from "../src/oauth.ts"
 
 /**
  * Helper: wait for an HTTP server to close, or resolve immediately if already closed.
@@ -140,6 +147,84 @@ describe("startAuthServer()", () => {
     assert.equal(accepted.status, 200)
     assert.equal((await waitForCallback).apiKey, "user_legitimate")
     await waitForClose(server)
+  })
+
+  it("ignores callback errors that do not carry the state token", async () => {
+    const { server, port, waitForCallback } = await startAuthServer({
+      startPort: 0,
+      expectedState: "trusted-state",
+    })
+
+    // A trusted origin (or an origin-less local client) must still prove it
+    // received the state token before it can cancel the pending login.
+    const missingState = await fetch(`http://127.0.0.1:${port}/callback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: "access_denied", error_description: "forged cancellation" }),
+    })
+    assert.equal(missingState.status, 403)
+    assert.equal(server.listening, true)
+
+    const wrongState = await fetch(`http://127.0.0.1:${port}/callback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Origin: "https://commandcode.ai" },
+      body: JSON.stringify({ error: "server_error", state: "wrong-state" }),
+    })
+    assert.equal(wrongState.status, 403)
+    assert.equal(server.listening, true)
+
+    const accepted = await fetch(`http://127.0.0.1:${port}/callback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Origin: "https://commandcode.ai" },
+      body: JSON.stringify({
+        apiKey: "user_legitimate",
+        state: "trusted-state",
+        userId: "user_123",
+        userName: "Test User",
+        keyName: "test-key",
+      }),
+    })
+    assert.equal(accepted.status, 200)
+    assert.equal((await waitForCallback).apiKey, "user_legitimate")
+    await waitForClose(server)
+  })
+
+  it("honors callback errors that carry the state token", async () => {
+    const { server, port, waitForCallback } = await startAuthServer({
+      startPort: 0,
+      expectedState: "trusted-state",
+    })
+    const errorPromise: Promise<string> = waitForCallback.then(
+      () => {
+        throw new Error("Expected callback to reject")
+      },
+      (e: Error) => e.message,
+    )
+
+    const response = await fetch(`http://127.0.0.1:${port}/callback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Origin: "https://commandcode.ai" },
+      body: JSON.stringify({
+        error: "access_denied",
+        error_description: "User cancelled",
+        state: "trusted-state",
+      }),
+    })
+    assert.equal(response.status, 200)
+    assert.match(await errorPromise, /User cancelled/)
+    await waitForClose(server)
+  })
+
+  it("rejects the local development origin", async () => {
+    const { server, port } = await startAuthServer({ startPort: 0, expectedState: "s" })
+    const response = await fetch(`http://127.0.0.1:${port}/callback`, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain", Origin: "http://localhost:3000" },
+      body: JSON.stringify({ error: "access_denied", state: "s" }),
+    })
+    assert.equal(response.status, 403)
+    assert.equal(server.listening, true)
+    server.close()
   })
 
   it("rejects untrusted browser preflights", async () => {
@@ -285,6 +370,64 @@ describe("OAuth functions", () => {
       }),
       /Invalid Command Code API key/,
     )
+  })
+
+  it("validates against the configured API base like the chat transports", async () => {
+    assert.equal(validationApiBase({}), "https://api.commandcode.ai")
+    assert.equal(
+      validationApiBase({ COMMANDCODE_API_BASE: "http://127.0.0.1:4321/provider/v1" }),
+      "http://127.0.0.1:4321",
+    )
+    assert.equal(
+      validationApiBase({ COMMANDCODE_API_BASE: "http://127.0.0.1:4321/provider/v1/" }),
+      "http://127.0.0.1:4321",
+    )
+
+    const originalBase = process.env.COMMANDCODE_API_BASE
+    process.env.COMMANDCODE_API_BASE = "http://127.0.0.1:4321/provider/v1"
+    try {
+      let requestedUrl = ""
+      await validateApiKey("valid-key", {
+        fetchImpl: (input) => {
+          requestedUrl = String(input)
+          return Promise.resolve(new Response(JSON.stringify({ user: {} }), { status: 200 }))
+        },
+      })
+      assert.equal(requestedUrl, "http://127.0.0.1:4321/alpha/whoami")
+    } finally {
+      if (originalBase === undefined) delete process.env.COMMANDCODE_API_BASE
+      else process.env.COMMANDCODE_API_BASE = originalBase
+    }
+  })
+
+  it("times out a stalled whoami request even when fetch ignores the signal", async () => {
+    const started = Date.now()
+    await assert.rejects(
+      validateApiKey("stalled-key", {
+        timeoutMs: 20,
+        fetchImpl: () => new Promise<Response>(() => {}),
+      }),
+      /Could not validate the Command Code API key: request timed out after 20ms/,
+    )
+    assert.ok(Date.now() - started < 1_000)
+  })
+
+  it("reports the timeout when fetch honors the abort signal", async () => {
+    let aborted = false
+    await assert.rejects(
+      validateApiKey("stalled-key", {
+        timeoutMs: 20,
+        fetchImpl: (_input, init) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              aborted = true
+              reject(init.signal?.reason)
+            })
+          }),
+      }),
+      /request timed out after 20ms/,
+    )
+    assert.equal(aborted, true)
   })
 })
 
