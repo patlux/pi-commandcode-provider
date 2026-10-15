@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Open one actionable maintenance issue after repeated scheduled catalog/latest-host failures, update it without comment spam and close it after recovery. Keep report stderr, avoid broad formatting in catalog automation and document weekly release triage without automating publication.
+
 ## 0.7.8 - 2026-10-15
 
 - Redact sensitive text in direct stream errors and normalized context-overflow messages before returning them to the host. This closes two error-reporting paths that did not use the shared redactor; it is defensive hardening, not a claim of a confirmed credential leak ([#155](https://github.com/patlux/pi-commandcode-provider/pull/155)).

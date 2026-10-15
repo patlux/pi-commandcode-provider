@@ -45,14 +45,15 @@ jobs:
       - run: npm ci
       - name: Compare with the latest Command Code CLI
         shell: bash
-        run: npm run check:commandcode-catalog | tee commandcode-catalog-report.md
+        run: npm run check:commandcode-catalog 2>&1 | tee commandcode-catalog-report.md
       - name: Publish catalog report
         if: always()
-        run: cat commandcode-catalog-report.md >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          if [ -f commandcode-catalog-report.md ]; then cat commandcode-catalog-report.md >> "$GITHUB_STEP_SUMMARY"; fi
       - name: Compare official pricing
         if: always()
         shell: bash
-        run: npm run check:commandcode-pricing | tee commandcode-pricing-report.md
+        run: npm run check:commandcode-pricing 2>&1 | tee commandcode-pricing-report.md
       - name: Publish pricing report
         if: always()
         run: |
@@ -75,17 +76,18 @@ jobs:
       - run: npm ci
       - name: Synchronize with the latest Command Code CLI
         shell: bash
-        run: npm run sync:commandcode-catalog | tee commandcode-catalog-report.md
+        run: npm run sync:commandcode-catalog 2>&1 | tee commandcode-catalog-report.md
       - name: Format and verify synchronized files
         run: |
-          npm run format -- src/commandcode-catalog.ts src/commandcode-catalog-overrides.ts README.md
+          npx --no-install prettier --write src/commandcode-catalog.ts src/commandcode-catalog-overrides.ts README.md
           npm run typecheck
           npm run test:models
           npm run format:check
           git diff --check
       - name: Publish catalog report
         if: always()
-        run: cat commandcode-catalog-report.md >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          if [ -f commandcode-catalog-report.md ]; then cat commandcode-catalog-report.md >> "$GITHUB_STEP_SUMMARY"; fi
       - name: Create or update synchronization PR
         uses: peter-evans/create-pull-request@v8
         with:
@@ -112,7 +114,7 @@ jobs:
       - name: Compare official pricing
         if: always()
         shell: bash
-        run: npm run check:commandcode-pricing | tee commandcode-pricing-report.md
+        run: npm run check:commandcode-pricing 2>&1 | tee commandcode-pricing-report.md
       - name: Publish pricing report
         if: always()
         run: |

@@ -56,6 +56,22 @@ GitHub collaborators can release through this workflow without personal npm publ
 
 These checks prevent accidental releases from the wrong commit; they are not a sandbox against a trusted writer who can modify workflows. Repository, tag and environment permissions remain the trust boundary.
 
+## Maintenance review and release cadence
+
+Review open maintenance alerts and unreleased fixes at least weekly. A calendar reminder or a green catalog PR is not release authorization. Prioritize broken authentication/transport, missing paid-model pricing, and host compatibility regressions; propose a patch release when a verified user-facing fix is ready rather than waiting for unrelated features.
+
+The daily catalog workflow reports capability-parser drift separately from official-pricing drift. Two consecutive failed scheduled/manual default-branch runs create or reopen one bot-owned maintenance issue. Further failures update that issue; a successful run closes it. The same policy covers weekly latest-host checks when that workflow is installed. Fork/PR runs and canceled runs do not trigger alerts. Investigate the linked reports; do not silence alerts by accepting guessed prices or loosening parser checks.
+
+For every proposed release, record:
+
+- Which merged PRs and issues the release includes, with contributor credit.
+- Whether live catalog/pricing checks pass; distinguish expected upstream drift from code failures. Review unknown prices and expired promotions explicitly.
+- Host versions actually tested, local versus packed-package results, and any separately authorized live checks. Mock tests do not prove upstream performance or plan access.
+- Any migration requirements and known limitations. Breaking entitlement/routing changes belong in a separately approved minor-version release while the package is pre-1.0, with a clearly labeled migration notice; do not slip them into a routine patch.
+- The requested version/channel and release authorization before executing the existing tag/OIDC process.
+
+After publication, use the completion checklist below before reporting an issue as released. Keep “merged”, “tested from source” and “available on npm” distinct.
+
 ## Prepare a release PR
 
 Confirm the requested version and channel, a clean/current checkout, the canonical repository and the maintainer's own GitHub identity. Record the current npm dist-tags and latest stable GitHub Release so prerelease verification can prove they were preserved:
