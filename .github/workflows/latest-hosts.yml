@@ -1,0 +1,36 @@
+name: Latest host compatibility
+
+on:
+  schedule:
+    - cron: "43 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  latest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: oven-sh/setup-bun@v2.2.0
+        with:
+          bun-version: 1.4.0
+      - run: npm ci
+      - name: Install latest hosts (separate from pinned PR gates)
+        run: |
+          npm install -g @earendil-works/pi-coding-agent@latest @oh-my-pi/pi-coding-agent@latest
+          echo "PI_BIN=$(npm prefix -g)/bin/pi" >> "$GITHUB_ENV"
+          echo "OMP_BIN=$(npm prefix -g)/bin/omp" >> "$GITHUB_ENV"
+      - name: Record versions
+        run: |
+          { "$PI_BIN" --version; "$OMP_BIN" --version; node --version; bun --version; } | tee -a "$GITHUB_STEP_SUMMARY"
+      - run: npm test
+        env:
+          PI_LOCAL_REQUIRED: "1"
+          OMP_COMPAT_REQUIRED: "1"

@@ -67,6 +67,14 @@ npm install -g @oh-my-pi/pi-coding-agent
 OMP_BIN="$(npm prefix -g)/bin/omp" node tests/test-omp-compat.mjs
 ```
 
+### Protocol and host contracts
+
+`npm run test:host-protocols` runs both available hosts against loopback mocks. It verifies Chat Completions, Responses and Anthropic Messages, including system instructions, replayed reasoning/signatures, parallel tool-call/result pairing and image results on the follow-up wire. It uses temporary homes and a deterministic tool with no external side effects. Set `COMMANDCODE_CONTRACT_HOST=pi` or `omp` to select one host. Required-host environment variables make missing hosts fail rather than skip.
+
+PR gates pin Pi **1.1.0** and OMP **18.11.1**. The weekly `Latest host compatibility` workflow tests current releases separately; it does not silently move the supported baseline. Update pins only after both the complete suite and packed-package smoke pass. CI also runs for stacked PRs, not only PRs targeting main.
+
+Live model testing remains explicit and may incur costs. Set `COMMANDCODE_E2E_PROVIDER_MODELS` to a comma-separated list to test more than one model sequentially, for example `deepseek/deepseek-v4.1-flash,meta/muse-spark-1.3,claude-sonnet-4-6`. The selected models must be available to the account. Equivalent `_MODELS` variables work for each profile; do not combine `_MODEL` and `_MODELS`. No live credentials or paid calls are used by CI.
+
 Before opening a PR, run:
 
 ```sh

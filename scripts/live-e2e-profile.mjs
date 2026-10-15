@@ -38,16 +38,25 @@ async function credentialFor(profile) {
   throw new Error(`Set ${prefix}_API_KEY_FILE (recommended) or ${prefix}_API_KEY`)
 }
 
-function runProfile(profile, apiKey) {
+function modelsFor(profile) {
   const modelVariable =
     profile === "go"
       ? "COMMANDCODE_E2E_GO_MODEL"
       : profile === "goat"
         ? "COMMANDCODE_E2E_GOAT_MODEL"
         : "COMMANDCODE_E2E_PROVIDER_MODEL"
-  const model =
+  const multiple = process.env[`${modelVariable}S`]
+  if (multiple && process.env[modelVariable])
+    throw new Error(`${modelVariable} and ${modelVariable}S are mutually exclusive`)
+  const models = multiple?.split(",").map((model) => model.trim()) ?? [
     process.env[modelVariable] ??
-    (profile === "goat" ? "xai/grok-4.6" : "deepseek/deepseek-v4-flash")
+      (profile === "goat" ? "xai/grok-4.6" : "deepseek/deepseek-v4-flash"),
+  ]
+  if (models.some((model) => !model)) throw new Error(`Empty model in ${modelVariable}S`)
+  return [...new Set(models)]
+}
+
+function runProfile(profile, apiKey, model) {
   const env = {
     ...process.env,
     COMMAND_CODE_API_KEY: apiKey,
@@ -79,7 +88,9 @@ function runProfile(profile, apiKey) {
 
 try {
   for (const profile of profiles) {
-    await runProfile(profile, await credentialFor(profile))
+    const models = modelsFor(profile)
+    const credential = await credentialFor(profile)
+    for (const model of models) await runProfile(profile, credential, model)
   }
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error))

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Preserve Chat Completions reasoning history on OMP with an explicit replay compatibility flag, verified by real Pi/OMP follow-up requests rather than only visible thinking deltas.
+- Add shared mock protocol contracts for reasoning, system prompts, parallel tools and image results across Chat Completions, Responses and Anthropic Messages, including packed-package checks. Pin supported hosts in PR CI and check latest hosts weekly. Allow explicit multi-model live profiles without enabling paid CI calls.
+
 ## 0.7.8 - 2026-10-15
 
 - Redact sensitive text in direct stream errors and normalized context-overflow messages before returning them to the host. This closes two error-reporting paths that did not use the shared redactor; it is defensive hardening, not a claim of a confirmed credential leak ([#155](https://github.com/patlux/pi-commandcode-provider/pull/155)).

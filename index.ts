@@ -111,7 +111,11 @@ function commandCodeHeaders(): Record<string, string> | undefined {
  */
 type CommandCodeProviderConfig = ProviderConfig & { usage?: UsageProvider }
 
-type CommandCodeModelCompat = NonNullable<ProviderConfig["models"]>[number]["compat"]
+// OMP requires an explicit opt-in to replay Chat Completions reasoning.
+// Pi preserves the streamed signature itself and ignores this extra flag.
+type CommandCodeModelCompat = NonNullable<ProviderConfig["models"]>[number]["compat"] & {
+  replayReasoningContent?: boolean
+}
 
 /**
  * Compatibility flags per wire. Chat Completions mirrors what the Provider API
@@ -140,6 +144,7 @@ function compatForModel(model: CommandCodeModel): CommandCodeModelCompat {
     supportsStore: false,
     supportsDeveloperRole: false,
     supportsReasoningEffort: MODEL_EFFORTS[model.id] !== undefined,
+    replayReasoningContent: model.reasoning,
     maxTokensField: "max_tokens",
   }
 }
