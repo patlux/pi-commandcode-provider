@@ -18,8 +18,7 @@ import { join } from "node:path"
 
 import { getConfiguredApiKey } from "./src/api-key.ts"
 import { pickCommandCodeApiKey, withResolvedCommandCodeApiKey } from "./src/converters.ts"
-import { createStreamCommandCode } from "./src/core.ts"
-import { calculateCommandCodeCost, commandCodeCostRatesAt } from "./src/cost.ts"
+import { commandCodeCostRatesAt } from "./src/cost.ts"
 import {
   apiForModelId,
   baseUrlForModel,
@@ -41,7 +40,6 @@ import { registerCommandCodeQuota } from "./src/quota-command.ts"
 import { normalizeCommandCodeResponsesResponse } from "./src/responses-stream.ts"
 import { createCommandCodeRuntime } from "./src/runtime.ts"
 import { createCommandCodeUsageProvider, type UsageProvider } from "./src/usage.ts"
-import { transcriptReadersFrom, withTranscriptPromptAndTools } from "./src/transcript.ts"
 import { createCommandCodeTransportRouter } from "./src/transport.ts"
 
 const COMMAND_CODE_API = "commandcode-custom"
@@ -204,17 +202,8 @@ export default async function (pi: ExtensionAPI) {
   const modelsTimeoutMs = getModelsTimeoutMs()
   const modelsCachePath =
     process.env.COMMANDCODE_MODELS_CACHE ?? join(getAgentDir(), "commandcode-models.json")
-  const streamGenerate = createStreamCommandCode({
-    createStream: () => new AssistantMessageEventStream(),
-    calculateCost: calculateCommandCodeCost,
-    apiBase: legacyApiBase(apiBase),
-  })
   const resolveStreamOptions = (options?: Parameters<typeof streamNativeProvider>[2]) =>
     withResolvedCommandCodeApiKey(options, getConfiguredApiKey())
-  // The provider transport delegates to pi-ai, which reads the transcript
-  // itself. The generate transport builds its own request body and needs the
-  // flat prompt and tool fields that pi 0.86+ no longer passes.
-  const transcriptReaders = transcriptReadersFrom(piAiCompat)
   // The host dispatches every Command Code model through one custom api id, so
   // the wire each model answers on is resolved here from the catalog that
   // `createProviderConfig` registered. Unknown ids fall back to the id rule.
@@ -252,12 +241,6 @@ export default async function (pi: ExtensionAPI) {
         nativeOptions,
       )
     },
-    streamGenerate: (model, context, options) =>
-      streamGenerate(
-        model,
-        withTranscriptPromptAndTools(context, transcriptReaders),
-        resolveStreamOptions(options),
-      ),
   })
 
   // pi dispatches the main chat through the registered provider, but sibling

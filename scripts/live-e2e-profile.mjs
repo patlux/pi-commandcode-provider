@@ -11,19 +11,16 @@ const profiles = process.argv.slice(2)
 
 if (
   profiles.length === 0 ||
-  profiles.some((profile) => profile !== "go" && profile !== "goat" && profile !== "provider")
+  profiles.some((profile) => profile !== "goat" && profile !== "provider")
 ) {
-  console.error("Usage: node scripts/live-e2e-profile.mjs <go|goat|provider> [go|goat|provider]")
+  console.error(
+    "Usage: node scripts/live-e2e-profile.mjs <goat|provider> [goat|provider] (Go has no Provider API access)",
+  )
   process.exit(2)
 }
 
 async function credentialFor(profile) {
-  const prefix =
-    profile === "go"
-      ? "COMMANDCODE_E2E_GO"
-      : profile === "goat"
-        ? "COMMANDCODE_E2E_GOAT"
-        : "COMMANDCODE_E2E_PROVIDER"
+  const prefix = profile === "goat" ? "COMMANDCODE_E2E_GOAT" : "COMMANDCODE_E2E_PROVIDER"
   const direct = process.env[`${prefix}_API_KEY`]?.trim()
   const file = process.env[`${prefix}_API_KEY_FILE`]
 
@@ -40,11 +37,7 @@ async function credentialFor(profile) {
 
 function runProfile(profile, apiKey) {
   const modelVariable =
-    profile === "go"
-      ? "COMMANDCODE_E2E_GO_MODEL"
-      : profile === "goat"
-        ? "COMMANDCODE_E2E_GOAT_MODEL"
-        : "COMMANDCODE_E2E_PROVIDER_MODEL"
+    profile === "goat" ? "COMMANDCODE_E2E_GOAT_MODEL" : "COMMANDCODE_E2E_PROVIDER_MODEL"
   const model =
     process.env[modelVariable] ??
     (profile === "goat" ? "xai/grok-4.6" : "deepseek/deepseek-v4-flash")

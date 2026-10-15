@@ -56,7 +56,7 @@ let lastRequestBody
 let requestBodies = []
 let lastRequestHeaders = {}
 // When true the mock Provider API answers 403 upgrade_required so the
-// transport router falls back to the legacy /alpha/generate transport.
+// transport must reject access rather than falling back to /alpha/generate.
 let providerUpgradeRequired = false
 
 const server = createServer((req, res) => {
@@ -403,10 +403,20 @@ try {
   assert.equal(requestCount, 0, JSON.stringify(lastRequestHeaders))
   assert.doesNotMatch(noKeyChat.stdout + noKeyChat.stderr, /\$COMMAND_CODE_API_KEY/)
 
-  console.log("[omp-compat] developer advisory reaches the legacy generate request body")
+  console.log("[omp-compat] denied Provider API access never retries generate")
+  providerUpgradeRequired = true
   requestCount = 0
   requestBodies = []
-  providerUpgradeRequired = true
+  const denied = await runOmp([...chatArgs, "--no-title"])
+  assert.match(denied.stdout + denied.stderr, /Provider API access is required/)
+  assert.doesNotMatch(denied.stdout, /mock-omp-ok/)
+  assert.equal(requestCount, 1)
+  assert.equal(requestBodies[0]?.params, undefined)
+
+  console.log("[omp-compat] developer advisory reaches the Provider API request body")
+  requestCount = 0
+  requestBodies = []
+  providerUpgradeRequired = false
   const advisoryRun = await runOmp(
     [
       "-e",
@@ -426,12 +436,12 @@ try {
   assert.match(advisoryRun.stdout, /mock-omp-ok/)
 
   const promptBodies = requestBodies.filter((body) =>
-    JSON.stringify(body?.params?.messages ?? []).includes("say mock token"),
+    JSON.stringify(body?.messages ?? []).includes("say mock token"),
   )
-  assert.ok(promptBodies.length >= 1, "expected at least one generate request with the prompt")
+  assert.ok(promptBodies.length >= 1, "expected at least one provider request with the prompt")
 
   for (const body of promptBodies) {
-    const messages = body?.params?.messages ?? []
+    const messages = body?.messages ?? []
     const advisoryMessages = messages.filter((message) =>
       JSON.stringify(message).includes("Stop and correct the benchmark."),
     )
@@ -455,7 +465,7 @@ try {
       "advisory must keep its chronological position relative to the prompt",
     )
     assert.doesNotMatch(
-      String(body?.params?.system ?? ""),
+      JSON.stringify(messages.filter((message) => message.role === "system")),
       /Stop and correct the benchmark|<advisory/,
       "advisory must not be hoisted into the system prompt",
     )

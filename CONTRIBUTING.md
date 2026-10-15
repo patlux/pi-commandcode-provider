@@ -45,12 +45,11 @@ Both commands accept additional pi arguments after `--`, for example `npm run pi
 Run the transport-specific live tests with separate credentials:
 
 ```sh
-COMMANDCODE_E2E_GO_API_KEY_FILE=/path/to/go-key npm run test:e2e:live:go
 COMMANDCODE_E2E_GOAT_API_KEY_FILE=/path/to/goat-key npm run test:e2e:live:goat
 COMMANDCODE_E2E_PROVIDER_API_KEY_FILE=/path/to/provider-key npm run test:e2e:live:provider
 ```
 
-Use `npm run test:e2e:live:all` with the Go and GOAT file variables to run both subscription transports sequentially. Store keys in a secret manager and export each one to a new mode-`0600` temporary file for the test; never add key files to the repository. Direct `*_API_KEY` variables are intended primarily for protected CI secrets.
+Use `npm run test:e2e:live:all` with the GOAT and Provider file variables to run both entitled profiles sequentially. The Go profile is removed: a mock `403 upgrade_required` must produce the migration error without an internal generation request on both real hosts. Store keys in a secret manager and export each one to a new mode-`0600` temporary file for the test; never add key files to the repository. Direct `*_API_KEY` variables are intended primarily for protected CI secrets.
 
 ### pi end-to-end
 

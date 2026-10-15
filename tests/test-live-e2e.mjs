@@ -26,20 +26,11 @@ const projectDir = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const extensionPath = join(projectDir, "index.ts")
 const testModel = process.env.COMMANDCODE_E2E_MODEL ?? "deepseek/deepseek-v4-flash"
 const testProfile = process.env.COMMANDCODE_E2E_PROFILE
-const expectedTransport =
-  testProfile === "go"
-    ? "generate"
-    : testProfile === "goat" || testProfile === "provider"
-      ? "provider"
-      : undefined
-const expectedPlan =
-  testProfile === "go"
-    ? "go"
-    : testProfile === "goat"
-      ? "goat"
-      : testProfile === "provider"
-        ? "provider"
-        : undefined
+if (testProfile && !["goat", "provider"].includes(testProfile)) {
+  throw new Error("Live profiles require Provider API access; Go is not supported")
+}
+const expectedTransport = "provider"
+const expectedPlan = testProfile
 // GPT-5.6 Luna is available on every plan and has a ZDR-capable upstream;
 // Gemini 3.7 Flash currently fails with a zero-data-retention routing 404.
 const goatVisionModel = process.env.COMMANDCODE_E2E_GOAT_VISION_MODEL ?? "gpt-5.6-luna"
@@ -435,33 +426,6 @@ try {
     )
     assert.notEqual(vision.messageEnd?.message?.stopReason, "error")
     assert.doesNotMatch(vision.stderr, /Bearer\s+\S+/i)
-  }
-
-  if (testProfile === "go") {
-    console.log("[live-e2e] image rejection through real RPC host")
-    const image = await runRpc(extensionPath, async ({ send, waitFor, events }) => {
-      send({
-        id: "image",
-        type: "prompt",
-        message: "Describe this image",
-        images: [{ type: "image", data: "iVBORw0KGgo=", mimeType: "image/png" }],
-      })
-      await waitFor((event) => event.type === "response" && event.id === "image")
-      await waitFor(
-        (event) =>
-          event.type === "message_end" &&
-          event.message?.role === "assistant" &&
-          event.message?.stopReason === "error",
-      )
-      return events
-    })
-    assert.ok(
-      image.some(
-        (event) =>
-          event.type === "message_end" &&
-          /does not support image content/i.test(event.message?.errorMessage ?? ""),
-      ),
-    )
   }
 
   console.log("[live-e2e] packed artifact with existing authentication")

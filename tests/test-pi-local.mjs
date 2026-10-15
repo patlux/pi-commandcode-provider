@@ -65,7 +65,7 @@ let lastRequestBody
 let lastRequestPath
 let lastRequestHeaders = {}
 // When true the Provider API answers 403 upgrade_required, as it does for
-// plans without Provider API access, so requests fall back to /alpha/generate.
+// plans without Provider API access, which must fail without a generate fallback.
 let providerUpgradeRequired = false
 let overflowMode = false
 let overflowRequestCount = 0
@@ -1030,13 +1030,10 @@ try {
     "string",
   )
 
-  // pi 0.86+ passes providers a TranscriptContext whose system prompt and tools
-  // live in system messages. The generate transport builds its own request, so
-  // it must still declare them or models write tool calls as plain text.
-  console.log("[pi-local] generate fallback sends pi's system prompt and tools")
+  console.log("[pi-local] denied Provider API access never retries the internal generate endpoint")
   requestCount = 0
   providerUpgradeRequired = true
-  const generatePrint = await runPi(
+  const deniedPrint = await runPi(
     [
       "--no-extensions",
       "-e",
@@ -1051,23 +1048,10 @@ try {
     30_000,
   )
   providerUpgradeRequired = false
-  assert.equal(generatePrint.code, 0, generatePrint.stderr)
-  assert.match(generatePrint.stdout, /mock-pi-ok/)
-  assert.equal(requestCount, 2)
-  assert.equal(lastRequestPath, "/alpha/generate")
-  const generateTools = lastRequestBody?.params?.tools
-  assert.ok(
-    Array.isArray(generateTools) && generateTools.some((tool) => tool.name === "read"),
-    `generate request must declare pi's tools, got ${JSON.stringify(generateTools)}`,
-  )
-  assert.ok(
-    typeof lastRequestBody?.params?.system === "string" && lastRequestBody.params.system.length > 0,
-    "generate request must carry pi's system prompt",
-  )
-  assert.ok(
-    (lastRequestBody?.params?.messages ?? []).every((message) => message.role !== "system"),
-    "system messages must not leak into the generate message list",
-  )
+  assert.match(deniedPrint.stdout + deniedPrint.stderr, /Provider API access is required/)
+  assert.doesNotMatch(deniedPrint.stdout, /mock-pi-ok/)
+  assert.equal(requestCount, 1)
+  assert.equal(lastRequestPath, "/provider/v1/chat/completions")
 
   // pi resolves `/login` credentials, `--api-key`, and env keys through the
   // provider's registered auth methods. Stored credentials and `--api-key`

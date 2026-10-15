@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Breaking changes
+
+- Require documented Provider API access. `403 upgrade_required` now returns a clear entitlement/migration error instead of automatically calling the internal `/alpha/generate` endpoint. Go-plan users must use the official CLI within its supported plan or an account with Provider API entitlement; signing in alone does not grant API access. Existing credentials and sessions are preserved. See the README migration section. The Go live-test profile is removed; mock Pi/OMP tests assert that no generation fallback request occurs.
+
 ## 0.7.8 - 2026-10-15
 
 - Redact sensitive text in direct stream errors and normalized context-overflow messages before returning them to the host. This closes two error-reporting paths that did not use the shared redactor; it is defensive hardening, not a claim of a confirmed credential leak ([#155](https://github.com/patlux/pi-commandcode-provider/pull/155)).

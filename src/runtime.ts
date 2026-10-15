@@ -30,14 +30,14 @@ export interface CommandCodeRuntimeOptions<TProviderConfig> {
   /** Cached catalog only; resolves to an empty list when no valid cache exists. */
   loadCachedModels: () => Promise<readonly CommandCodeModel[]>
   createProviderConfig: (models: readonly CommandCodeModel[]) => TProviderConfig
-  getTransport?: () => "unknown" | "provider" | "generate"
+  getTransport?: () => "unknown" | "provider"
   getStreamWarning?: () => string | undefined
   now?: () => number
   logWarning?: (message: string) => void
 }
 
 export interface CommandCodeRuntimeStatus {
-  transport: "unknown" | "provider" | "generate"
+  transport: "unknown" | "provider"
   source: LoadCommandCodeModelsResult["source"]
   modelCount: number
   lastSuccess?: number

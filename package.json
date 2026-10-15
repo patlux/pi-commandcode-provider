@@ -59,10 +59,9 @@
     "test:release": "node --test tests/test-release.mjs",
     "test:release-package": "node tests/test-release-package.mjs",
     "test:e2e:live": "node tests/test-live-e2e.mjs",
-    "test:e2e:live:go": "node scripts/live-e2e-profile.mjs go",
     "test:e2e:live:goat": "node scripts/live-e2e-profile.mjs goat",
     "test:e2e:live:provider": "node scripts/live-e2e-profile.mjs provider",
-    "test:e2e:live:all": "node scripts/live-e2e-profile.mjs go goat",
+    "test:e2e:live:all": "node scripts/live-e2e-profile.mjs goat provider",
     "test:cost": "tsx tests/test-cost.ts"
   },
   "pi": {
