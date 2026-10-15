@@ -183,6 +183,33 @@ describe("commandCodeModelsFromApiResponse()", () => {
     assert.equal(models[0]?.maxTokens, 131_072)
   })
 
+  it("advertises the refreshed Max Prime and paid Ling capabilities", () => {
+    const qwen = "Qwen/Qwen3.8-Max-Prime"
+    const ling = "inclusionai/ling-3.1-flash"
+    assert.deepEqual(inputModalitiesForModel(qwen), ["text", "image"])
+    assert.deepEqual(inputModalitiesForModel(ling), ["text"])
+    assert.deepEqual(thinkingMetadataForModel(qwen)?.thinking?.efforts, ["low", "medium", "xhigh"])
+    assert.deepEqual(thinkingMetadataForModel(ling)?.thinking?.efforts, ["low", "medium", "high"])
+    const models = commandCodeModelsFromApiResponse({
+      object: "list",
+      data: [
+        { ...API_RESPONSE.data[0], id: qwen },
+        { ...API_RESPONSE.data[0], id: ling, context_length: 262_144 },
+      ],
+    })
+    assert.deepEqual(
+      models.map(({ reasoning, maxTokens }) => ({ reasoning, maxTokens })),
+      [
+        { reasoning: true, maxTokens: 131_072 },
+        { reasoning: true, maxTokens: 32_768 },
+      ],
+    )
+    const retired = "inclusionai/ling-3.1-flash:free"
+    assert.equal(MODEL_REASONING[retired], undefined)
+    assert.equal(MODEL_EFFORTS[retired], undefined)
+    assert.equal(MODEL_MAX_OUTPUT_TOKENS[retired], undefined)
+  })
+
   it("prefers host-resolved input modalities over the catalog snapshot", () => {
     // A model published upstream after the pinned CLI release is absent from the
     // generated catalog, so the host's resolved modalities must win.

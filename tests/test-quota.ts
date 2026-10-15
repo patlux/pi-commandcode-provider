@@ -440,6 +440,49 @@ describe("Command Code quota", () => {
     assert.match(result.error.kind, /network/)
   })
 
+  it("times out when a custom fetch ignores the abort signal", async () => {
+    let aborted = false
+    const fetchImpl = (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      init?.signal?.addEventListener(
+        "abort",
+        () => {
+          aborted = true
+        },
+        { once: true },
+      )
+      // Broken fetch implementation: neither resolves nor rejects when aborted.
+      return new Promise<Response>(() => {})
+    }
+
+    const result = await fetchCommandCodeQuota({ apiKey: "cc_test_key", fetchImpl, timeoutMs: 25 })
+    assert.equal(aborted, true)
+    assert.equal(result.ok, false)
+    if (result.ok) return
+    assert.equal(result.error.kind, "timeout")
+  })
+
+  it("times out when response JSON parsing never settles", async () => {
+    const response = jsonResponse({ user: { userName: "alice" } })
+    response.json = () => new Promise<never>(() => {})
+    const fetchImpl = async (): Promise<Response> => response
+
+    const result = await fetchCommandCodeQuota({ apiKey: "cc_test_key", fetchImpl, timeoutMs: 25 })
+    assert.equal(result.ok, false)
+    if (result.ok) return
+    assert.equal(result.error.kind, "timeout")
+  })
+
+  it("times out when reading a failed HTTP response body never settles", async () => {
+    const response = jsonResponse({ error: "unavailable" }, 503)
+    response.text = () => new Promise<never>(() => {})
+    const fetchImpl = async (): Promise<Response> => response
+
+    const result = await fetchCommandCodeQuota({ apiKey: "cc_test_key", fetchImpl, timeoutMs: 25 })
+    assert.equal(result.ok, false)
+    if (result.ok) return
+    assert.equal(result.error.kind, "timeout")
+  })
+
   it("honors the overall deadline once it has already fired (no phase starts after abort)", async () => {
     const start = Date.now()
     const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {

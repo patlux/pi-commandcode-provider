@@ -31,7 +31,7 @@ const freeModels = new Set([
   "poolside/laguna-s-2.1-free",
   "stealth/glyph-cluster:free",
   "inclusionai/ling-3.0-flash-sante:free",
-  "inclusionai/ling-3.1-flash:free",
+  "stealth/cat-jam:free",
 ])
 
 function assertCost(
@@ -55,7 +55,7 @@ function assertCost(
 describe("MODEL_COSTS pricing overlay", () => {
   it("covers the current Command Code model catalog snapshot", () => {
     assert.equal(fixture.source, "https://api.commandcode.ai/provider/v1/models")
-    assert.match(fixture.fetchedAt, /^2026-10-09T/)
+    assert.match(fixture.fetchedAt, /^2026-10-15T/)
 
     const catalogIds = [...fixture.modelIds].sort()
     const pricedIds = Object.keys(MODEL_COSTS).sort()
@@ -339,17 +339,42 @@ describe("MODEL_COSTS pricing overlay", () => {
       cacheRead: 0.016,
       cacheWrite: 0,
     })
-    assertCost("inclusionai/ling-3.1-flash:free", {
-      input: 0,
-      output: 0,
-      cacheRead: 0,
+    assertCost("inclusionai/ling-3.1-flash", {
+      input: 0.3,
+      output: 0.9,
+      cacheRead: 0.06,
       cacheWrite: 0,
     })
+    assert.equal(MODEL_COSTS["inclusionai/ling-3.1-flash:free"], undefined)
+  })
+
+  it("uses reviewed rates for the mid-October catalog additions", () => {
+    assertCost("google/gemini-4-argon", {
+      input: 2,
+      output: 10,
+      cacheRead: 0.1,
+      cacheWrite: 0,
+    })
+    assertCost("meta/muse-wonder-1.0", { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 0 })
+    assertCost("Qwen/Qwen3.8-Max-Prime", { input: 4, output: 12, cacheRead: 0.5, cacheWrite: 5 })
+    assertCost("nvidia/nemotron-3.5-super-vl", {
+      input: 0.2,
+      output: 0.5,
+      cacheRead: 0.04,
+      cacheWrite: 0,
+    })
+    assertCost("meta/muse-spark-open", {
+      input: 1.25,
+      output: 4.25,
+      cacheRead: 0.15,
+      cacheWrite: 0,
+    })
+    assertCost("stealth/cat-jam:free", { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 })
   })
 
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-10-09")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-10-15")
   })
 
   it("fails once temporary pricing needs review", () => {

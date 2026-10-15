@@ -175,16 +175,19 @@ export function parseBundleModelCapabilities(
 
   for (const modelId of modelIds) {
     const entry = modelObject(bundle, modelId)
-    const literal = /\binputModalities:(\[[^\]]*\])/.exec(entry)?.[1]
-    if (!literal) throw new Error(`Missing input modalities for ${modelId}`)
-    const modalities: unknown = JSON.parse(literal)
+    const modalitiesLiteral = /\binputModalities:(\[[^\]]*\])/.exec(entry)?.[1]
+    if (!modalitiesLiteral) throw new Error(`Missing input modalities for ${modelId}`)
+    const modalities: unknown = JSON.parse(modalitiesLiteral)
     if (
       !isStringArray(modalities) ||
       !modalities.includes("text") ||
-      modalities.some((value) => !["text", "image", "file", "audio", "video"].includes(value))
+      modalities.some(
+        (modality) => modality !== "text" && modality !== "image" && modality !== "file",
+      )
     ) {
       throw new Error(`Unexpected input modalities for ${modelId}`)
     }
+    // The host supports text/image inputs; the CLI's file modality is not advertised.
     if (modalities.includes("image")) imageModelIds.push(modelId)
     if (entry.includes("reasoning:!0") || entry.includes("reasoningEfforts:[")) {
       reasoningModelIds.push(modelId)

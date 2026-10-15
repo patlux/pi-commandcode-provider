@@ -93,11 +93,18 @@ export function createCommandCodeTransportRouter(deps: TransportDependencies) {
       const run = async () => {
         const providerStream = deps.streamProvider(model, context, providerOptions)
 
-        for await (const event of providerStream) {
-          if (!upgradeRequired) {
-            if (apiKey === requestApiKey) transport = "provider"
-            output.push(event)
+        try {
+          for await (const event of providerStream) {
+            if (!upgradeRequired) {
+              if (apiKey === requestApiKey) transport = "provider"
+              output.push(event)
+            }
           }
+        } catch (error) {
+          // Defense in depth for adapters whose iterators reject after HTTP errors;
+          // current Pi/OMP adapters emit error events instead. Only an inspected
+          // upgrade_required response permits generate fallback.
+          if (!upgradeRequired) throw error
         }
 
         if (upgradeRequired) {

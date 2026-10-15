@@ -2,7 +2,22 @@
 
 ## Unreleased
 
-- Repair catalog synchronization for CLI 1.82.4: read each model's explicit input modalities instead of relying on the removed text-only set and property adjacency. Unexpected metadata still fails closed. Package inspection disables npm lifecycle scripts.
+- Disable npm lifecycle scripts during catalog package inspection. The CLI registry parser repair and catalog refresh were already integrated via #153.
+
+## 0.7.8 - 2026-10-15
+
+- Redact sensitive text in direct stream errors and normalized context-overflow messages before returning them to the host. This closes two error-reporting paths that did not use the shared redactor; it is defensive hardening, not a claim of a confirmed credential leak ([#155](https://github.com/patlux/pi-commandcode-provider/pull/155)).
+- Enforce one overall deadline for quota requests, including fetch implementations that ignore cancellation and stalled JSON/error-body reads. Preserve partial quota data and existing timeout reporting instead of leaving `/commandcode-quota` hanging ([#152](https://github.com/patlux/pi-commandcode-provider/pull/152)).
+- Continue to the generate fallback if a Provider API stream iterator rejects after an inspected `403 upgrade_required` response. Keep exactly one start event, expose only the generate result, and propagate unrelated failures unchanged. This is a defensive guard; the iterator-rejection behavior was not reproduced with the tested Pi/OMP adapters ([#154](https://github.com/patlux/pi-commandcode-provider/pull/154)).
+- Refresh the static capability snapshot to `command-code@1.82.4`: add image input and reasoning efforts for `google/gemini-4-argon`, `meta/muse-wonder-1.0`, and `Qwen/Qwen3.8-Max-Prime`; replace the retired free Ling 3.1 Flash with `inclusionai/ling-3.1-flash`, preserving its reasoning efforts and 32,768-token output limit. Max Prime has a 131,072-token output limit (#153).
+- Fix catalog synchronization with the CLI's new model-object layout. Read explicit input modalities instead of the removed global text-only set, and project the CLI's additional `file` modality onto the host's supported text/image inputs (#153).
+- Add reviewed display pricing for Gemini 4 Argon, Muse Wonder, Qwen 3.8 Max Prime, paid Ling 3.1 Flash, Nemotron 3.5 Super VL, Muse Spark Open, and the free Cat Jam preview. Remove the retired free Ling entry. Prices and context tiers were verified against the official pricing page on 2026-10-15; the snapshot covers all 93 advertised models. Cat Jam is free only while its stealth preview lasts, with no published expiry. Models not yet present in CLI 1.82.4 keep conservative capability defaults until upstream metadata is available (#153).
+
+### Contributors
+
+- @karaaslanz — hardened error redaction and quota deadlines, and contributed the defensive generate-fallback guard (#155, #152, #154).
+- @sandexzx — refreshed the capability catalog and reviewed pricing for Gemini 4 Argon and Muse Wonder, forming the basis of the updated catalog release (#153).
+- @pierreraby — independently reviewed and validated the contributor changes before the maintainer follow-ups (#152, #153, #154, #155).
 
 ## 0.7.7 - 2026-10-11
 

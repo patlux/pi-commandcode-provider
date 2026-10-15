@@ -68,6 +68,31 @@ describe("Command Code overflow normalization", () => {
     )
   })
 
+  it("redacts direct string errors in the stream-error extraction helper", () => {
+    assert.equal(
+      commandCodeErrorMessage("context window exceeded: api_key=direct_secret_value"),
+      "context window exceeded: api_key=[redacted]",
+    )
+  })
+
+  it("redacts secrets before exposing normalized context overflow errors", () => {
+    assert.equal(
+      normalizeCommandCodeErrorMessage("Prompt token limit exceeded: api_key=overflow_secret"),
+      "context_length_exceeded: Prompt token limit exceeded: api_key=[redacted]",
+    )
+
+    const normalized = normalizeCommandCodeMessage({
+      role: "assistant",
+      provider: "commandcode",
+      stopReason: "error",
+      errorMessage: "Prompt token limit exceeded: api_key=overflow_secret",
+    })
+    assert.equal(
+      normalized?.message.errorMessage,
+      "context_length_exceeded: Prompt token limit exceeded: api_key=[redacted]",
+    )
+  })
+
   it("scopes finalized message normalization to Command Code", () => {
     const message = {
       role: "assistant" as const,

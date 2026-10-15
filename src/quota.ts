@@ -201,7 +201,20 @@ export async function fetchCommandCodeQuota(
   const fetchImpl = options.fetchImpl ?? fetch
   const timeoutMs = options.timeoutMs ?? QUOTA_TIMEOUT_MS
   const overallController = new AbortController()
-  const overallTimer = setTimeout(() => overallController.abort(), timeoutMs)
+  // AbortSignal is cooperative: a custom fetch or stalled response body may ignore it.
+  // Race every I/O phase against a single deadline so /commandcode-quota always returns.
+  let rejectDeadline: ((error: QuotaTimeoutError) => void) | undefined
+  const deadline = new Promise<never>((_resolve, reject) => {
+    rejectDeadline = reject
+  })
+  const overallTimer = setTimeout(() => {
+    overallController.abort()
+    rejectDeadline?.(new QuotaTimeoutError())
+  }, timeoutMs)
+
+  function withinDeadline<T>(operation: Promise<T>): Promise<T> {
+    return Promise.race([operation, deadline])
+  }
   const headers = {
     accept: "application/json",
     Authorization: `Bearer ${options.apiKey}`,
@@ -211,11 +224,13 @@ export async function fetchCommandCodeQuota(
   const request = async (path: string): Promise<unknown> => {
     if (overallController.signal.aborted) throw new QuotaTimeoutError()
     try {
-      const response = await fetchImpl(`${baseUrl}${path}`, {
-        method: "GET",
-        headers,
-        signal: overallController.signal,
-      })
+      const response = await withinDeadline(
+        fetchImpl(`${baseUrl}${path}`, {
+          method: "GET",
+          headers,
+          signal: overallController.signal,
+        }),
+      )
       if (!response.ok) {
         return {
           __httpError: true,
@@ -224,10 +239,10 @@ export async function fetchCommandCodeQuota(
               ? "Command Code rejected the API key"
               : response.statusText,
           status: response.status,
-          body: await response.text().catch(() => ""),
+          body: await withinDeadline(response.text().catch(() => "")),
         } satisfies HttpErrorShape
       }
-      return await response.json()
+      return await withinDeadline(response.json())
     } catch (error) {
       if (overallController.signal.aborted) throw new QuotaTimeoutError()
       throw error

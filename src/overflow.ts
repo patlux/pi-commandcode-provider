@@ -60,7 +60,7 @@ export interface CommandCodeMessageLike {
 }
 
 export function commandCodeErrorMessage(value: unknown): string | undefined {
-  if (typeof value === "string") return value
+  if (typeof value === "string") return redactCommandCodeErrorText(value)
   if (!isRecord(value)) return undefined
 
   const record = value
@@ -101,7 +101,7 @@ export function normalizeCommandCodeErrorMessage(
   if (!COMMAND_CODE_OVERFLOW_PATTERNS.some((pattern) => pattern.test(errorMessage)))
     return undefined
 
-  return `${CONTEXT_OVERFLOW_PREFIX} ${errorMessage}`
+  return `${CONTEXT_OVERFLOW_PREFIX} ${redactCommandCodeErrorText(errorMessage)}`
 }
 
 export function normalizeCommandCodeMessage<T extends CommandCodeMessageLike>(
