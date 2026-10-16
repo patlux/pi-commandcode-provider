@@ -30,7 +30,6 @@ const pricingFixture = JSON.parse(await readFile(pricingFixtureUrl, "utf-8")) as
 const freeModels = new Set([
   "poolside/laguna-s-2.1-free",
   "stealth/glyph-cluster:free",
-  "inclusionai/ling-3.0-flash-sante:free",
   "stealth/cat-jam:free",
 ])
 
@@ -55,7 +54,7 @@ function assertCost(
 describe("MODEL_COSTS pricing overlay", () => {
   it("covers the current Command Code model catalog snapshot", () => {
     assert.equal(fixture.source, "https://api.commandcode.ai/provider/v1/models")
-    assert.match(fixture.fetchedAt, /^2026-10-15T/)
+    assert.match(fixture.fetchedAt, /^2026-10-16T/)
 
     const catalogIds = [...fixture.modelIds].sort()
     const pricedIds = Object.keys(MODEL_COSTS).sort()
