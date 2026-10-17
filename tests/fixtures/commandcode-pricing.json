@@ -21,7 +21,6 @@
     "xai/grok-4.7": [[200000, 4, 12, 1, 0]]
   },
   "costs": {
-    "inclusionai/ling-3.0-flash-sante:free": [0, 0, 0, 0],
     "stealth/cat-jam:free": [0, 0, 0, 0],
     "poolside/laguna-s-2.1-free": [0, 0, 0, 0],
     "stealth/glyph-cluster:free": [0, 0, 0, 0],
