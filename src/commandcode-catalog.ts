@@ -1,4 +1,4 @@
-export const COMMAND_CODE_CLI_VERSION = "1.83.0"
+export const COMMAND_CODE_CLI_VERSION = "1.84.0"
 
 export type CommandCodeInputType = "text" | "image"
 export type CommandCodeReasoningEffort =
@@ -11,7 +11,7 @@ export type CommandCodeReasoningEffort =
   | "max"
 
 /**
- * Generated from command-code@1.83.0 by `npm run sync:commandcode-catalog`.
+ * Generated from command-code@1.84.0 by `npm run sync:commandcode-catalog`.
  * Do not edit manually.
  */
 export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCodeInputType[]>> = {
