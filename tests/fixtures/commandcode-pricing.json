@@ -1,5 +1,5 @@
 {
-  "verifiedAt": "2026-10-15",
+  "verifiedAt": "2026-10-17",
   "source": "https://commandcode.ai/docs/resources/pricing-limits",
   "tierPolicy": "Use request-wide input tiers; the highest threshold exceeded by input plus cache tokens applies to the full request.",
   "tiers": {
@@ -24,6 +24,7 @@
     "stealth/cat-jam:free": [0, 0, 0, 0],
     "poolside/laguna-s-2.1-free": [0, 0, 0, 0],
     "stealth/glyph-cluster:free": [0, 0, 0, 0],
+    "reflection/beam:free": [0, 0, 0, 0],
     "inclusionai/ling-3.1-flash": [0.3, 0.9, 0.06, 0],
     "mistral/mistral-large-4": [1.36, 4.18, 0.14, 0],
     "tencent/hy3-paid": [0.14, 0.58, 0.035, 0],

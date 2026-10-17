@@ -31,6 +31,7 @@ const freeModels = new Set([
   "poolside/laguna-s-2.1-free",
   "stealth/glyph-cluster:free",
   "stealth/cat-jam:free",
+  "reflection/beam:free",
 ])
 
 function assertCost(
@@ -54,7 +55,7 @@ function assertCost(
 describe("MODEL_COSTS pricing overlay", () => {
   it("covers the current Command Code model catalog snapshot", () => {
     assert.equal(fixture.source, "https://api.commandcode.ai/provider/v1/models")
-    assert.match(fixture.fetchedAt, /^2026-10-16T/)
+    assert.match(fixture.fetchedAt, /^2026-10-17T/)
 
     const catalogIds = [...fixture.modelIds].sort()
     const pricedIds = Object.keys(MODEL_COSTS).sort()
@@ -373,7 +374,7 @@ describe("MODEL_COSTS pricing overlay", () => {
 
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-10-15")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-10-17")
   })
 
   it("fails once temporary pricing needs review", () => {

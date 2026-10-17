@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Refresh the static capability snapshot to `command-code@1.83.0`: add image input, reasoning, and selectable `low`/`medium`/`high` efforts for `meta/muse-spark-open` and `nvidia/nemotron-3.5-super-vl`; publish reasoning for the free `stealth/cat-jam:free` preview with `low`/`medium`/`high`/`xhigh`/`max` efforts and a 131,072-token output limit. Retire `inclusionai/ling-3.0-flash-sante:free` and drop its reasoning flag, output limit, and display-price entry now that the API no longer advertises it. No prices changed; the reviewed snapshot now covers all 92 advertised models.
+- Refresh the static capability snapshot to `command-code@1.84.0`, which publishes no model metadata changes, and add reviewed display pricing for the new free `reflection/beam:free` model, verified against the official pricing page on 2026-10-17. Beam is free only while capacity lasts, with no published expiry, and it has no CLI capability metadata yet, so it keeps the conservative text-only and non-reasoning defaults. The reviewed snapshot now covers all 93 advertised models.
 
 ## 0.7.8 - 2026-10-15
 
