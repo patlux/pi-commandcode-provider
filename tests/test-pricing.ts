@@ -55,7 +55,8 @@ function assertCost(
 describe("MODEL_COSTS pricing overlay", () => {
   it("covers the current Command Code model catalog snapshot", () => {
     assert.equal(fixture.source, "https://api.commandcode.ai/provider/v1/models")
-    assert.match(fixture.fetchedAt, /^2026-10-17T/)
+    assert.match(fixture.fetchedAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+    assert.equal(new Date(fixture.fetchedAt).toISOString(), fixture.fetchedAt)
 
     const catalogIds = [...fixture.modelIds].sort()
     const pricedIds = Object.keys(MODEL_COSTS).sort()
@@ -94,6 +95,10 @@ describe("MODEL_COSTS pricing overlay", () => {
       ),
     )
     assert.deepEqual(MODEL_COSTS, expected)
+  })
+
+  it("matches reviewed late-October Beam promotion rates", () => {
+    assertCost("reflection/beam:free", { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 })
   })
 
   it("uses non-zero prices except for models documented as free", () => {

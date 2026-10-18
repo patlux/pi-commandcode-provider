@@ -345,6 +345,32 @@ describe("pricing page id matching", () => {
     ])
   })
 
+  it("matches a provider-prefixed :free model and preserves its capacity-limited deal", () => {
+    const modelId = "reflection/beam:free"
+    assert.deepEqual(pricingPageIdCandidates(modelId), [modelId, "beam:free"])
+    const rows = parsePricingPage(
+      pageWithRows([
+        {
+          id: "beam:free",
+          tiers: [{ rates: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } }],
+          deal: {
+            id: "beam-free",
+            discountPercent: 100,
+            free: true,
+            endsWhen: "while capacity lasts",
+          },
+        },
+      ]),
+    )
+    const result = checkCommandCodePricing([modelId], rows, { [modelId]: cost(0, 0, 0, 0) }, AT_MS)
+    assert.deepEqual(result.issues, [])
+    assert.equal(result.deals.length, 1)
+    assert.equal(result.deals[0]!.modelId, modelId)
+    assert.equal(result.deals[0]!.deal.id, "beam-free")
+    assert.equal(result.deals[0]!.deal.endsWhen, "while capacity lasts")
+    assert.equal(result.deals[0]!.deal.expires, undefined)
+  })
+
   it("flags ambiguous page rows instead of picking the first match", () => {
     const pageRows = [pageRow("vendor/model", cost(1, 1, 0, 0)), pageRow("model", cost(1, 1, 0, 0))]
     const result = checkCommandCodePricing(
