@@ -30,7 +30,7 @@ const pricingFixture = JSON.parse(await readFile(pricingFixtureUrl, "utf-8")) as
 const freeModels = new Set([
   "poolside/laguna-s-2.1-free",
   "stealth/glyph-cluster:free",
-  "stealth/cat-jam:free",
+  "minimax/minimax-m3.1-flash:free",
   "reflection/beam:free",
 ])
 
@@ -95,6 +95,29 @@ describe("MODEL_COSTS pricing overlay", () => {
       ),
     )
     assert.deepEqual(MODEL_COSTS, expected)
+  })
+
+  it("matches reviewed MiniMax M3.1 Flash rates and promotion deadline", () => {
+    assertCost("minimax/minimax-m3.1-flash", {
+      input: 0.15,
+      output: 0.6,
+      cacheRead: 0.015,
+      cacheWrite: 0,
+    })
+    assertCost("minimax/minimax-m3.1-flash:free", {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    })
+    assert.deepEqual(TEMPORARY_PRICING, [
+      {
+        models: ["minimax/minimax-m3.1-flash:free"],
+        expiresOn: "2026-10-20",
+        description:
+          "MiniMax M3.1 Flash free promotion ends 2026-10-21T10:45:00Z; recheck before expiry day",
+      },
+    ])
   })
 
   it("matches reviewed late-October Beam promotion rates", () => {
@@ -374,12 +397,12 @@ describe("MODEL_COSTS pricing overlay", () => {
       cacheRead: 0.15,
       cacheWrite: 0,
     })
-    assertCost("stealth/cat-jam:free", { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 })
+    assert.equal(MODEL_COSTS["stealth/cat-jam:free"], undefined)
   })
 
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-10-17")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-10-20")
   })
 
   it("fails once temporary pricing needs review", () => {

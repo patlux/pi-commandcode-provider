@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-10-17T20:46:24.595Z",
+  "fetchedAt": "2026-10-20T07:46:34.326Z",
   "source": "https://api.commandcode.ai/provider/v1/models",
   "modelIds": [
     "claude-sonnet-5-5",
@@ -42,6 +42,8 @@
     "zai-org/GLM-5.2-Fast",
     "zai-org/GLM-5.1",
     "zai-org/GLM-5",
+    "minimax/minimax-m3.1-flash",
+    "minimax/minimax-m3.1-flash:free",
     "MiniMaxAI/MiniMax-M3",
     "MiniMaxAI/MiniMax-M2.7",
     "MiniMaxAI/MiniMax-M2.5",
@@ -80,7 +82,6 @@
     "thinkingmachines/inkling",
     "thinkingmachines/inkling-small",
     "stealth/glyph-cluster:free",
-    "stealth/cat-jam:free",
     "reflection/beam:free",
     "poolside/laguna-s-2.1-free",
     "inclusionai/ling-3.1-flash",

@@ -20,7 +20,7 @@ export interface TemporaryPricing {
 }
 
 export const PRICING_SOURCE_URL = "https://commandcode.ai/docs/resources/pricing-limits"
-export const PRICING_LAST_VERIFIED = "2026-10-17"
+export const PRICING_LAST_VERIFIED = "2026-10-20"
 
 export const ZERO_MODEL_COST: CommandCodeModelCost = {
   input: 0,
@@ -39,8 +39,8 @@ export const ZERO_MODEL_COST: CommandCodeModelCost = {
  */
 export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   // Free models
-  // Free while the stealth preview lasts; no fixed expiry is published.
-  "stealth/cat-jam:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  // Free until 2026-10-21T10:45:00Z; recheck before that UTC day starts.
+  "minimax/minimax-m3.1-flash:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   "poolside/laguna-s-2.1-free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   "stealth/glyph-cluster:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   // Free while capacity lasts; no fixed expiry is published.
@@ -68,6 +68,7 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   "zai-org/GLM-5.2-Fast": { input: 3, output: 10.25, cacheRead: 0.5, cacheWrite: 0 },
   "zai-org/GLM-5.1": { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 },
   "zai-org/GLM-5": { input: 1, output: 3.2, cacheRead: 0.2, cacheWrite: 0 },
+  "minimax/minimax-m3.1-flash": { input: 0.15, output: 0.6, cacheRead: 0.015, cacheWrite: 0 },
   "MiniMaxAI/MiniMax-M3": { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0 },
   "MiniMaxAI/MiniMax-M2.7": { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0 },
   "MiniMaxAI/MiniMax-M2.5": { input: 0.3, output: 1.2, cacheRead: 0.03, cacheWrite: 0 },
@@ -359,4 +360,11 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   },
 }
 
-export const TEMPORARY_PRICING: readonly TemporaryPricing[] = []
+export const TEMPORARY_PRICING: readonly TemporaryPricing[] = [
+  {
+    models: ["minimax/minimax-m3.1-flash:free"],
+    expiresOn: "2026-10-20",
+    description:
+      "MiniMax M3.1 Flash free promotion ends 2026-10-21T10:45:00Z; recheck before expiry day",
+  },
+]
