@@ -20,7 +20,7 @@ export interface TemporaryPricing {
 }
 
 export const PRICING_SOURCE_URL = "https://commandcode.ai/docs/resources/pricing-limits"
-export const PRICING_LAST_VERIFIED = "2026-10-20"
+export const PRICING_LAST_VERIFIED = "2026-10-21"
 
 export const ZERO_MODEL_COST: CommandCodeModelCost = {
   input: 0,
@@ -39,14 +39,17 @@ export const ZERO_MODEL_COST: CommandCodeModelCost = {
  */
 export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   // Free models
-  // Free until 2026-10-21T10:45:00Z; recheck before that UTC day starts.
+  // Free until 2026-10-22T10:45:00Z; recheck before that UTC day starts.
   "minimax/minimax-m3.1-flash:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  // Free until 2026-10-22T06:00:00Z; recheck before that UTC day starts.
+  "ornith/ornith-1.5-122b:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   "poolside/laguna-s-2.1-free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   "stealth/glyph-cluster:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   // Free while capacity lasts; no fixed expiry is published.
   "reflection/beam:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 
   // Open and open-weight models
+  "ornith/ornith-1.5-122b": { input: 0.16, output: 0.64, cacheRead: 0.02, cacheWrite: 0 },
   "inclusionai/ling-3.1-flash": { input: 0.3, output: 0.9, cacheRead: 0.06, cacheWrite: 0 },
   "mistral/mistral-large-4": { input: 1.36, output: 4.18, cacheRead: 0.14, cacheWrite: 0 },
   "tencent/hy3-paid": { input: 0.14, output: 0.58, cacheRead: 0.035, cacheWrite: 0 },
@@ -363,8 +366,14 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
 export const TEMPORARY_PRICING: readonly TemporaryPricing[] = [
   {
     models: ["minimax/minimax-m3.1-flash:free"],
-    expiresOn: "2026-10-20",
+    expiresOn: "2026-10-21",
     description:
-      "MiniMax M3.1 Flash free promotion ends 2026-10-21T10:45:00Z; recheck before expiry day",
+      "MiniMax M3.1 Flash free promotion ends 2026-10-22T10:45:00Z; recheck before expiry day",
+  },
+  {
+    models: ["ornith/ornith-1.5-122b:free"],
+    expiresOn: "2026-10-21",
+    description:
+      "Ornith 1.5 122B free promotion ends 2026-10-22T06:00:00Z; recheck before expiry day",
   },
 ]

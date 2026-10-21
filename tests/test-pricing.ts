@@ -31,6 +31,7 @@ const freeModels = new Set([
   "poolside/laguna-s-2.1-free",
   "stealth/glyph-cluster:free",
   "minimax/minimax-m3.1-flash:free",
+  "ornith/ornith-1.5-122b:free",
   "reflection/beam:free",
 ])
 
@@ -97,7 +98,7 @@ describe("MODEL_COSTS pricing overlay", () => {
     assert.deepEqual(MODEL_COSTS, expected)
   })
 
-  it("matches reviewed MiniMax M3.1 Flash rates and promotion deadline", () => {
+  it("matches reviewed MiniMax M3.1 Flash and Ornith rates and promotion deadlines", () => {
     assertCost("minimax/minimax-m3.1-flash", {
       input: 0.15,
       output: 0.6,
@@ -110,12 +111,25 @@ describe("MODEL_COSTS pricing overlay", () => {
       cacheRead: 0,
       cacheWrite: 0,
     })
+    assertCost("ornith/ornith-1.5-122b", {
+      input: 0.16,
+      output: 0.64,
+      cacheRead: 0.02,
+      cacheWrite: 0,
+    })
+    assertCost("ornith/ornith-1.5-122b:free", { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 })
     assert.deepEqual(TEMPORARY_PRICING, [
       {
         models: ["minimax/minimax-m3.1-flash:free"],
-        expiresOn: "2026-10-20",
+        expiresOn: "2026-10-21",
         description:
-          "MiniMax M3.1 Flash free promotion ends 2026-10-21T10:45:00Z; recheck before expiry day",
+          "MiniMax M3.1 Flash free promotion ends 2026-10-22T10:45:00Z; recheck before expiry day",
+      },
+      {
+        models: ["ornith/ornith-1.5-122b:free"],
+        expiresOn: "2026-10-21",
+        description:
+          "Ornith 1.5 122B free promotion ends 2026-10-22T06:00:00Z; recheck before expiry day",
       },
     ])
   })
@@ -402,7 +416,7 @@ describe("MODEL_COSTS pricing overlay", () => {
 
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-10-20")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-10-21")
   })
 
   it("fails once temporary pricing needs review", () => {
@@ -412,7 +426,7 @@ describe("MODEL_COSTS pricing overlay", () => {
       assert.ok(pricing.models.length > 0)
       assert.ok(
         pricing.expiresOn >= today,
-        `${pricing.description} for ${pricing.models.join(", ")} expired on ${pricing.expiresOn}; refresh MODEL_COSTS`,
+        `${pricing.description} for ${pricing.models.join(", ")} needs recheck after ${pricing.expiresOn}; refresh MODEL_COSTS`,
       )
       for (const modelId of pricing.models) {
         assert.ok(MODEL_COSTS[modelId], `${modelId} should have a temporary price entry`)

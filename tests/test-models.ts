@@ -210,6 +210,30 @@ describe("commandCodeModelsFromApiResponse()", () => {
     assert.equal(MODEL_MAX_OUTPUT_TOKENS[retired], undefined)
   })
 
+  it("advertises MiniMax Flash, Beam, and Ornith capabilities from the refreshed CLI", () => {
+    const efforts = ["low", "medium", "high", "xhigh", "max"]
+    for (const id of ["minimax/minimax-m3.1-flash", "minimax/minimax-m3.1-flash:free"]) {
+      assert.deepEqual(inputModalitiesForModel(id), ["text", "image"])
+      assert.equal(MODEL_REASONING[id], true)
+      assert.deepEqual(thinkingMetadataForModel(id)?.thinking?.efforts, efforts)
+    }
+    const beam = "reflection/beam:free"
+    assert.deepEqual(inputModalitiesForModel(beam), ["text"])
+    assert.equal(MODEL_REASONING[beam], true)
+    assert.deepEqual(thinkingMetadataForModel(beam)?.thinking?.efforts, efforts)
+    assert.equal(MODEL_MAX_OUTPUT_TOKENS[beam], 131_072)
+    for (const id of ["ornith/ornith-1.5-122b", "ornith/ornith-1.5-122b:free"]) {
+      assert.deepEqual(inputModalitiesForModel(id), ["text", "image"])
+      assert.equal(MODEL_REASONING[id], true)
+      assert.equal(MODEL_EFFORTS[id], undefined)
+    }
+    const retired = "stealth/cat-jam:free"
+    assert.equal(MODEL_INPUT_MODALITIES[retired], undefined)
+    assert.equal(MODEL_REASONING[retired], undefined)
+    assert.equal(MODEL_EFFORTS[retired], undefined)
+    assert.equal(MODEL_MAX_OUTPUT_TOKENS[retired], undefined)
+  })
+
   it("prefers host-resolved input modalities over the catalog snapshot", () => {
     // A model published upstream after the pinned CLI release is absent from the
     // generated catalog, so the host's resolved modalities must win.
