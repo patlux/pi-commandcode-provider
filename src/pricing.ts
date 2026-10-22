@@ -20,7 +20,7 @@ export interface TemporaryPricing {
 }
 
 export const PRICING_SOURCE_URL = "https://commandcode.ai/docs/resources/pricing-limits"
-export const PRICING_LAST_VERIFIED = "2026-10-21"
+export const PRICING_LAST_VERIFIED = "2026-10-22"
 
 export const ZERO_MODEL_COST: CommandCodeModelCost = {
   input: 0,
@@ -39,10 +39,6 @@ export const ZERO_MODEL_COST: CommandCodeModelCost = {
  */
 export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   // Free models
-  // Free until 2026-10-22T10:45:00Z; recheck before that UTC day starts.
-  "minimax/minimax-m3.1-flash:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-  // Free until 2026-10-22T06:00:00Z; recheck before that UTC day starts.
-  "ornith/ornith-1.5-122b:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   "poolside/laguna-s-2.1-free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   "stealth/glyph-cluster:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   // Free while capacity lasts; no fixed expiry is published.
@@ -363,17 +359,6 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   },
 }
 
-export const TEMPORARY_PRICING: readonly TemporaryPricing[] = [
-  {
-    models: ["minimax/minimax-m3.1-flash:free"],
-    expiresOn: "2026-10-21",
-    description:
-      "MiniMax M3.1 Flash free promotion ends 2026-10-22T10:45:00Z; recheck before expiry day",
-  },
-  {
-    models: ["ornith/ornith-1.5-122b:free"],
-    expiresOn: "2026-10-21",
-    description:
-      "Ornith 1.5 122B free promotion ends 2026-10-22T06:00:00Z; recheck before expiry day",
-  },
-]
+// No dated promotions are active. Add an entry here when the pricing page
+// publishes a promotion end date, so tests fail when it needs review.
+export const TEMPORARY_PRICING: readonly TemporaryPricing[] = []

@@ -1,5 +1,5 @@
 {
-  "verifiedAt": "2026-10-21",
+  "verifiedAt": "2026-10-22",
   "source": "https://commandcode.ai/docs/resources/pricing-limits",
   "tierPolicy": "Use request-wide input tiers; the highest threshold exceeded by input plus cache tokens applies to the full request.",
   "tiers": {
@@ -21,8 +21,6 @@
     "xai/grok-4.7": [[200000, 4, 12, 1, 0]]
   },
   "costs": {
-    "minimax/minimax-m3.1-flash:free": [0, 0, 0, 0],
-    "ornith/ornith-1.5-122b:free": [0, 0, 0, 0],
     "poolside/laguna-s-2.1-free": [0, 0, 0, 0],
     "stealth/glyph-cluster:free": [0, 0, 0, 0],
     "reflection/beam:free": [0, 0, 0, 0],

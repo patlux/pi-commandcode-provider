@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-10-21T21:09:15.807Z",
+  "fetchedAt": "2026-10-22T20:38:00.785Z",
   "source": "https://api.commandcode.ai/provider/v1/models",
   "modelIds": [
     "claude-sonnet-5-5",
@@ -43,12 +43,10 @@
     "zai-org/GLM-5.1",
     "zai-org/GLM-5",
     "minimax/minimax-m3.1-flash",
-    "minimax/minimax-m3.1-flash:free",
     "MiniMaxAI/MiniMax-M3",
     "MiniMaxAI/MiniMax-M2.7",
     "MiniMaxAI/MiniMax-M2.5",
     "ornith/ornith-1.5-122b",
-    "ornith/ornith-1.5-122b:free",
     "xiaomi/mimo-v2.6-pro",
     "xiaomi/mimo-v2.6-pro-ultraspeed",
     "xiaomi/mimo-v2.6-flash",
