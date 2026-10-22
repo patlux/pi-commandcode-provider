@@ -212,7 +212,7 @@ describe("commandCodeModelsFromApiResponse()", () => {
 
   it("advertises MiniMax Flash, Beam, and Ornith capabilities from the refreshed CLI", () => {
     const efforts = ["low", "medium", "high", "xhigh", "max"]
-    for (const id of ["minimax/minimax-m3.1-flash", "minimax/minimax-m3.1-flash:free"]) {
+    for (const id of ["minimax/minimax-m3.1-flash"]) {
       assert.deepEqual(inputModalitiesForModel(id), ["text", "image"])
       assert.equal(MODEL_REASONING[id], true)
       assert.deepEqual(thinkingMetadataForModel(id)?.thinking?.efforts, efforts)
@@ -222,16 +222,22 @@ describe("commandCodeModelsFromApiResponse()", () => {
     assert.equal(MODEL_REASONING[beam], true)
     assert.deepEqual(thinkingMetadataForModel(beam)?.thinking?.efforts, efforts)
     assert.equal(MODEL_MAX_OUTPUT_TOKENS[beam], 131_072)
-    for (const id of ["ornith/ornith-1.5-122b", "ornith/ornith-1.5-122b:free"]) {
+    for (const id of ["ornith/ornith-1.5-122b"]) {
       assert.deepEqual(inputModalitiesForModel(id), ["text", "image"])
       assert.equal(MODEL_REASONING[id], true)
       assert.equal(MODEL_EFFORTS[id], undefined)
     }
-    const retired = "stealth/cat-jam:free"
-    assert.equal(MODEL_INPUT_MODALITIES[retired], undefined)
-    assert.equal(MODEL_REASONING[retired], undefined)
-    assert.equal(MODEL_EFFORTS[retired], undefined)
-    assert.equal(MODEL_MAX_OUTPUT_TOKENS[retired], undefined)
+    for (const retired of [
+      "stealth/cat-jam:free",
+      "minimax/minimax-m3.1-flash:free",
+      "ornith/ornith-1.5-122b:free",
+    ]) {
+      assert.equal(MODEL_INPUT_MODALITIES[retired], undefined)
+      assert.equal(MODEL_REASONING[retired], undefined)
+      assert.equal(MODEL_EFFORTS[retired], undefined)
+      assert.equal(MODEL_MAX_OUTPUT_TOKENS[retired], undefined)
+      assert.deepEqual(inputModalitiesForModel(retired), ["text"])
+    }
   })
 
   it("prefers host-resolved input modalities over the catalog snapshot", () => {

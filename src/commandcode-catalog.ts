@@ -1,4 +1,4 @@
-export const COMMAND_CODE_CLI_VERSION = "1.87.1"
+export const COMMAND_CODE_CLI_VERSION = "1.87.2"
 
 export type CommandCodeInputType = "text" | "image"
 export type CommandCodeReasoningEffort =
@@ -11,7 +11,7 @@ export type CommandCodeReasoningEffort =
   | "max"
 
 /**
- * Generated from command-code@1.87.1 by `npm run sync:commandcode-catalog`.
+ * Generated from command-code@1.87.2 by `npm run sync:commandcode-catalog`.
  * Do not edit manually.
  */
 export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCodeInputType[]>> = {
@@ -55,7 +55,6 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "meta/muse-spark-open": ["text", "image"],
   "meta/muse-wonder-1.0": ["text", "image"],
   "minimax/minimax-m3.1-flash": ["text", "image"],
-  "minimax/minimax-m3.1-flash:free": ["text", "image"],
   "MiniMaxAI/MiniMax-M3": ["text", "image"],
   "mistral/mistral-large-4": ["text", "image"],
   "moonshotai/Kimi-K2.5": ["text", "image"],
@@ -65,7 +64,6 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "moonshotai/Kimi-K3": ["text", "image"],
   "nvidia/nemotron-3.5-super-vl": ["text", "image"],
   "ornith/ornith-1.5-122b": ["text", "image"],
-  "ornith/ornith-1.5-122b:free": ["text", "image"],
   "Qwen/Qwen3.6-Plus": ["text", "image"],
   "Qwen/Qwen3.7-Flash": ["text", "image"],
   "Qwen/Qwen3.7-Plus": ["text", "image"],
@@ -136,7 +134,6 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "meta/muse-spark-open": true,
   "meta/muse-wonder-1.0": true,
   "minimax/minimax-m3.1-flash": true,
-  "minimax/minimax-m3.1-flash:free": true,
   "MiniMaxAI/MiniMax-M3": true,
   "mistral/mistral-large-4": true,
   "moonshotai/Kimi-K2.7-Code": true,
@@ -145,7 +142,6 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "nvidia/nemotron-3-ultra-550b-a55b": true,
   "nvidia/nemotron-3.5-super-vl": true,
   "ornith/ornith-1.5-122b": true,
-  "ornith/ornith-1.5-122b:free": true,
   "poolside/laguna-s-2.1-free": true,
   "Qwen/Qwen3.6-Max-Preview": true,
   "Qwen/Qwen3.6-Plus": true,
@@ -221,7 +217,6 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "meta/muse-spark-open": ["low", "medium", "high"],
   "meta/muse-wonder-1.0": ["low", "medium", "high", "xhigh"],
   "minimax/minimax-m3.1-flash": ["low", "medium", "high", "xhigh", "max"],
-  "minimax/minimax-m3.1-flash:free": ["low", "medium", "high", "xhigh", "max"],
   "MiniMaxAI/MiniMax-M3": ["low", "medium", "high"],
   "mistral/mistral-large-4": ["low", "medium", "high"],
   "moonshotai/Kimi-K3": ["low", "high", "max"],
