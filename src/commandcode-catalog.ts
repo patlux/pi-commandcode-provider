@@ -1,4 +1,4 @@
-export const COMMAND_CODE_CLI_VERSION = "1.87.2"
+export const COMMAND_CODE_CLI_VERSION = "1.88.0"
 
 export type CommandCodeInputType = "text" | "image"
 export type CommandCodeReasoningEffort =
@@ -11,7 +11,7 @@ export type CommandCodeReasoningEffort =
   | "max"
 
 /**
- * Generated from command-code@1.87.2 by `npm run sync:commandcode-catalog`.
+ * Generated from command-code@1.88.0 by `npm run sync:commandcode-catalog`.
  * Do not edit manually.
  */
 export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCodeInputType[]>> = {
@@ -81,7 +81,6 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "xai/grok-4.5": ["text", "image"],
   "xai/grok-4.6": ["text", "image"],
   "xai/grok-4.7": ["text", "image"],
-  "xiaomi/mimo-v2.5": ["text", "image"],
   "xiaomi/mimo-v2.6-flash": ["text", "image"],
   "xiaomi/mimo-v2.6-pro": ["text", "image"],
   "xiaomi/mimo-v2.6-pro-ultraspeed": ["text", "image"],

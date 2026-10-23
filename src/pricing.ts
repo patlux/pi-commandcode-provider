@@ -20,7 +20,7 @@ export interface TemporaryPricing {
 }
 
 export const PRICING_SOURCE_URL = "https://commandcode.ai/docs/resources/pricing-limits"
-export const PRICING_LAST_VERIFIED = "2026-10-22"
+export const PRICING_LAST_VERIFIED = "2026-10-23"
 
 export const ZERO_MODEL_COST: CommandCodeModelCost = {
   input: 0,
@@ -50,6 +50,7 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   "mistral/mistral-large-4": { input: 1.36, output: 4.18, cacheRead: 0.14, cacheWrite: 0 },
   "tencent/hy3-paid": { input: 0.14, output: 0.58, cacheRead: 0.035, cacheWrite: 0 },
   "tencent/hy4-preview": { input: 0.834, output: 2.501, cacheRead: 0.042, cacheWrite: 0 },
+  "moonshotai/Kimi-K3.1-Pro": { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 0 },
   "moonshotai/Kimi-K3": { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 0 },
   "moonshotai/Kimi-K2.7-Code": { input: 0.95, output: 4, cacheRead: 0.19, cacheWrite: 0 },
   "moonshotai/Kimi-K2.7-Code-Highspeed": {
@@ -171,8 +172,6 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   "stepfun/Step-3.7-Flash": { input: 0.2, output: 1.15, cacheRead: 0.04, cacheWrite: 0 },
   "stepfun/Step-3.5-Flash": { input: 0.09, output: 0.3, cacheRead: 0.02, cacheWrite: 0 },
   // Permanent discounted rates.
-  "xiaomi/mimo-v2.5-pro": { input: 0.435, output: 0.87, cacheRead: 0.0036, cacheWrite: 0 },
-  "xiaomi/mimo-v2.5": { input: 0.14, output: 0.28, cacheRead: 0.0028, cacheWrite: 0 },
   "xiaomi/mimo-v2.6-pro": { input: 0.435, output: 0.87, cacheRead: 0.0036, cacheWrite: 0 },
   "xiaomi/mimo-v2.6-pro-ultraspeed": {
     input: 4.35,

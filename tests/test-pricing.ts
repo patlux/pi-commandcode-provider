@@ -166,10 +166,10 @@ describe("MODEL_COSTS pricing overlay", () => {
       cacheRead: 0.5,
       cacheWrite: 3.13,
     })
-    assertCost("xiaomi/mimo-v2.5-pro", {
-      input: 0.435,
-      output: 0.87,
-      cacheRead: 0.0036,
+    assertCost("moonshotai/Kimi-K3.1-Pro", {
+      input: 2,
+      output: 10,
+      cacheRead: 0.2,
       cacheWrite: 0,
     })
     assertCost("MiniMaxAI/MiniMax-M2.5", {
@@ -397,7 +397,7 @@ describe("MODEL_COSTS pricing overlay", () => {
 
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-10-22")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-10-23")
   })
 
   it("fails once temporary pricing needs review", () => {

@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-10-22T20:38:00.785Z",
+  "fetchedAt": "2026-10-23T20:45:35.357Z",
   "source": "https://api.commandcode.ai/provider/v1/models",
   "modelIds": [
     "claude-sonnet-5-5",
@@ -30,6 +30,7 @@
     "deepseek/deepseek-v4-flash-fast",
     "deepseek/deepseek-v4.1-flash",
     "deepseek/deepseek-v4.1-flash-fast",
+    "moonshotai/Kimi-K3.1-Pro",
     "moonshotai/Kimi-K3",
     "moonshotai/Kimi-K2.7-Code",
     "moonshotai/Kimi-K2.7-Code-Highspeed",
@@ -50,8 +51,6 @@
     "xiaomi/mimo-v2.6-pro",
     "xiaomi/mimo-v2.6-pro-ultraspeed",
     "xiaomi/mimo-v2.6-flash",
-    "xiaomi/mimo-v2.5-pro",
-    "xiaomi/mimo-v2.5",
     "Qwen/Qwen3.8-Omni-Flash",
     "Qwen/Qwen3.8-Max-Prime",
     "Qwen/Qwen3.8-Max-0902",
