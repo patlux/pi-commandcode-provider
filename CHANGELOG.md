@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.7.10 - 2026-10-23
+
 - Refresh the static capability snapshot to `command-code@1.88.0`, which drops image input for `xiaomi/mimo-v2.5` and publishes no other metadata change. Add reviewed display pricing for the newly advertised `moonshotai/Kimi-K3.1-Pro` at $2 input / $10 output / $0.2 cache read per million tokens with no cache-write charge, verified against the official pricing page on 2026-10-23; the CLI does not publish capability metadata for it yet, so it keeps conservative text-only, non-reasoning defaults with a 65,536-token output limit until the snapshot catches up. Retire `xiaomi/mimo-v2.5` and `xiaomi/mimo-v2.5-pro`, which neither the API nor the pricing page lists anymore, and drop their display prices. The reviewed snapshot covers all 93 advertised models.
 
 ## 0.7.9 - 2026-10-22
