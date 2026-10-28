@@ -1,6 +1,6 @@
 {
   "name": "pi-commandcode-provider",
-  "version": "0.7.10",
+  "version": "0.7.11",
   "description": "pi custom provider for Command Code API (commandcode.ai)",
   "type": "module",
   "keywords": [
