@@ -51,6 +51,7 @@ if (!OMP_BIN) {
 
 const tempHome = mkdtempSync(join(tmpdir(), "omp-cc-home-"))
 let requestCount = 0
+let skillDescriptionRequestCount = 0
 let modelListRequestCount = 0
 let lastRequestBody
 let requestBodies = []
@@ -58,6 +59,16 @@ let lastRequestHeaders = {}
 // When true the mock Provider API answers 403 upgrade_required so the
 // transport router falls back to the legacy /alpha/generate transport.
 let providerUpgradeRequired = false
+
+// OMP >= 18.13 compresses skill descriptions into routing hints before the
+// first turn by calling the configured model with user messages only. Agent
+// turns always carry a system prompt, so "every message is a user message"
+// identifies the pre-pass without matching on OMP's prompt wording.
+function isSkillDescriptionRequest(body) {
+  const messages = body?.messages
+  if (!Array.isArray(messages) || messages.length === 0) return false
+  return messages.every((message) => message?.role === "user")
+}
 
 const server = createServer((req, res) => {
   if (req.method === "GET" && req.url === "/provider/v1/models") {
@@ -90,27 +101,42 @@ const server = createServer((req, res) => {
   }
 
   if (req.method === "POST" && req.url === "/provider/v1/chat/completions") {
-    requestCount += 1
-    lastRequestHeaders = Object.fromEntries(
-      Object.entries(req.headers).map(([key, value]) => [
-        key,
-        Array.isArray(value) ? value.join(", ") : (value ?? ""),
-      ]),
-    )
-
     let body = ""
     req.on("data", (chunk) => {
       body += chunk.toString("utf-8")
     })
     req.on("end", () => {
+      let parsedBody
       try {
-        lastRequestBody = JSON.parse(body)
-        requestBodies.push(lastRequestBody)
+        parsedBody = JSON.parse(body)
       } catch {
-        lastRequestBody = undefined
+        parsedBody = undefined
       }
 
-      if (providerUpgradeRequired) {
+      // OMP >= 18.13 compresses skill descriptions into one-line routing hints
+      // at start-up, before the first agent turn, by calling the configured
+      // model once per skill. Those pre-passes are not agent turns: counting
+      // them here made `requestCount` depend on the host's skills feature and
+      // on how many skills the repository ships.
+      const skillDescriptionRequest = isSkillDescriptionRequest(parsedBody)
+      if (skillDescriptionRequest) {
+        skillDescriptionRequestCount += 1
+      } else {
+        requestCount += 1
+        lastRequestHeaders = Object.fromEntries(
+          Object.entries(req.headers).map(([key, value]) => [
+            key,
+            Array.isArray(value) ? value.join(", ") : (value ?? ""),
+          ]),
+        )
+        lastRequestBody = parsedBody
+        requestBodies.push(parsedBody)
+      }
+
+      // The upgrade fallback is exercised by agent requests only: a pre-pass
+      // failing with 403 would abort the compression instead of the turn under
+      // test, so pre-passes keep the ordinary mock response.
+      if (providerUpgradeRequired && !skillDescriptionRequest) {
         res.writeHead(403, { "Content-Type": "application/json; charset=utf-8" })
         res.end(JSON.stringify({ error: { code: "upgrade_required" } }))
         return
@@ -328,6 +354,7 @@ try {
 
   console.log("[omp-compat] print mode through real extension and mock API")
   requestCount = 0
+  skillDescriptionRequestCount = 0
   requestBodies = []
   const print = await runOmp(
     ["-e", EXT_PATH, "-p", "say mock token", "--model", `commandcode/${TEST_MODEL}`],
@@ -335,7 +362,11 @@ try {
   )
   assert.equal(print.code, 0, print.stderr)
   assert.match(print.stdout, /mock-omp-ok/)
-  assert.equal(requestCount, 1)
+  assert.equal(
+    requestCount,
+    1,
+    `expected one agent request (skill-description pre-passes: ${skillDescriptionRequestCount})`,
+  )
   assert.equal(
     lastRequestHeaders.authorization,
     "Bearer mock-key",
@@ -360,6 +391,7 @@ try {
     expires: Date.now() + 24 * 60 * 60 * 1000,
   })
   requestCount = 0
+  skillDescriptionRequestCount = 0
   lastRequestHeaders = {}
   const oauthChat = await runOmp(chatArgs, { env: noEnvKey })
   assert.equal(oauthChat.code, 0, oauthChat.stderr)
@@ -370,6 +402,7 @@ try {
   console.log("[omp-compat] stored /login API key credential is used when no env key exists")
   seedOmpCredential({ type: "api_key", key: "stored-api-key" })
   requestCount = 0
+  skillDescriptionRequestCount = 0
   lastRequestHeaders = {}
   const apiKeyChat = await runOmp(chatArgs, { env: noEnvKey })
   assert.equal(apiKeyChat.code, 0, apiKeyChat.stderr)
@@ -379,6 +412,7 @@ try {
 
   console.log("[omp-compat] --api-key wins over a stored credential")
   requestCount = 0
+  skillDescriptionRequestCount = 0
   lastRequestHeaders = {}
   const cliKeyChat = await runOmp([...chatArgs, "--api-key", "cli-key"], { env: noEnvKey })
   assert.equal(cliKeyChat.code, 0, cliKeyChat.stderr)
@@ -388,6 +422,7 @@ try {
 
   console.log("[omp-compat] COMMAND_CODE_API_KEY still works alongside a stored credential")
   requestCount = 0
+  skillDescriptionRequestCount = 0
   lastRequestHeaders = {}
   const envKeyChat = await runOmp(chatArgs)
   assert.equal(envKeyChat.code, 0, envKeyChat.stderr)
@@ -398,6 +433,7 @@ try {
   console.log("[omp-compat] no credential at all never sends the placeholder")
   seedOmpCredential(undefined)
   requestCount = 0
+  skillDescriptionRequestCount = 0
   lastRequestHeaders = {}
   const noKeyChat = await runOmp(chatArgs, { env: noEnvKey })
   assert.equal(requestCount, 0, JSON.stringify(lastRequestHeaders))
@@ -405,6 +441,7 @@ try {
 
   console.log("[omp-compat] developer advisory reaches the legacy generate request body")
   requestCount = 0
+  skillDescriptionRequestCount = 0
   requestBodies = []
   providerUpgradeRequired = true
   const advisoryRun = await runOmp(

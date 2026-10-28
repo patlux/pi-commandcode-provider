@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Stop counting Oh My Pi's skill-description pre-passes as agent requests in `test-omp-compat.mjs`. OMP 18.13 compresses skill descriptions into routing hints at start-up by calling the configured model once per skill, which added a second `POST /provider/v1/chat/completions` and failed the request-count assertion against an unmodified `main`. Pre-passes are now counted separately, keyed on their body shape (user messages only — agent turns always carry a system prompt), and keep the ordinary mock response under the `403 upgrade_required` scenario so the fallback stays the only failing path. Test-only change; verified against OMP 18.12.6 and 18.13.2.
+
 ## 0.7.10 - 2026-10-23
 
 - Refresh the static capability snapshot to `command-code@1.88.0`, which drops image input for `xiaomi/mimo-v2.5` and publishes no other metadata change. Add reviewed display pricing for the newly advertised `moonshotai/Kimi-K3.1-Pro` at $2 input / $10 output / $0.2 cache read per million tokens with no cache-write charge, verified against the official pricing page on 2026-10-23; the CLI does not publish capability metadata for it yet, so it keeps conservative text-only, non-reasoning defaults with a 65,536-token output limit until the snapshot catches up. Retire `xiaomi/mimo-v2.5` and `xiaomi/mimo-v2.5-pro`, which neither the API nor the pricing page lists anymore, and drop their display prices. The reviewed snapshot covers all 93 advertised models.
