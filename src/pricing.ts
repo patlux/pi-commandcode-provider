@@ -20,7 +20,7 @@ export interface TemporaryPricing {
 }
 
 export const PRICING_SOURCE_URL = "https://commandcode.ai/docs/resources/pricing-limits"
-export const PRICING_LAST_VERIFIED = "2026-10-23"
+export const PRICING_LAST_VERIFIED = "2026-10-28"
 
 export const ZERO_MODEL_COST: CommandCodeModelCost = {
   input: 0,
@@ -259,6 +259,13 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
     cacheRead: 0.1,
     cacheWrite: 2.5,
     tiers: [{ inputTokensAbove: 272_000, input: 4, output: 15, cacheRead: 0.2, cacheWrite: 5 }],
+  },
+  "gpt-6.1-terra": {
+    input: 1,
+    output: 5,
+    cacheRead: 0.05,
+    cacheWrite: 1.25,
+    tiers: [{ inputTokensAbove: 272_000, input: 2, output: 7.5, cacheRead: 0.1, cacheWrite: 2.5 }],
   },
   "gpt-6-sol": {
     input: 2,

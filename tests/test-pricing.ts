@@ -257,6 +257,15 @@ describe("MODEL_COSTS pricing overlay", () => {
       cacheRead: 0.02,
       cacheWrite: 0.25,
     })
+    assertCost("gpt-6.1-terra", {
+      input: 1,
+      output: 5,
+      cacheRead: 0.05,
+      cacheWrite: 1.25,
+    })
+    assert.deepEqual(MODEL_COSTS["gpt-6.1-terra"]?.tiers, [
+      { inputTokensAbove: 272_000, input: 2, output: 7.5, cacheRead: 0.1, cacheWrite: 2.5 },
+    ])
     assert.deepEqual(MODEL_COSTS["xai/grok-4.6"]?.tiers, [
       {
         inputTokensAbove: 200_000,
@@ -397,7 +406,7 @@ describe("MODEL_COSTS pricing overlay", () => {
 
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-10-23")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-10-28")
   })
 
   it("fails once temporary pricing needs review", () => {

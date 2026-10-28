@@ -1,4 +1,4 @@
-export const COMMAND_CODE_CLI_VERSION = "1.88.0"
+export const COMMAND_CODE_CLI_VERSION = "1.88.1"
 
 export type CommandCodeInputType = "text" | "image"
 export type CommandCodeReasoningEffort =
@@ -11,7 +11,7 @@ export type CommandCodeReasoningEffort =
   | "max"
 
 /**
- * Generated from command-code@1.88.0 by `npm run sync:commandcode-catalog`.
+ * Generated from command-code@1.88.1 by `npm run sync:commandcode-catalog`.
  * Do not edit manually.
  */
 export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCodeInputType[]>> = {
@@ -47,6 +47,7 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "gpt-6-luna": ["text", "image"],
   "gpt-6-sol": ["text", "image"],
   "gpt-6.1-sol": ["text", "image"],
+  "gpt-6.1-terra": ["text", "image"],
   "meta/muse-spark-1.1": ["text", "image"],
   "meta/muse-spark-1.2": ["text", "image"],
   "meta/muse-spark-1.2-contributor": ["text", "image"],
@@ -62,6 +63,7 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "moonshotai/Kimi-K2.7-Code": ["text", "image"],
   "moonshotai/Kimi-K2.7-Code-Highspeed": ["text", "image"],
   "moonshotai/Kimi-K3": ["text", "image"],
+  "moonshotai/Kimi-K3.1-Pro": ["text", "image"],
   "nvidia/nemotron-3.5-super-vl": ["text", "image"],
   "ornith/ornith-1.5-122b": ["text", "image"],
   "Qwen/Qwen3.6-Plus": ["text", "image"],
@@ -123,6 +125,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "gpt-6-luna": true,
   "gpt-6-sol": true,
   "gpt-6.1-sol": true,
+  "gpt-6.1-terra": true,
   "inclusionai/ling-3.1-flash": true,
   "meituan/LongCat-2.0": true,
   "meta/muse-spark-1.1": true,
@@ -138,6 +141,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "moonshotai/Kimi-K2.7-Code": true,
   "moonshotai/Kimi-K2.7-Code-Highspeed": true,
   "moonshotai/Kimi-K3": true,
+  "moonshotai/Kimi-K3.1-Pro": true,
   "nvidia/nemotron-3-ultra-550b-a55b": true,
   "nvidia/nemotron-3.5-super-vl": true,
   "ornith/ornith-1.5-122b": true,
@@ -207,6 +211,7 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "gpt-6-luna": ["low", "medium", "high", "xhigh", "max"],
   "gpt-6-sol": ["low", "medium", "high", "xhigh", "max"],
   "gpt-6.1-sol": ["low", "medium", "high", "xhigh", "max"],
+  "gpt-6.1-terra": ["low", "medium", "high", "xhigh", "max"],
   "inclusionai/ling-3.1-flash": ["low", "medium", "high"],
   "meta/muse-spark-1.1": ["low", "medium", "high", "xhigh"],
   "meta/muse-spark-1.2": ["low", "medium", "high", "xhigh"],
@@ -219,6 +224,7 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "MiniMaxAI/MiniMax-M3": ["low", "medium", "high"],
   "mistral/mistral-large-4": ["low", "medium", "high"],
   "moonshotai/Kimi-K3": ["low", "high", "max"],
+  "moonshotai/Kimi-K3.1-Pro": ["low", "high", "max"],
   "nvidia/nemotron-3.5-super-vl": ["low", "medium", "high"],
   "Qwen/Qwen3.8-27B": ["low", "medium", "xhigh"],
   "Qwen/Qwen3.8-Flash": ["low", "medium", "xhigh"],
