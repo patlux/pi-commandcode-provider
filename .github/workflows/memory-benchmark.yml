@@ -18,7 +18,7 @@ jobs:
       contents: read
     env:
       PI_VERSION: 0.84.4
-      BUN_VERSION: 1.4.0
+      BUN_VERSION: 1.4.4
       NODE_VERSION: 22.23.2
       MEMORY_BENCHMARK_RUNS: 6
       MEMORY_BENCHMARK_WARMUP_MS: 2500
