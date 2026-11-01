@@ -20,7 +20,7 @@ export interface TemporaryPricing {
 }
 
 export const PRICING_SOURCE_URL = "https://commandcode.ai/docs/resources/pricing-limits"
-export const PRICING_LAST_VERIFIED = "2026-10-28"
+export const PRICING_LAST_VERIFIED = "2026-11-01"
 
 export const ZERO_MODEL_COST: CommandCodeModelCost = {
   input: 0,
@@ -43,6 +43,8 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   "stealth/glyph-cluster:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   // Free while capacity lasts; no fixed expiry is published.
   "reflection/beam:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  // Dated free preview: 100% off until 2026-11-03T16:00:00Z, 100 requests a day.
+  "inclusionai/ling-3.1-flash-1019:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 
   // Open and open-weight models
   "ornith/ornith-1.5-122b": { input: 0.16, output: 0.64, cacheRead: 0.02, cacheWrite: 0 },
@@ -365,6 +367,12 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   },
 }
 
-// No dated promotions are active. Add an entry here when the pricing page
-// publishes a promotion end date, so tests fail when it needs review.
-export const TEMPORARY_PRICING: readonly TemporaryPricing[] = []
+// Dated promotions only; remove an entry when the model leaves the API.
+export const TEMPORARY_PRICING: readonly TemporaryPricing[] = [
+  {
+    models: ["inclusionai/ling-3.1-flash-1019:free"],
+    expiresOn: "2026-11-03",
+    description:
+      "Ling 3.1 Flash 1019 free preview ends 2026-11-03T16:00:00Z; recheck before expiry day",
+  },
+]

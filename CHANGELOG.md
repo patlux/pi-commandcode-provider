@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add reviewed display pricing for `inclusionai/ling-3.1-flash-1019:free`, the dated free preview advertised by the Provider API on 2026-11-01 (1M context, `/chat/completions` only): zero cost until the promotion ends at 2026-11-03T16:00:00Z, capped at 100 requests a day, with a dated `TEMPORARY_PRICING` guard so the entry is rechecked when the deal expires. The CLI publishes no capability metadata for it, so it keeps conservative text-only, non-reasoning defaults with a 65,536-token output limit. The reviewed snapshot now covers all 95 advertised models, so the daily catalog job stops reporting a missing price, and the paid `inclusionai/ling-3.1-flash` keeps its own list rates.
+
 ## 0.7.11 - 2026-10-28
 
 - Refresh the static capability snapshot to `command-code@1.88.1`, which publishes metadata for two models the CLI previously did not describe: `moonshotai/Kimi-K3.1-Pro` finally gains image input, reasoning, and selectable `low`/`high`/`max` efforts instead of the conservative text-only defaults it carried since 0.7.10, and the newly advertised `gpt-6.1-terra` arrives with image input, reasoning, and `low`/`medium`/`high`/`xhigh`/`max` efforts. Neither model publishes a model-specific output limit, so both keep the 65,536-token default. No other model metadata changed ([#175](https://github.com/patlux/pi-commandcode-provider/pull/175)).

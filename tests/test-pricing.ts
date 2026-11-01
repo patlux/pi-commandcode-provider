@@ -31,6 +31,7 @@ const freeModels = new Set([
   "poolside/laguna-s-2.1-free",
   "stealth/glyph-cluster:free",
   "reflection/beam:free",
+  "inclusionai/ling-3.1-flash-1019:free",
 ])
 
 function assertCost(
@@ -112,11 +113,31 @@ describe("MODEL_COSTS pricing overlay", () => {
     // Both free promotions ended on 2026-10-22 and the API dropped the models.
     assert.equal(MODEL_COSTS["minimax/minimax-m3.1-flash:free"], undefined)
     assert.equal(MODEL_COSTS["ornith/ornith-1.5-122b:free"], undefined)
-    assert.deepEqual(TEMPORARY_PRICING, [])
   })
 
   it("matches reviewed late-October Beam promotion rates", () => {
     assertCost("reflection/beam:free", { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 })
+  })
+
+  it("keeps the dated Ling 3.1 Flash 1019 preview free until it ends", () => {
+    assertCost("inclusionai/ling-3.1-flash-1019:free", {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    })
+    const guard = TEMPORARY_PRICING.find((pricing) =>
+      pricing.models.includes("inclusionai/ling-3.1-flash-1019:free"),
+    )
+    assert.ok(guard, "the dated preview should carry an expiry guard")
+    assert.equal(guard.expiresOn, "2026-11-03")
+    // The paid sibling keeps its own list price.
+    assertCost("inclusionai/ling-3.1-flash", {
+      input: 0.3,
+      output: 0.9,
+      cacheRead: 0.06,
+      cacheWrite: 0,
+    })
   })
 
   it("uses non-zero prices except for models documented as free", () => {
@@ -406,7 +427,7 @@ describe("MODEL_COSTS pricing overlay", () => {
 
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-10-28")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-11-01")
   })
 
   it("fails once temporary pricing needs review", () => {

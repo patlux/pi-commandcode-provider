@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-10-28T08:21:13.861Z",
+  "fetchedAt": "2026-11-01T19:36:47.836Z",
   "source": "https://api.commandcode.ai/provider/v1/models",
   "modelIds": [
     "claude-sonnet-5-5",
@@ -85,6 +85,7 @@
     "reflection/beam:free",
     "poolside/laguna-s-2.1-free",
     "inclusionai/ling-3.1-flash",
+    "inclusionai/ling-3.1-flash-1019:free",
     "meta/muse-spark-1.1",
     "meta/muse-spark-1.2",
     "meta/muse-spark-1.2-contributor",
