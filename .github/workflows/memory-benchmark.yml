@@ -5,9 +5,10 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
 
-concurrency:
-  group: memory-benchmark-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+# Probe: concurrency disabled to test whether it cancels the job before a runner is assigned.
+# concurrency:
+#   group: memory-benchmark-${{ github.event.pull_request.number }}
+#   cancel-in-progress: true
 
 jobs:
   compare:
@@ -152,3 +153,13 @@ jobs:
             } else {
               await github.rest.issues.createComment({ owner, repo, issue_number, body })
             }
+
+  probe:
+    name: Probe event payload
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "pull_request.number=${{ github.event.pull_request.number }}"
+          echo "run_id=${{ github.run_id }}"
+          echo "head_ref=${{ github.head_ref }}"
+          echo "ref=${{ github.ref }}"
