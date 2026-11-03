@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Add reviewed display pricing for `inclusionai/ling-3.1-flash-1019:free`, the dated free preview advertised by the Provider API on 2026-11-01 (1M context, `/chat/completions` only): zero cost until the promotion ends at 2026-11-03T16:00:00Z, capped at 100 requests a day, with a dated `TEMPORARY_PRICING` guard so the entry is rechecked when the deal expires. The CLI publishes no capability metadata for it, so it keeps conservative text-only, non-reasoning defaults with a 65,536-token output limit. The reviewed snapshot now covers all 95 advertised models, so the daily catalog job stops reporting a missing price, and the paid `inclusionai/ling-3.1-flash` keeps its own list rates.
+- Add reviewed display pricing for `inclusionai/ling-3.1-flash-1019` after its free preview ended on 2026-11-03 at 16:00 UTC: $0.30 input / $0.90 output / $0.06 cache read per million tokens, with no cache-write charge. Remove the retired `:free` entry and its dated pricing guard, and refresh the 95-model snapshot against the Provider API. The existing `inclusionai/ling-3.1-flash` keeps its own list rates. The CLI still publishes no capability metadata for the 1019 model, so it retains conservative text-only, non-reasoning defaults with a 65,536-token output limit.
 
 ## 0.7.11 - 2026-10-28
 
