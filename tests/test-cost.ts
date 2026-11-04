@@ -159,6 +159,35 @@ describe("calculateCommandCodeCost()", () => {
     assert.equal(commandCodeCostRatesAt("deepseek/deepseek-v4-flash", base, OFF_PEAK_WEEKDAY), base)
   })
 
+  it("keeps and doubles context tiers of a full cost table during peak windows", () => {
+    // No time-priced model ships tiers today; this guards the provider path,
+    // which hands the host the whole table including `tiers`.
+    const table = {
+      input: 0.15,
+      output: 0.6,
+      cacheRead: 0.003,
+      cacheWrite: 0,
+      tiers: [
+        { inputTokensAbove: 128_000, input: 0.3, output: 1.2, cacheRead: 0.006, cacheWrite: 0 },
+      ],
+    }
+    assert.deepEqual(commandCodeCostRatesAt("deepseek/deepseek-v4-flash", table, PEAK_WEEKDAY), {
+      input: 0.3,
+      output: 1.2,
+      cacheRead: 0.006,
+      cacheWrite: 0,
+      tiers: [
+        { inputTokensAbove: 128_000, input: 0.6, output: 2.4, cacheRead: 0.012, cacheWrite: 0 },
+      ],
+    })
+    assert.equal(
+      commandCodeCostRatesAt("deepseek/deepseek-v4-flash", table, OFF_PEAK_WEEKDAY),
+      table,
+    )
+    // Models without time-based pricing return the table untouched.
+    assert.equal(commandCodeCostRatesAt("claude-sonnet-4-6", table, PEAK_WEEKDAY), table)
+  })
+
   it("doubles DeepSeek V4 rates during peak windows", () => {
     const model = commandCodeModel("deepseek/deepseek-v4-pro", {
       input: 0.66,
