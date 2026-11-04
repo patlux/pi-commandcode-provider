@@ -745,9 +745,15 @@ export function createStreamCommandCode(deps: CoreDependencies) {
               } catch {}
               reader = undefined
 
+              // The per-attempt timer aborts `attemptController`, so a stalled
+              // body surfaces as an AbortError here. Classify it as a timeout
+              // before the user-abort check, or it would be reported as a
+              // cancellation and never retried.
+              if (controller.signal.aborted) throw streamError
               if (
-                controller.signal.aborted ||
-                (streamError instanceof Error && streamError.name === "AbortError")
+                !attemptTimedOut &&
+                streamError instanceof Error &&
+                streamError.name === "AbortError"
               ) {
                 throw streamError
               }
