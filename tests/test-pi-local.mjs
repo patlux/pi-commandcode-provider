@@ -75,6 +75,7 @@ let includeResponsesModel = false
 // When set, the Responses mock holds the reasoning item open until the test
 // resolves this promise, proving deltas arrive before the item completes.
 let responsesReasoningGate
+let malformedResponsesReasoning = false
 
 function modelCatalog() {
   const data = [
@@ -147,6 +148,13 @@ async function writeResponsesStream(res, text) {
     type: "response.created",
     response: { id: "resp_mock", object: "response", status: "in_progress", output: [] },
   })
+  if (malformedResponsesReasoning) {
+    send({
+      type: "response.reasoning.delta",
+      output_index: -1,
+      delta: "synthetic-private-reasoning",
+    })
+  }
   const reasoningItem = {
     type: "reasoning",
     id: "rs_mock",
@@ -697,6 +705,53 @@ async function runRpcExtensionCommands(timeoutMs = 30_000) {
     assert.match(statusAfter.message, /transport: unknown/)
     assert.equal(await promptAndPath("upgraded-probe"), "/provider/v1/chat/completions")
 
+    // Exercise the actual index.ts warning slot through one persistent host.
+    includeResponsesModel = true
+    let fromIndex = events.length
+    send({ id: "warning-catalog", type: "prompt", message: "/commandcode-refresh" })
+    await waitFor(
+      (event) =>
+        event.type === "extension_ui_request" &&
+        event.method === "notify" &&
+        /5 models from live/.test(event.message ?? ""),
+      fromIndex,
+    )
+    const selectModel = async (model) => {
+      const id = `select-${events.length}`
+      send({ id, type: "set_model", provider: "commandcode", modelId: model })
+      await waitFor((event) => event.type === "response" && event.id === id && event.success)
+    }
+    const prompt = async () => {
+      const start = events.length
+      send({ id: `prompt-${start}`, type: "prompt", message: "say mock token" })
+      await waitFor((event) => event.type === "agent_end", start)
+    }
+    const status = async () => {
+      const start = events.length
+      send({ id: `status-${start}`, type: "prompt", message: "/commandcode-status" })
+      return (
+        await waitFor(
+          (event) =>
+            event.type === "extension_ui_request" &&
+            event.method === "notify" &&
+            /model count: 5/.test(event.message ?? ""),
+          start,
+        )
+      ).message
+    }
+    await selectModel(RESPONSES_TEST_MODEL)
+    malformedResponsesReasoning = true
+    await prompt()
+    assert.match(await status(), /stream warning:/)
+    assert.doesNotMatch(await status(), /synthetic-private-reasoning/)
+    malformedResponsesReasoning = false
+    await selectModel(TEST_MODEL)
+    await prompt()
+    assert.match(await status(), /stream warning:/, "Completions does not reset the Responses slot")
+    await selectModel(RESPONSES_TEST_MODEL)
+    await prompt()
+    assert.doesNotMatch(await status(), /stream warning:/, "next Responses request resets the slot")
+
     return {
       commandNames,
       statusBefore: statusBefore.message,
@@ -706,6 +761,8 @@ async function runRpcExtensionCommands(timeoutMs = 30_000) {
     }
   } finally {
     providerUpgradeRequired = false
+    malformedResponsesReasoning = false
+    includeResponsesModel = false
     child.kill()
     await waitForClose()
   }
