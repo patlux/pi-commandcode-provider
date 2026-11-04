@@ -9,7 +9,14 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 
 import { startAuthServer, type AuthCallback } from "../src/auth-server.ts"
-import { getApiKey, login, refreshToken, sanitizeApiKey, validateApiKey } from "../src/oauth.ts"
+import {
+  getApiKey,
+  login,
+  refreshToken,
+  sanitizeApiKey,
+  validateApiKey,
+  validationApiBase,
+} from "../src/oauth.ts"
 
 /**
  * Helper: wait for an HTTP server to close, or resolve immediately if already closed.
@@ -363,6 +370,83 @@ describe("OAuth functions", () => {
       }),
       /Invalid Command Code API key/,
     )
+  })
+
+  it("validates against the configured API base like the chat transports", async () => {
+    assert.equal(validationApiBase({}), "https://api.commandcode.ai")
+    assert.equal(
+      validationApiBase({ COMMANDCODE_API_BASE: "http://127.0.0.1:4321/provider/v1" }),
+      "http://127.0.0.1:4321",
+    )
+    assert.equal(
+      validationApiBase({ COMMANDCODE_API_BASE: "http://127.0.0.1:4321/provider/v1/" }),
+      "http://127.0.0.1:4321",
+    )
+
+    const originalBase = process.env.COMMANDCODE_API_BASE
+    process.env.COMMANDCODE_API_BASE = "http://127.0.0.1:4321/provider/v1"
+    try {
+      let requestedUrl = ""
+      await validateApiKey("valid-key", {
+        fetchImpl: (input) => {
+          requestedUrl = String(input)
+          return Promise.resolve(new Response(JSON.stringify({ user: {} }), { status: 200 }))
+        },
+      })
+      assert.equal(requestedUrl, "http://127.0.0.1:4321/alpha/whoami")
+    } finally {
+      if (originalBase === undefined) delete process.env.COMMANDCODE_API_BASE
+      else process.env.COMMANDCODE_API_BASE = originalBase
+    }
+  })
+
+  it("does not fall back to production for an explicitly empty base", async () => {
+    assert.equal(validationApiBase({ COMMANDCODE_API_BASE: "" }), "")
+    const originalBase = process.env.COMMANDCODE_API_BASE
+    process.env.COMMANDCODE_API_BASE = ""
+    try {
+      let requestedUrl = ""
+      await validateApiKey("synthetic-key", {
+        fetchImpl: (input) => {
+          requestedUrl = String(input)
+          return Promise.resolve(new Response(null, { status: 200 }))
+        },
+      })
+      assert.equal(requestedUrl, "/alpha/whoami")
+    } finally {
+      if (originalBase === undefined) delete process.env.COMMANDCODE_API_BASE
+      else process.env.COMMANDCODE_API_BASE = originalBase
+    }
+  })
+
+  it("times out a stalled whoami request even when fetch ignores the signal", async () => {
+    const started = Date.now()
+    await assert.rejects(
+      validateApiKey("stalled-key", {
+        timeoutMs: 20,
+        fetchImpl: () => new Promise<Response>(() => {}),
+      }),
+      /Could not validate the Command Code API key: request timed out after 20ms/,
+    )
+    assert.ok(Date.now() - started < 1_000)
+  })
+
+  it("reports the timeout when fetch honors the abort signal", async () => {
+    let aborted = false
+    await assert.rejects(
+      validateApiKey("stalled-key", {
+        timeoutMs: 20,
+        fetchImpl: (_input, init) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              aborted = true
+              reject(init.signal?.reason)
+            })
+          }),
+      }),
+      /request timed out after 20ms/,
+    )
+    assert.equal(aborted, true)
   })
 })
 
