@@ -51,11 +51,13 @@ export COMMAND_CODE_API_KEY="user_..."
 
 ### Auth file
 
-The provider also reads existing credentials from:
+The provider also reads existing credentials from, in this order:
 
 - `~/.commandcode/auth.json`
-- `~/.pi/agent/auth.json`
+- `~/.pi/agent/auth.json` (or `$PI_CODING_AGENT_DIR/auth.json` when pi runs with that variable)
 - `~/.omp/agent/auth.json`
+
+Both transports and the quota commands use the same ambient lookup, after any credentials supplied by the host. `PI_CODING_AGENT_DIR` redirects only the pi auth-file slot; the `.commandcode` and `.omp` paths still use `HOME`. Isolate `HOME` as well when a sandbox must not read those credentials.
 
 Supported examples:
 
