@@ -221,6 +221,8 @@ export default async function (pi: ExtensionAPI) {
   const modelApis = new Map<string, CommandCodeApi>()
   const resolveModelApi = (modelId: string): CommandCodeApi =>
     modelApis.get(modelId) ?? apiForModelId(modelId)
+  // Diagnostic for /commandcode-status: reflects the most recent Responses
+  // request, so a one-off malformed stream does not stick until restart.
   let streamWarning: string | undefined
   const transport = createCommandCodeTransportRouter({
     createStream: () => new AssistantMessageEventStream(),
@@ -232,13 +234,15 @@ export default async function (pi: ExtensionAPI) {
         wire === "openai-responses"
           ? {
               ...resolvedOptions,
-              fetch: async (...args: Parameters<typeof fetch>) =>
-                normalizeCommandCodeResponsesResponse(
+              fetch: async (...args: Parameters<typeof fetch>) => {
+                streamWarning = undefined
+                return normalizeCommandCodeResponsesResponse(
                   await (resolvedOptions?.fetch ?? fetch)(...args),
                   (warning) => {
                     streamWarning = warning
                   },
-                ),
+                )
+              },
             }
           : resolvedOptions
       return streamNativeProvider(
