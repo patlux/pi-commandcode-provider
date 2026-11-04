@@ -19,7 +19,7 @@ import { join } from "node:path"
 import { getConfiguredApiKey } from "./src/api-key.ts"
 import { pickCommandCodeApiKey, withResolvedCommandCodeApiKey } from "./src/converters.ts"
 import { createStreamCommandCode } from "./src/core.ts"
-import { calculateCommandCodeCost, commandCodeCostRatesAt } from "./src/cost.ts"
+import { calculateCommandCodeCost, commandCodeNativeCostRatesAt } from "./src/cost.ts"
 import {
   apiForModelId,
   baseUrlForModel,
@@ -245,7 +245,8 @@ export default async function (pi: ExtensionAPI) {
         {
           ...model,
           api: wire,
-          cost: commandCodeCostRatesAt(model.id, model.cost),
+          // Native hosts receive mutable tiers without owning the readonly catalog.
+          cost: commandCodeNativeCostRatesAt(model.id, model.cost),
           compat: model.compatConfig ?? model.compat,
         },
         context,
