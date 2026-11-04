@@ -146,7 +146,7 @@ Set `CMD_ZDR=1` to send Command Code's documented `x-cmd-zdr: 1` zero-data-reten
 
 The following environment variables are intended for tests, local mocks, and compatible API endpoints:
 
-- `COMMANDCODE_API_BASE`
+- `COMMANDCODE_API_BASE` (Provider API base; the alpha endpoints used by `/login` key validation and `/commandcode-quota` are derived from it without the `/provider/v1` suffix; an explicitly empty value does not fall back to production)
 - `COMMANDCODE_MODELS_URL`
 - `COMMANDCODE_MODELS_CACHE`
 - `COMMANDCODE_MODELS_TIMEOUT_MS` (defaults to 10 seconds; invalid or non-positive values use the default)
