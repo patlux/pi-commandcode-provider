@@ -758,7 +758,12 @@ async function runRpcExtensionCommands(timeoutMs = 30_000) {
     )
     assert.match(report.message, /host: pi/)
     assert.match(report.message, /catalog CLI:/)
-    assert.doesNotMatch(report.message, /cache path:|https?:|mock-key|Bearer/)
+    assert.match(report.message, /route: provider\/openai-responses/)
+    assert.match(report.message, /"endpoint":"\/provider\/v1\/responses"/)
+    assert.match(report.message, /"status":200/)
+    assert.match(report.message, /"attempts":[1-9]\d*/)
+    assert.match(report.message, /"outcome":"done"/)
+    assert.doesNotMatch(report.message, /cache path:|https?:|file:|mock-key|Bearer/)
     assert.ok(commandNames.includes("commandcode-diagnostics"))
     return {
       commandNames,

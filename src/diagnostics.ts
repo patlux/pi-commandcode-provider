@@ -37,7 +37,7 @@ export function priceStatus(
   modelId: string,
   now = Date.now(),
 ): "known" | "unknown" | "review-required" {
-  if (!MODEL_COSTS[modelId]) return "unknown"
+  if (!Object.hasOwn(MODEL_COSTS, modelId)) return "unknown"
   const day = new Date(now).toISOString().slice(0, 10)
   return TEMPORARY_PRICING.some(
     (promotion) => promotion.models.includes(modelId) && promotion.expiresOn < day,
@@ -49,7 +49,7 @@ export function priceStatus(
 function safeIdentifier(value: string): string {
   if (!/^[a-zA-Z0-9_./:+-]{1,160}$/.test(value)) return "[redacted]"
   // Model IDs can come from host overrides: a slug's alphabet alone is not a trust boundary.
-  if (/^\/|^[a-z]:\/|(?:^|\/)\.\.(?:\/|$)|^[a-z][a-z0-9+.-]*:\/\//i.test(value)) return "[redacted]"
+  if (/^\/|(?:^|\/)\.{1,2}(?:\/|$)|^[a-z][a-z0-9+.-]*:/i.test(value)) return "[redacted]"
   return redactCommandCodeErrorText(value) === value ? value : "[redacted]"
 }
 
@@ -193,7 +193,9 @@ export function formatDiagnostics(input: {
   const modelId = input.modelId
   const known =
     modelId &&
-    (MODEL_INPUT_MODALITIES[modelId] || MODEL_REASONING[modelId] || MODEL_EFFORTS[modelId])
+    (Object.hasOwn(MODEL_INPUT_MODALITIES, modelId) ||
+      Object.hasOwn(MODEL_REASONING, modelId) ||
+      Object.hasOwn(MODEL_EFFORTS, modelId))
   return [
     `plugin: ${safeIdentifier(input.pluginVersion)}`,
     `host: ${safeIdentifier(input.host)} ${safeIdentifier(input.hostVersion)}`,
@@ -204,6 +206,6 @@ export function formatDiagnostics(input: {
     `capabilities: ${known ? "bundled snapshot; host overrides may apply" : "not explicitly catalogued; conservative defaults"}`,
     `price: ${modelId ? priceStatus(modelId) : "unknown"} (verified ${PRICING_LAST_VERIFIED}; estimate, not billing)`,
     input.request ? `last request: ${JSON.stringify(input.request)}` : "last request: none",
-    "Timing measures received body chunks, not tokens. No prompts, tool content, credentials, account IDs or local paths are included.",
+    "Timing measures received body chunks, not tokens. No prompts, tool content, credentials, account data or configured local paths are collected. Model IDs come from the host; review custom names before sharing.",
   ].join("\n")
 }

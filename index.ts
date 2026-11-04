@@ -305,6 +305,8 @@ export default async function (pi: ExtensionAPI) {
   // custom api there so those calls reach the same transport. The registry
   // resolves no credentials for extension providers, so fall back to the
   // configured key when the caller passes none or a placeholder.
+  // The wrapper returns the instance from our host factory below, retaining result().
+  // Its local structural return type omits that host method; the assertion restores it.
   const measuredStream = (
     model: Parameters<typeof transport.stream>[0],
     context: Parameters<typeof transport.stream>[1],

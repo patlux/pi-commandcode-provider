@@ -15,6 +15,34 @@ describe("content-free diagnostics", () => {
     assert.equal(priceStatus("unknown/model"), "unknown")
     assert.equal(priceStatus("stealth/glyph-cluster:free"), "known")
   })
+  it("does not treat inherited object properties as model prices", () => {
+    for (const modelId of ["constructor", "__proto__", "toString"])
+      assert.equal(priceStatus(modelId), "unknown")
+  })
+  it("does not treat inherited object properties as catalogue metadata", () => {
+    for (const modelId of ["constructor", "__proto__", "toString"]) {
+      const report = formatDiagnostics({
+        pluginVersion: "0.7.12",
+        host: "pi",
+        hostVersion: "1.5.0",
+        route: "provider/openai-responses",
+        modelId,
+      })
+      assert.match(report, /capabilities: not explicitly catalogued; conservative defaults/)
+    }
+  })
+  it("preserves ordinary provider/model:variant identifiers", () => {
+    const modelId = "stealth/glyph-cluster:free"
+    const report = formatDiagnostics({
+      pluginVersion: "0.7.12",
+      host: "pi",
+      hostVersion: "1.5.0",
+      route: "provider/openai-responses",
+      modelId,
+    })
+    assert.ok(report.includes(`model: ${modelId}`))
+    assert.match(report, /price: known/)
+  })
   it("preserves streams and measures body chunks without retaining contents", async () => {
     let now = 0
     const diagnostics = createRequestDiagnostics(() => now)
@@ -96,7 +124,12 @@ describe("diagnostics trust boundary and lifecycle", () => {
     "/home/synthetic/private-project",
     "C:/synthetic/private-project",
     "../synthetic-private-project",
+    "./synthetic-private-project",
     "https://synthetic.invalid/private-project",
+    "file:/home/synthetic/private-project",
+    "file:synthetic-private-project",
+    "https:/synthetic.invalid/private-project",
+    "urn:synthetic-private-project",
   ]) {
     it(`redacts an unsafe model identifier: ${modelId}`, async () => {
       const diagnostics = createRequestDiagnostics()
