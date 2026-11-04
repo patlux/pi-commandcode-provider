@@ -210,6 +210,41 @@ describe("commandCodeModelsFromApiResponse()", () => {
     assert.equal(MODEL_MAX_OUTPUT_TOKENS[retired], undefined)
   })
 
+  for (const { id, input, efforts, contextWindow, maxTokens } of [
+    {
+      id: "inclusionai/ling-3.1-flash-1019",
+      input: ["text"],
+      efforts: ["low", "medium", "high"],
+      contextWindow: 1_000_000,
+      maxTokens: 262_144,
+    },
+    {
+      id: "stealth/crouton-alpha",
+      input: ["text", "image"],
+      efforts: ["low", "medium", "high", "xhigh", "max"],
+      contextWindow: 1_048_576,
+      maxTokens: 943_718,
+    },
+  ]) {
+    it(`advertises the command-code@1.88.3 capabilities for ${id}`, () => {
+      assert.deepEqual(inputModalitiesForModel(id), input)
+      assert.equal(MODEL_REASONING[id], true)
+      assert.deepEqual(MODEL_EFFORTS[id], efforts)
+      assert.deepEqual(thinkingMetadataForModel(id)?.thinking?.efforts, efforts)
+      assert.equal(MODEL_MAX_OUTPUT_TOKENS[id], maxTokens)
+      for (const contextLength of [contextWindow, 16_384]) {
+        const [model] = commandCodeModelsFromApiResponse({
+          object: "list",
+          data: [{ ...API_RESPONSE.data[0], id, context_length: contextLength }],
+        })
+        assert.equal(model?.reasoning, true)
+        assert.equal(model?.contextWindow, contextLength)
+        assert.equal(model?.maxTokens, Math.min(maxTokens, contextLength))
+        assert.equal(model?.api, "openai-completions")
+      }
+    })
+  }
+
   it("advertises MiniMax Flash, Beam, and Ornith capabilities from the refreshed CLI", () => {
     const efforts = ["low", "medium", "high", "xhigh", "max"]
     for (const id of ["minimax/minimax-m3.1-flash"]) {

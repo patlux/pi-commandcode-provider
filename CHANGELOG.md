@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Refresh the capability snapshot to `command-code@1.88.3`: advertise image input for `stealth/crouton-alpha`, plus reasoning and selectable efforts for Crouton (`low`/`medium`/`high`/`xhigh`/`max`) and `inclusionai/ling-3.1-flash-1019` (`low`/`medium`/`high`). Use their published output limits of 943,718 and 262,144 tokens respectively, still capped by the model's context window. Pricing and endpoint routing are unchanged.
 - Add content-free `/commandcode-diagnostics` reports, per-request body-chunk timing and error categories, plus explicit unknown-price warnings. Generate requests now honor the caller's fetch hook so both transports can be measured without retaining request bodies. Carried forward from #159 by @patlux; the per-model endpoint routing from the same stack stays with #158.
 
 ## 0.7.12 - 2026-11-04
