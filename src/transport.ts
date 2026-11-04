@@ -41,6 +41,7 @@ async function isUpgradeRequired(response: Response): Promise<boolean> {
 
 export function createCommandCodeTransportRouter(deps: TransportDependencies) {
   let transport: CommandCodeTransport = "unknown"
+  let generation = 0
   let apiKey: string | undefined
 
   function pipe(
@@ -58,6 +59,7 @@ export function createCommandCodeTransportRouter(deps: TransportDependencies) {
     },
 
     reset(): void {
+      generation += 1
       transport = "unknown"
       apiKey = undefined
     },
@@ -68,10 +70,11 @@ export function createCommandCodeTransportRouter(deps: TransportDependencies) {
       options?: StreamOptions,
     ): AssistantMessageEventStreamLike {
       if (options?.apiKey !== apiKey) {
+        generation += 1
         apiKey = options?.apiKey
         transport = "unknown"
       }
-      const requestApiKey = options?.apiKey
+      const requestGeneration = generation
       if (transport === "generate") return deps.streamGenerate(model, context, options)
 
       const output = deps.createStream()
@@ -96,7 +99,7 @@ export function createCommandCodeTransportRouter(deps: TransportDependencies) {
         try {
           for await (const event of providerStream) {
             if (!upgradeRequired) {
-              if (apiKey === requestApiKey) transport = "provider"
+              if (generation === requestGeneration) transport = "provider"
               output.push(event)
             }
           }
@@ -108,7 +111,7 @@ export function createCommandCodeTransportRouter(deps: TransportDependencies) {
         }
 
         if (upgradeRequired) {
-          if (apiKey === requestApiKey) transport = "generate"
+          if (generation === requestGeneration) transport = "generate"
           await pipe(deps.streamGenerate(model, context, options), output)
         }
         output.end()

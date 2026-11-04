@@ -656,6 +656,21 @@ async function runRpcExtensionCommands(timeoutMs = 30_000) {
       await new Promise((resolve) => setTimeout(resolve, 100))
     }
 
+    const promptAndPath = async (id) => {
+      const fromIndex = events.length
+      send({ id, type: "prompt", message: "say mock token" })
+      await waitFor(
+        (event) => event.type === "response" && event.id === id && event.success,
+        fromIndex,
+      )
+      await waitFor((event) => event.type === "agent_end", fromIndex)
+      return lastRequestPath
+    }
+    providerUpgradeRequired = true
+    assert.equal(await promptAndPath("go-probe"), "/alpha/generate")
+    providerUpgradeRequired = false
+    assert.equal(await promptAndPath("sticky-go"), "/alpha/generate")
+
     includeRefreshedModel = true
     send({ id: "refresh", type: "prompt", message: "/commandcode-refresh" })
     await waitFor((event) => event.type === "response" && event.id === "refresh" && event.success)
@@ -679,6 +694,9 @@ async function runRpcExtensionCommands(timeoutMs = 30_000) {
         event.message.includes("model count: 4"),
     )
 
+    assert.match(statusAfter.message, /transport: unknown/)
+    assert.equal(await promptAndPath("upgraded-probe"), "/provider/v1/chat/completions")
+
     return {
       commandNames,
       statusBefore: statusBefore.message,
@@ -687,6 +705,7 @@ async function runRpcExtensionCommands(timeoutMs = 30_000) {
       stderr,
     }
   } finally {
+    providerUpgradeRequired = false
     child.kill()
     await waitForClose()
   }

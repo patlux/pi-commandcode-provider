@@ -31,6 +31,13 @@ export interface CommandCodeRuntimeOptions<TProviderConfig> {
   loadCachedModels: () => Promise<readonly CommandCodeModel[]>
   createProviderConfig: (models: readonly CommandCodeModel[]) => TProviderConfig
   getTransport?: () => "unknown" | "provider" | "generate"
+  /**
+   * Forget the probed transport so the next request re-tries the Provider API.
+   * Called by `/commandcode-refresh`, the user's explicit "re-check my
+   * account" action, since an account upgraded from Go stays on the generate
+   * fallback until the key changes or the host restarts.
+   */
+  resetTransport?: () => void
   getStreamWarning?: () => string | undefined
   now?: () => number
   logWarning?: (message: string) => void
@@ -291,6 +298,7 @@ export class CommandCodeRuntime<TProviderConfig, TContext extends CommandCodeCom
       description: "Refresh the Command Code model catalog",
       handler: async (_args, ctx) => {
         await ctx.waitForIdle?.()
+        this.options.resetTransport?.()
         const result = await this.refresh()
         if (result.refreshed) {
           ctx.ui.notify(
