@@ -7,7 +7,7 @@
  * `tests/test-cost.ts` locks this implementation to the pi-ai original.
  */
 
-import type { ModelCostRates, ModelCostTier, ModelLike, Usage } from "./types.ts"
+import type { ModelCost, ModelCostRates, ModelCostTier, ModelLike, Usage } from "./types.ts"
 
 const DEEPSEEK_V4_TIME_PRICED_MODELS = new Set([
   "deepseek/deepseek-v4-pro",
@@ -54,6 +54,19 @@ export function commandCodeCostRatesAt<
   const doubled = doubledRates(rates)
   if (!rates.tiers) return doubled
   return { ...doubled, tiers: rates.tiers.map((tier) => doubledRates(tier)) }
+}
+
+/**
+ * Native hosts accept mutable cost tiers, while our catalog is readonly.
+ * Give the host its own table, array, and tier objects at that boundary.
+ */
+export function commandCodeNativeCostRatesAt(
+  modelId: string,
+  rates: ModelCost,
+  atMs: number = Date.now(),
+): ModelCostRates & { tiers?: ModelCostTier[] } {
+  const selected = commandCodeCostRatesAt(modelId, rates, atMs)
+  return { ...selected, tiers: selected.tiers?.map((tier) => ({ ...tier })) }
 }
 
 export function calculateCommandCodeCost(
