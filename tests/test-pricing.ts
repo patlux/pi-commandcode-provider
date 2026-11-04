@@ -28,6 +28,7 @@ const fixture = JSON.parse(await readFile(fixtureUrl, "utf-8")) as ModelCatalogS
 const pricingFixtureUrl = new URL("./fixtures/commandcode-pricing.json", import.meta.url)
 const pricingFixture = JSON.parse(await readFile(pricingFixtureUrl, "utf-8")) as PricingSnapshot
 const freeModels = new Set([
+  "stealth/crouton-alpha",
   "poolside/laguna-s-2.1-free",
   "stealth/glyph-cluster:free",
   "reflection/beam:free",
@@ -112,6 +113,14 @@ describe("MODEL_COSTS pricing overlay", () => {
     // Both free promotions ended on 2026-10-22 and the API dropped the models.
     assert.equal(MODEL_COSTS["minimax/minimax-m3.1-flash:free"], undefined)
     assert.equal(MODEL_COSTS["ornith/ornith-1.5-122b:free"], undefined)
+  })
+
+  it("prices Crouton Alpha as free during its undated stealth preview", () => {
+    assertCost("stealth/crouton-alpha", { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 })
+    assert.ok(
+      !TEMPORARY_PRICING.some((pricing) => pricing.models.includes("stealth/crouton-alpha")),
+      "the source publishes no fixed expiry for this preview",
+    )
   })
 
   it("matches reviewed late-October Beam promotion rates", () => {
@@ -428,7 +437,7 @@ describe("MODEL_COSTS pricing overlay", () => {
 
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-11-03")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-11-04")
   })
 
   it("fails once temporary pricing needs review", () => {
