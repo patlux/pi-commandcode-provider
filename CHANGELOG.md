@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add reviewed zero display pricing for `stealth/crouton-alpha`, free up to 1,000 requests per day while the stealth preview lasts, with no fixed expiry published. Refresh the API/pricing snapshots to 96 models, verified on 2026-11-04. CLI capability metadata remains unchanged at `command-code@1.88.2`; Crouton keeps conservative text-only, non-reasoning defaults with a 65,536-token output limit and uses its advertised Chat Completions endpoint.
 - Add reviewed display pricing for `inclusionai/ling-3.1-flash-1019` after its free preview ended on 2026-11-03 at 16:00 UTC: $0.30 input / $0.90 output / $0.06 cache read per million tokens, with no cache-write charge. Remove the retired `:free` entry and its dated pricing guard, and refresh the 95-model snapshot against the Provider API. The existing `inclusionai/ling-3.1-flash` keeps its own list rates. The CLI still publishes no capability metadata for the 1019 model, so it retains conservative text-only, non-reasoning defaults with a 65,536-token output limit.
 
 ## 0.7.11 - 2026-10-28

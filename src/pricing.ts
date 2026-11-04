@@ -20,7 +20,7 @@ export interface TemporaryPricing {
 }
 
 export const PRICING_SOURCE_URL = "https://commandcode.ai/docs/resources/pricing-limits"
-export const PRICING_LAST_VERIFIED = "2026-11-03"
+export const PRICING_LAST_VERIFIED = "2026-11-04"
 
 export const ZERO_MODEL_COST: CommandCodeModelCost = {
   input: 0,
@@ -39,6 +39,8 @@ export const ZERO_MODEL_COST: CommandCodeModelCost = {
  */
 export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   // Free models
+  // Free while the stealth preview lasts; no fixed expiry is published.
+  "stealth/crouton-alpha": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   "poolside/laguna-s-2.1-free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   "stealth/glyph-cluster:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   // Free while capacity lasts; no fixed expiry is published.
