@@ -142,6 +142,84 @@ describe("startAuthServer()", () => {
     await waitForClose(server)
   })
 
+  it("ignores callback errors that do not carry the state token", async () => {
+    const { server, port, waitForCallback } = await startAuthServer({
+      startPort: 0,
+      expectedState: "trusted-state",
+    })
+
+    // A trusted origin (or an origin-less local client) must still prove it
+    // received the state token before it can cancel the pending login.
+    const missingState = await fetch(`http://127.0.0.1:${port}/callback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ error: "access_denied", error_description: "forged cancellation" }),
+    })
+    assert.equal(missingState.status, 403)
+    assert.equal(server.listening, true)
+
+    const wrongState = await fetch(`http://127.0.0.1:${port}/callback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Origin: "https://commandcode.ai" },
+      body: JSON.stringify({ error: "server_error", state: "wrong-state" }),
+    })
+    assert.equal(wrongState.status, 403)
+    assert.equal(server.listening, true)
+
+    const accepted = await fetch(`http://127.0.0.1:${port}/callback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Origin: "https://commandcode.ai" },
+      body: JSON.stringify({
+        apiKey: "user_legitimate",
+        state: "trusted-state",
+        userId: "user_123",
+        userName: "Test User",
+        keyName: "test-key",
+      }),
+    })
+    assert.equal(accepted.status, 200)
+    assert.equal((await waitForCallback).apiKey, "user_legitimate")
+    await waitForClose(server)
+  })
+
+  it("honors callback errors that carry the state token", async () => {
+    const { server, port, waitForCallback } = await startAuthServer({
+      startPort: 0,
+      expectedState: "trusted-state",
+    })
+    const errorPromise: Promise<string> = waitForCallback.then(
+      () => {
+        throw new Error("Expected callback to reject")
+      },
+      (e: Error) => e.message,
+    )
+
+    const response = await fetch(`http://127.0.0.1:${port}/callback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Origin: "https://commandcode.ai" },
+      body: JSON.stringify({
+        error: "access_denied",
+        error_description: "User cancelled",
+        state: "trusted-state",
+      }),
+    })
+    assert.equal(response.status, 200)
+    assert.match(await errorPromise, /User cancelled/)
+    await waitForClose(server)
+  })
+
+  it("rejects the local development origin", async () => {
+    const { server, port } = await startAuthServer({ startPort: 0, expectedState: "s" })
+    const response = await fetch(`http://127.0.0.1:${port}/callback`, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain", Origin: "http://localhost:3000" },
+      body: JSON.stringify({ error: "access_denied", state: "s" }),
+    })
+    assert.equal(response.status, 403)
+    assert.equal(server.listening, true)
+    server.close()
+  })
+
   it("rejects untrusted browser preflights", async () => {
     const { server, port } = await startAuthServer({ startPort: 0 })
     const response = await fetch(`http://127.0.0.1:${port}/callback`, {
