@@ -15,6 +15,9 @@ import {
   type ProviderConfig,
 } from "@earendil-works/pi-coding-agent"
 import { join } from "node:path"
+import { readFile } from "node:fs/promises"
+import * as hostPackage from "@earendil-works/pi-coding-agent"
+import { createRequestDiagnostics, formatDiagnostics, priceStatus } from "./src/diagnostics.ts"
 
 import { getConfiguredApiKey } from "./src/api-key.ts"
 import { pickCommandCodeApiKey, withResolvedCommandCodeApiKey } from "./src/converters.ts"
@@ -190,6 +193,36 @@ function legacyApiBase(providerApiBase: string): string {
 }
 
 export default async function (pi: ExtensionAPI) {
+  let pluginVersion = "unknown"
+  try {
+    const packageData: unknown = JSON.parse(
+      await readFile(new URL("./package.json", import.meta.url), "utf8"),
+    )
+    if (
+      typeof packageData === "object" &&
+      packageData !== null &&
+      "version" in packageData &&
+      typeof packageData.version === "string"
+    )
+      pluginVersion = packageData.version
+  } catch {
+    // Optional support metadata must not prevent loading the provider.
+  }
+  const hostVersion =
+    "VERSION" in hostPackage && typeof hostPackage.VERSION === "string"
+      ? hostPackage.VERSION
+      : "unknown"
+  const diagnostics = createRequestDiagnostics()
+  const warnedPrices = new Set<string>()
+  pi.on("before_agent_start", (_event, ctx) => {
+    if (ctx.model?.provider !== "commandcode" || warnedPrices.has(ctx.model.id)) return
+    if (priceStatus(ctx.model.id) === "known") return
+    warnedPrices.add(ctx.model.id)
+    ctx.ui.notify(
+      "Command Code display price is unknown or needs review. A zero estimate does not mean free usage; check /commandcode-diagnostics.",
+      "warning",
+    )
+  })
   // Hosts may select their built-in Command Code model before loading extensions.
   // Rebind that stale selection to our registered transport before the first turn.
   pi.on("session_start", async (_event, ctx) => {
@@ -272,8 +305,23 @@ export default async function (pi: ExtensionAPI) {
   // custom api there so those calls reach the same transport. The registry
   // resolves no credentials for extension providers, so fall back to the
   // configured key when the caller passes none or a placeholder.
-  const compatStream: CompatStreamFunction = (model, context, options) =>
-    transport.stream(model, context, resolveStreamOptions(options)) as AssistantMessageEventStream
+  // The wrapper returns the instance from our host factory below, retaining result().
+  // Its local structural return type omits that host method; the assertion restores it.
+  const measuredStream = (
+    model: Parameters<typeof transport.stream>[0],
+    context: Parameters<typeof transport.stream>[1],
+    options?: Parameters<typeof streamNativeProvider>[2],
+  ) =>
+    diagnostics.stream(
+      transport.stream,
+      () => new AssistantMessageEventStream(),
+      model,
+      context,
+      // The instrumentation only replaces fetch; preserve the host's options unchanged.
+      // The host/local option interfaces already diverge at the router's native boundary.
+      resolveStreamOptions(options) as Parameters<typeof transport.stream>[2],
+    ) as AssistantMessageEventStream
+  const compatStream: CompatStreamFunction = measuredStream
   registerCompatApiProvider(compatStream)
 
   pi.on("message_end", async (event, ctx) => {
@@ -300,7 +348,25 @@ export default async function (pi: ExtensionAPI) {
     loadCachedModels: () => loadCachedCommandCodeModels(modelsCachePath),
     createProviderConfig: (models) => {
       for (const model of models) modelApis.set(model.id, model.api)
-      return createProviderConfig(models, apiBase, transport.stream)
+      return createProviderConfig(models, apiBase, measuredStream)
+    },
+    getDiagnostics: (model) => {
+      let route = "not selected"
+      if (model?.provider === "commandcode") {
+        try {
+          route = `${transport.getTransport()}/${resolveModelApi(model.id)}`
+        } catch {
+          route = "invalid routing configuration"
+        }
+      }
+      return formatDiagnostics({
+        pluginVersion,
+        host: compatApiProviderRegistrar() ? "pi" : "omp-compatible",
+        hostVersion,
+        modelId: model?.provider === "commandcode" ? model.id : undefined,
+        route,
+        request: diagnostics.snapshot(),
+      })
     },
     getTransport: transport.getTransport,
     resetTransport: transport.reset,

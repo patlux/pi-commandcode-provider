@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add content-free `/commandcode-diagnostics` reports, per-request body-chunk timing and error categories, plus explicit unknown-price warnings. Generate requests now honor the caller's fetch hook so both transports can be measured without retaining request bodies. Carried forward from #159 by @patlux; the per-model endpoint routing from the same stack stays with #158.
+
 ## 0.7.12 - 2026-11-04
 
 - Reuse the shared credential redactor for `/commandcode-status` diagnostic text while preserving URL query, fragment, and userinfo removal. Defensive hardening with synthetic regression coverage, not a confirmed production leak. Carries the shared-redactor fix from #165 by @patlux ([#195](https://github.com/patlux/pi-commandcode-provider/pull/195)).

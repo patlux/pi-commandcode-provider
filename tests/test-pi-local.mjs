@@ -752,6 +752,19 @@ async function runRpcExtensionCommands(timeoutMs = 30_000) {
     await prompt()
     assert.doesNotMatch(await status(), /stream warning:/, "next Responses request resets the slot")
 
+    send({ id: "safe-diagnostics", type: "prompt", message: "/commandcode-diagnostics" })
+    const report = await waitFor(
+      (event) => event.type === "extension_ui_request" && event.message?.startsWith("plugin:"),
+    )
+    assert.match(report.message, /host: pi/)
+    assert.match(report.message, /catalog CLI:/)
+    assert.match(report.message, /route: provider\/openai-responses/)
+    assert.match(report.message, /"endpoint":"\/provider\/v1\/responses"/)
+    assert.match(report.message, /"status":200/)
+    assert.match(report.message, /"attempts":[1-9]\d*/)
+    assert.match(report.message, /"outcome":"done"/)
+    assert.doesNotMatch(report.message, /cache path:|https?:|file:|mock-key|Bearer/)
+    assert.ok(commandNames.includes("commandcode-diagnostics"))
     return {
       commandNames,
       statusBefore: statusBefore.message,
