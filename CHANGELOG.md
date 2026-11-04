@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Require a dedicated entrypoint typecheck against the installed Pi declarations, with compile-time host contracts. Copy model costs and context tiers into independent mutable registration metadata without applying request-time peak pricing; cover registration at peak and off-peak hours through the real Pi loader ([#198](https://github.com/patlux/pi-commandcode-provider/pull/198)).
 - Add content-free `/commandcode-diagnostics` reports, per-request body-chunk timing and error categories, plus explicit unknown-price warnings. Generate requests now honor the caller's fetch hook so both transports can be measured without retaining request bodies. Carried forward from #159 by @patlux; the per-model endpoint routing from the same stack stays with #158.
 
 ## 0.7.12 - 2026-11-04
