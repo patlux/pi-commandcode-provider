@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Reuse the shared credential redactor for `/commandcode-status` diagnostic text while preserving URL query, fragment, and userinfo removal. Defensive hardening with synthetic regression coverage, not a confirmed production leak. Carries the shared-redactor fix from #165 by @patlux.
 - Clear the `/commandcode-status` stream-warning slot when the next Responses HTTP request starts, rather than keeping a one-off malformed-reasoning warning until restart. Other transports do not clear the slot; concurrent Responses requests still share it. Carries the warning-reset fix from #165 by @patlux, with precise reset semantics and a real Pi RPC regression.
 - Preserve and double context-tier rates alongside base rates during DeepSeek V4 peak windows on the Provider API path. Copy the readonly catalog into an independent mutable cost table at the native-host boundary. The adapter's mutable return shape is guarded by the project typecheck and mutation tests; this does not extend typecheck coverage to the host entrypoint. This is a synthetic future-proofing case: no current time-priced model has context tiers. Carries the peak-tier fix from #165 by @patlux, with the native-host contract adapted during integration.
 - Reset the transport probe on `/commandcode-refresh` so an upgraded Go account retries the Provider API with the same key. Prevent requests started before a reset or key change from overwriting the new probe result. Carries the refresh fix from #165 by @patlux, with same-key race coverage and a real Pi RPC wiring test.
