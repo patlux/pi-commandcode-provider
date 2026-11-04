@@ -11,6 +11,10 @@ import type { AddressInfo } from "node:net"
 const DEFAULT_PORT = 5959
 const DEFAULT_PORT_RANGE = 10
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
 export interface AuthCallback {
   apiKey: string
   state: string
@@ -92,13 +96,10 @@ export async function startAuthServer(options: AuthServerOptions = {}): Promise<
   })
 
   const server = createServer((req, res) => {
-    // CORS: allow requests from Command Code domains and localhost for dev.
+    // CORS: allow requests from the Command Code Studio origins only. A local
+    // development origin would let any page on that port reach the callback.
     const origin = req.headers.origin || ""
-    const allowedOrigins = [
-      "http://localhost:3000",
-      "https://staging.commandcode.ai",
-      "https://commandcode.ai",
-    ]
+    const allowedOrigins = ["https://commandcode.ai", "https://staging.commandcode.ai"]
     // CORS response headers do not prevent cross-origin POST side effects.
     // Reject untrusted browser origins before handling the callback.
     if (origin && !allowedOrigins.includes(origin)) {
@@ -155,29 +156,43 @@ export async function startAuthServer(options: AuthServerOptions = {}): Promise<
 
     req.on("end", () => {
       try {
-        const parsed = JSON.parse(body) as Record<string, unknown>
+        const payload: unknown = JSON.parse(body)
+        if (!isRecord(payload)) {
+          res.writeHead(400)
+          res.end(JSON.stringify({ success: false, error: "Invalid JSON" }))
+          return
+        }
+        const state = typeof payload.state === "string" ? payload.state : ""
 
-        if (parsed.error) {
+        // Only the page that received the state token may settle this login,
+        // including by reporting an error. Anything else keeps the server
+        // waiting for the legitimate callback.
+        if (options.expectedState !== undefined && state !== options.expectedState) {
+          res.writeHead(403)
+          res.end(JSON.stringify({ success: false, error: "Invalid state token" }))
+          return
+        }
+
+        if (payload.error) {
           res.writeHead(200)
           res.end(JSON.stringify({ success: true }))
           const description =
-            typeof parsed.error_description === "string"
-              ? parsed.error_description
-              : String(parsed.error)
-          if (parsed.error === "access_denied") {
+            typeof payload.error_description === "string"
+              ? payload.error_description
+              : String(payload.error)
+          if (payload.error === "access_denied") {
             rejectCallback(new Error(description || "Authorization was denied by the user"))
           } else {
-            rejectCallback(new Error(description || String(parsed.error)))
+            rejectCallback(new Error(description || String(payload.error)))
           }
           closeServer(server)
           return
         }
 
-        const apiKey = typeof parsed.apiKey === "string" ? parsed.apiKey : ""
-        const state = typeof parsed.state === "string" ? parsed.state : ""
-        const userId = typeof parsed.userId === "string" ? parsed.userId : ""
-        const userName = typeof parsed.userName === "string" ? parsed.userName : ""
-        const keyName = typeof parsed.keyName === "string" ? parsed.keyName : ""
+        const apiKey = typeof payload.apiKey === "string" ? payload.apiKey : ""
+        const userId = typeof payload.userId === "string" ? payload.userId : ""
+        const userName = typeof payload.userName === "string" ? payload.userName : ""
+        const keyName = typeof payload.keyName === "string" ? payload.keyName : ""
 
         if (!apiKey || !state || !userId || !userName || !keyName) {
           res.writeHead(400)
@@ -187,12 +202,6 @@ export async function startAuthServer(options: AuthServerOptions = {}): Promise<
               error: "Missing required fields",
             }),
           )
-          return
-        }
-
-        if (options.expectedState !== undefined && state !== options.expectedState) {
-          res.writeHead(403)
-          res.end(JSON.stringify({ success: false, error: "Invalid state token" }))
           return
         }
 
