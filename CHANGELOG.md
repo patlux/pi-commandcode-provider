@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Reset the transport probe on `/commandcode-refresh` so an upgraded Go account retries the Provider API with the same key. Prevent requests started before a reset or key change from overwriting the new probe result. Carries the refresh fix from #165 by @patlux, with same-key race coverage and a real Pi RPC wiring test.
 - Make server-side taste learning opt-in on the legacy generate transport via `COMMANDCODE_TASTE_LEARNING=1`, always disabled under `CMD_ZDR=1` or `COMMANDCODE_ZDR=1`. Caller headers cannot override this policy, regardless of casing. Document the working-directory, project-slug, and session metadata. Carries the taste-learning fix from #165 by @patlux, with the header-override review concern addressed.
 - Validate pasted `/login` API keys against the configured `COMMANDCODE_API_BASE` instead of always calling production, with a 15-second deadline even when fetch ignores cancellation. An explicitly empty base is preserved instead of silently sending the key to production. Carries the login-validation fix from #165 by @patlux.
 - Read ambient credentials through one shared reader for the Provider API, generate fallback, and quota commands. The generate fallback now follows the documented `.commandcode` → pi → `.omp` file order and accepts the `"command-code": "user_..."` string form. `PI_CODING_AGENT_DIR` redirects the pi slot without falling back to the default pi profile; `.commandcode` and `.omp` still resolve from `HOME`. Carries the credential-reader fix from #165 by @patlux.

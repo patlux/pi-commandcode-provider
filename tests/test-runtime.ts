@@ -266,6 +266,37 @@ describe("Command Code runtime", () => {
     assert.deepEqual(pi.providers.at(-1)?.models, [FIRST_MODEL, SECOND_MODEL])
   })
 
+  it("resets the transport probe when the user refreshes the catalog", async () => {
+    const pi = new ExtensionAPITestDouble()
+    const context = new CommandContext()
+    let transport: "unknown" | "provider" | "generate" = "generate"
+    let resetCalls = 0
+    const runtime = createCommandCodeRuntime(pi, {
+      endpoint: "https://api.commandcode.ai/provider/v1/models",
+      cachePath: "/tmp/commandcode-models.json",
+      loadModels: async () => loaded([FIRST_MODEL]),
+      loadCachedModels: async () => [],
+      createProviderConfig: (models) => ({ models }),
+      getTransport: () => transport,
+      resetTransport: () => {
+        resetCalls += 1
+        transport = "unknown"
+      },
+      logWarning: () => {},
+    })
+
+    await runtime.initialize()
+    assert.equal(resetCalls, 0, "startup and background refreshes keep the probe")
+    assert.equal(runtime.getStatus().transport, "generate")
+
+    const refreshCommand = pi.commands.get("commandcode-refresh")
+    assert.ok(refreshCommand)
+    await refreshCommand("", context)
+    assert.equal(resetCalls, 1)
+    assert.equal(runtime.getStatus().transport, "unknown")
+    assert.equal(context.notifications.at(-1)?.type, "info")
+  })
+
   it("registers the cached catalog immediately and refreshes it in the background", async () => {
     const pi = new ExtensionAPITestDouble()
     const liveLoad = deferred<LoadCommandCodeModelsResult>()

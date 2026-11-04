@@ -298,6 +298,7 @@ export default async function (pi: ExtensionAPI) {
       return createProviderConfig(models, apiBase, transport.stream)
     },
     getTransport: transport.getTransport,
+    resetTransport: transport.reset,
     getStreamWarning: () => streamWarning,
   })
 
