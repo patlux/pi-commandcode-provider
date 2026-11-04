@@ -193,16 +193,21 @@ function legacyApiBase(providerApiBase: string): string {
 }
 
 export default async function (pi: ExtensionAPI) {
-  const packageData: unknown = JSON.parse(
-    await readFile(new URL("./package.json", import.meta.url), "utf8"),
-  )
-  const pluginVersion =
-    typeof packageData === "object" &&
-    packageData !== null &&
-    "version" in packageData &&
-    typeof packageData.version === "string"
-      ? packageData.version
-      : "unknown"
+  let pluginVersion = "unknown"
+  try {
+    const packageData: unknown = JSON.parse(
+      await readFile(new URL("./package.json", import.meta.url), "utf8"),
+    )
+    if (
+      typeof packageData === "object" &&
+      packageData !== null &&
+      "version" in packageData &&
+      typeof packageData.version === "string"
+    )
+      pluginVersion = packageData.version
+  } catch {
+    // Optional support metadata must not prevent loading the provider.
+  }
   const hostVersion =
     "VERSION" in hostPackage && typeof hostPackage.VERSION === "string"
       ? hostPackage.VERSION
@@ -303,17 +308,18 @@ export default async function (pi: ExtensionAPI) {
   const measuredStream = (
     model: Parameters<typeof transport.stream>[0],
     context: Parameters<typeof transport.stream>[1],
-    options?: Parameters<typeof transport.stream>[2],
+    options?: Parameters<typeof streamNativeProvider>[2],
   ) =>
     diagnostics.stream(
       transport.stream,
       () => new AssistantMessageEventStream(),
       model,
       context,
-      resolveStreamOptions(options),
-    )
-  const compatStream: CompatStreamFunction = (model, context, options) =>
-    measuredStream(model, context, options) as AssistantMessageEventStream
+      // The instrumentation only replaces fetch; preserve the host's options unchanged.
+      // The host/local option interfaces already diverge at the router's native boundary.
+      resolveStreamOptions(options) as Parameters<typeof transport.stream>[2],
+    ) as AssistantMessageEventStream
+  const compatStream: CompatStreamFunction = measuredStream
   registerCompatApiProvider(compatStream)
 
   pi.on("message_end", async (event, ctx) => {

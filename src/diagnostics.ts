@@ -5,6 +5,7 @@ import {
   COMMAND_CODE_CLI_VERSION,
 } from "./commandcode-catalog.ts"
 import { MODEL_COSTS, PRICING_LAST_VERIFIED, TEMPORARY_PRICING } from "./pricing.ts"
+import { redactCommandCodeErrorText } from "./overflow.ts"
 import type {
   AssistantMessageEventStreamLike,
   ContextLike,
@@ -46,9 +47,10 @@ export function priceStatus(
 }
 
 function safeIdentifier(value: string): string {
-  return /^[a-zA-Z0-9_./:+-]{1,160}$/.test(value) && !/\b(?:user|cc)_[a-zA-Z0-9_-]{8,}/.test(value)
-    ? value
-    : "[redacted]"
+  if (!/^[a-zA-Z0-9_./:+-]{1,160}$/.test(value)) return "[redacted]"
+  // Model IDs can come from host overrides: a slug's alphabet alone is not a trust boundary.
+  if (/^\/|^[a-z]:\/|(?:^|\/)\.\.(?:\/|$)|^[a-z][a-z0-9+.-]*:\/\//i.test(value)) return "[redacted]"
+  return redactCommandCodeErrorText(value) === value ? value : "[redacted]"
 }
 
 function classify(status: number | undefined, message: string): RequestDiagnostic["error"] {
@@ -137,13 +139,15 @@ export function createRequestDiagnostics(now: () => number = Date.now) {
             if (event.type === "done") record.outcome = "done"
             if (event.type === "error") {
               record.outcome = event.reason === "aborted" ? "aborted" : "error"
-              record.error = classify(record.status, event.error.errorMessage ?? "")
+              if (record.outcome !== "aborted")
+                record.error = classify(record.status, event.error.errorMessage ?? "")
             }
             output.push(event)
           }
         } catch (error) {
           record.outcome = options?.signal?.aborted ? "aborted" : "error"
-          record.error = classify(record.status, error instanceof Error ? error.message : "")
+          if (record.outcome !== "aborted")
+            record.error = classify(record.status, error instanceof Error ? error.message : "")
           output.push({
             type: "error",
             reason: record.outcome === "aborted" ? "aborted" : "error",
