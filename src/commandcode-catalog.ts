@@ -1,4 +1,4 @@
-export const COMMAND_CODE_CLI_VERSION = "1.88.2"
+export const COMMAND_CODE_CLI_VERSION = "1.88.3"
 
 export type CommandCodeInputType = "text" | "image"
 export type CommandCodeReasoningEffort =
@@ -11,7 +11,7 @@ export type CommandCodeReasoningEffort =
   | "max"
 
 /**
- * Generated from command-code@1.88.2 by `npm run sync:commandcode-catalog`.
+ * Generated from command-code@1.88.3 by `npm run sync:commandcode-catalog`.
  * Do not edit manually.
  */
 export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCodeInputType[]>> = {
@@ -76,6 +76,7 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "Qwen/Qwen3.8-Max-Prime": ["text", "image"],
   "Qwen/Qwen3.8-Omni-Flash": ["text", "image"],
   "sakana/fugu-ultra": ["text", "image"],
+  "stealth/crouton-alpha": ["text", "image"],
   "stepfun/Step-3.7-Flash": ["text", "image"],
   "stepfun/Step-5-Preview": ["text", "image"],
   "thinkingmachines/inkling": ["text", "image"],
@@ -127,6 +128,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "gpt-6.1-sol": true,
   "gpt-6.1-terra": true,
   "inclusionai/ling-3.1-flash": true,
+  "inclusionai/ling-3.1-flash-1019": true,
   "meituan/LongCat-2.0": true,
   "meta/muse-spark-1.1": true,
   "meta/muse-spark-1.2": true,
@@ -159,6 +161,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "Qwen/Qwen3.8-Omni-Flash": true,
   "reflection/beam:free": true,
   "sakana/fugu-ultra": true,
+  "stealth/crouton-alpha": true,
   "stealth/glyph-cluster:free": true,
   "stepfun/Step-3.5-Flash": true,
   "stepfun/Step-3.7-Flash": true,
@@ -213,6 +216,7 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "gpt-6.1-sol": ["low", "medium", "high", "xhigh", "max"],
   "gpt-6.1-terra": ["low", "medium", "high", "xhigh", "max"],
   "inclusionai/ling-3.1-flash": ["low", "medium", "high"],
+  "inclusionai/ling-3.1-flash-1019": ["low", "medium", "high"],
   "meta/muse-spark-1.1": ["low", "medium", "high", "xhigh"],
   "meta/muse-spark-1.2": ["low", "medium", "high", "xhigh"],
   "meta/muse-spark-1.2-contributor": ["low", "medium", "high", "xhigh"],
@@ -234,6 +238,7 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "Qwen/Qwen3.8-Omni-Flash": ["low", "medium", "xhigh"],
   "reflection/beam:free": ["low", "medium", "high", "xhigh", "max"],
   "sakana/fugu-ultra": ["high", "xhigh"],
+  "stealth/crouton-alpha": ["low", "medium", "high", "xhigh", "max"],
   "stealth/glyph-cluster:free": ["low", "medium", "high", "xhigh"],
   "stepfun/Step-5-Preview": ["low", "medium", "high"],
   "tencent/hy4-preview": ["low", "medium", "high"],
@@ -248,12 +253,14 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
 
 export const MODEL_MAX_OUTPUT_TOKENS: Readonly<Record<string, number>> = {
   "inclusionai/ling-3.1-flash": 32_768,
+  "inclusionai/ling-3.1-flash-1019": 262_144,
   "mistral/mistral-large-4": 262_144,
   "poolside/laguna-s-2.1-free": 32_768,
   "Qwen/Qwen3.8-27B": 32_768,
   "Qwen/Qwen3.8-Max-Prime": 131_072,
   "Qwen/Qwen3.8-Omni-Flash": 131_072,
   "reflection/beam:free": 131_072,
+  "stealth/crouton-alpha": 943_718,
   "stealth/glyph-cluster:free": 256_000,
   "z-ai/glm-5.3-flash": 131_072,
   "z-ai/glm-5.3-flashx": 131_072,
