@@ -1,4 +1,5 @@
 import type { CommandCodeModel, LoadCommandCodeModelsResult } from "./models.ts"
+import { redactCommandCodeErrorText } from "./overflow.ts"
 
 export interface CommandCodeUi {
   notify(message: string, type?: "info" | "warning" | "error"): void
@@ -78,15 +79,13 @@ function redactUrl(value: string): string {
   }
 }
 
+/**
+ * Diagnostics drop URL query strings and fragments entirely, then apply the
+ * same credential redaction as error messages so both surfaces agree.
+ */
 export function redactDiagnosticText(value: string): string {
   const redactedUrls = value.replace(/https?:\/\/[^\s)]+/gi, (match) => redactUrl(match))
-  return redactedUrls
-    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, `Bearer ${REDACTED}`)
-    .replace(/\b(?:user|cc)_[A-Za-z0-9_-]{8,}\b/gi, REDACTED)
-    .replace(/\b(?:api[-_ ]?key|token|secret|password)\s*[=:]\s*[^\s,;)]+/gi, (match) => {
-      const separator = match.match(/\s*[=:]\s*/)?.[0] ?? "="
-      return `${match.slice(0, match.indexOf(separator))}${separator}${REDACTED}`
-    })
+  return redactCommandCodeErrorText(redactedUrls)
 }
 
 export function redactEndpoint(value: string): string {

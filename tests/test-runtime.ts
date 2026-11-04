@@ -3,6 +3,7 @@ import { describe, it } from "node:test"
 
 import {
   createCommandCodeRuntime,
+  redactDiagnosticText,
   type CommandCodeCommandContext,
   type CommandCodeRuntimeApi,
 } from "../src/runtime.ts"
@@ -85,6 +86,29 @@ function deferred<T>(): {
   })
   return { promise, resolve: resolvePromise, reject: rejectPromise }
 }
+
+describe("redactDiagnosticText()", () => {
+  it("drops all URL queries, fragments, and userinfo, not only known secret parameters", () => {
+    assert.equal(
+      redactDiagnosticText(
+        "GET https://name:synthetic-password@api.test/models?custom=private#fragment failed",
+      ),
+      "GET https://api.test/models failed",
+    )
+  })
+
+  it("strips URL queries and applies the shared credential redaction", () => {
+    const redacted = redactDiagnosticText(
+      "GET https://api.commandcode.ai/provider/v1/models?api_key=user_secret_value#frag failed: " +
+        "Bearer user_secret_value access_token=user_secret_value sk-abcdefghijklmnopqrstuvwxyz",
+    )
+    assert.doesNotMatch(redacted, /user_secret_value/)
+    assert.doesNotMatch(redacted, /sk-abcdefghijklmnopqrstuvwxyz/)
+    assert.match(redacted, /https:\/\/api\.commandcode\.ai\/provider\/v1\/models failed/)
+    assert.match(redacted, /Bearer \[redacted\]/)
+    assert.match(redacted, /access_token=\[redacted\]/)
+  })
+})
 
 describe("Command Code runtime", () => {
   it("keeps default warning diagnostics off the console and available in status", async (t) => {
