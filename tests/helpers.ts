@@ -264,7 +264,11 @@ export async function startMockCommandCodeServer(): Promise<MockCommandCodeServe
       closedBeforeEnd = false
     },
     close() {
-      return new Promise<void>((resolve) => server.close(() => resolve()))
+      return new Promise<void>((resolve) => {
+        server.close(() => resolve())
+        // A broken client abort must not leave hanging mock responses blocking teardown.
+        server.closeAllConnections()
+      })
     },
     lastRequestBody: () => lastBody,
     lastRequestHeaders: () => lastHeaders,
