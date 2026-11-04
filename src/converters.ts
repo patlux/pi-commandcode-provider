@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 
-import type { MessageLike, StopReason, ToolLike } from "./types.ts"
+import type { JsonObject, JsonValue, MessageLike, StopReason, ToolLike } from "./types.ts"
 import { geminiSafeJsonSchema, toJsonSchema } from "./json-schema.ts"
 
 export { toJsonSchema } from "./json-schema.ts"
@@ -21,6 +21,8 @@ export function recordArray(value: unknown): readonly Record<string, unknown>[] 
   return value.filter(isRecord)
 }
 
+export function recordOrEmpty(value: JsonValue | undefined): JsonObject
+export function recordOrEmpty(value: unknown): Record<string, unknown>
 export function recordOrEmpty(value: unknown): Record<string, unknown> {
   if (isRecord(value)) return value
   if (typeof value === "string") {
@@ -364,14 +366,14 @@ export function messagesToCC(
   return out
 }
 
-export function parseStreamEventLine(line: string): unknown | undefined {
+export function parseStreamEventLine(line: string): JsonValue | undefined {
   let trimmed = line.trim()
   if (!trimmed || trimmed.startsWith(":") || trimmed.startsWith("event:")) return undefined
   if (trimmed.startsWith("data:")) trimmed = trimmed.slice(5).trim()
   if (!trimmed || trimmed === "[DONE]") return undefined
 
   try {
-    const parsed: unknown = JSON.parse(trimmed)
+    const parsed: JsonValue = JSON.parse(trimmed)
     return parsed
   } catch {
     return undefined

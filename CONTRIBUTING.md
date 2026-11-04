@@ -56,6 +56,30 @@ Use `npm run test:e2e:live:all` with the Go and GOAT file variables to run both 
 
 `tests/test-pi-local.mjs` runs the extension inside a real `pi` binary against a mock Command Code API, including every credential source (`/login` OAuth and API-key credentials, `--api-key`, env keys). It skips locally when `pi` is not on `PATH`; CI installs pi and runs it as part of `npm test` with `PI_LOCAL_REQUIRED=1`. Point `PI_BIN` at another pi executable to test against a specific version.
 
+### Entrypoint static validation
+
+`npm run typecheck` checks the host-independent source, unit tests, and maintenance
+scripts. The extension entrypoint has a separate **required CI gate** against the
+real declarations of the Pi package installed for the integration tests:
+
+```sh
+npm run typecheck:entrypoint -- "$(npm root -g)/@earendil-works/pi-coding-agent"
+```
+
+For a non-npm/global installation, pass the installed package directory containing
+Pi's `package.json` (not the CLI wrapper). If the optional Pi peers are already
+resolvable from the checkout, the directory argument may be omitted. This command
+fails when host declarations are missing; it never installs packages or silently
+skips. It uses `tsconfig.entrypoint.json` and also compiles the positive/negative
+contracts in `tests/types/entrypoint.ts`. No ambient host stubs, error baseline,
+private host dependencies, or broad boundary casts stand in for the real types.
+`skipLibCheck` is inherited from the unit project: upstream declaration internals
+are not audited, but our source and its use of the host contracts are checked.
+
+This static gate targets Pi's public declarations. Real Pi **and** Oh My Pi mock
+integration tests remain necessary to cover runtime exports, loader aliases, and
+Go/GOAT transport behavior; this does not claim an OMP declaration-level check.
+
 ### Oh My Pi compatibility
 
 `tests/test-omp-compat.mjs` runs the extension inside a real `omp` binary against a mock Command Code API. It skips locally when `omp` is not on `PATH`; CI installs Oh My Pi and runs it as a required check with `OMP_COMPAT_REQUIRED=1`, so a change that only loads on pi fails CI instead of the next `omp plugin install`.
@@ -71,6 +95,7 @@ Before opening a PR, run:
 
 ```sh
 npm test
+npm run typecheck:entrypoint -- /path/to/installed/@earendil-works/pi-coding-agent
 npm run format:check
 git diff --check
 ```

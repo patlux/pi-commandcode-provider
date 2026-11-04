@@ -9,5 +9,6 @@
     "strict": true,
     "types": ["node"]
   },
-  "include": [".github/scripts/**/*.ts", ".agents/skills/**/*.ts", "src/**/*.ts", "tests/**/*.ts"]
+  "include": [".github/scripts/**/*.ts", ".agents/skills/**/*.ts", "src/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["tests/types/**"]
 }

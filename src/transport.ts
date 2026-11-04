@@ -1,5 +1,4 @@
 import type {
-  AssistantMessageEvent,
   AssistantMessageEventStreamLike,
   ContextLike,
   ModelLike,
@@ -8,17 +7,21 @@ import type {
 
 export type CommandCodeTransport = "unknown" | "provider" | "generate"
 
-interface TransportDependencies {
+interface TransportDependencies<
+  TModel extends ModelLike,
+  TContext extends ContextLike,
+  TReasoning extends string,
+> {
   createStream: () => AssistantMessageEventStreamLike
   streamProvider: (
-    model: ModelLike,
-    context: ContextLike,
-    options?: StreamOptions,
+    model: TModel,
+    context: TContext,
+    options?: StreamOptions<TModel, TReasoning>,
   ) => AssistantMessageEventStreamLike
   streamGenerate: (
-    model: ModelLike,
-    context: ContextLike,
-    options?: StreamOptions,
+    model: TModel,
+    context: TContext,
+    options?: StreamOptions<TModel, TReasoning>,
   ) => AssistantMessageEventStreamLike
 }
 
@@ -39,7 +42,11 @@ async function isUpgradeRequired(response: Response): Promise<boolean> {
   }
 }
 
-export function createCommandCodeTransportRouter(deps: TransportDependencies) {
+export function createCommandCodeTransportRouter<
+  TModel extends ModelLike = ModelLike,
+  TContext extends ContextLike = ContextLike,
+  TReasoning extends string = string,
+>(deps: TransportDependencies<TModel, TContext, TReasoning>) {
   let transport: CommandCodeTransport = "unknown"
   let generation = 0
   let apiKey: string | undefined
@@ -65,9 +72,9 @@ export function createCommandCodeTransportRouter(deps: TransportDependencies) {
     },
 
     stream(
-      model: ModelLike,
-      context: ContextLike,
-      options?: StreamOptions,
+      model: TModel,
+      context: TContext,
+      options?: StreamOptions<TModel, TReasoning>,
     ): AssistantMessageEventStreamLike {
       if (options?.apiKey !== apiKey) {
         generation += 1
@@ -80,7 +87,7 @@ export function createCommandCodeTransportRouter(deps: TransportDependencies) {
       const output = deps.createStream()
       let upgradeRequired = false
       const fetchImpl = options?.fetch ?? fetch
-      const providerOptions: StreamOptions = {
+      const providerOptions: StreamOptions<TModel, TReasoning> = {
         ...options,
         fetch: async (input, init) => {
           const response = await fetchImpl(input, init)

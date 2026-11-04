@@ -34,6 +34,8 @@ jobs:
           echo "PI_BIN=$(npm prefix -g)/bin/pi" >> "$GITHUB_ENV"
       - name: Verify pi starts
         run: '"$PI_BIN" --version'
+      - name: Typecheck entrypoint against the installed Pi declarations
+        run: npm run typecheck:entrypoint -- "$(npm root -g)/@earendil-works/pi-coding-agent"
       - run: npm test
         env:
           PI_LOCAL_REQUIRED: "1"

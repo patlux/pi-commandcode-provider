@@ -1,4 +1,8 @@
-export type StopReason = "stop" | "length" | "toolUse"
+/** JSON values carried by parsed wire events and tool-call arguments. */
+export type JsonValue = null | boolean | number | string | readonly JsonValue[] | JsonObject
+export type JsonObject = { [key: string]: JsonValue }
+
+export type StopReason = "stop" | "length" | "toolUse" | "deferred"
 export type ErrorReason = "error" | "aborted"
 export type TerminalReason = StopReason | ErrorReason
 
@@ -34,7 +38,7 @@ export interface ToolCallContent {
   type: "toolCall"
   id: string
   name: string
-  arguments: Record<string, unknown>
+  arguments: JsonObject
 }
 
 export type AssistantContent = TextContent | ThinkingContent | ToolCallContent
@@ -42,11 +46,11 @@ export type AssistantContent = TextContent | ThinkingContent | ToolCallContent
 export interface AssistantMessageLike {
   role: "assistant"
   content: AssistantContent[]
-  api: unknown
+  api: string
   provider: string
   model: string
   usage: Usage
-  stopReason: TerminalReason
+  stopReason: TerminalReason | "pending"
   errorMessage?: string
   timestamp: number
 }
@@ -68,7 +72,7 @@ export interface ModelCost extends ModelCostRates {
 
 export interface ModelLike {
   id: string
-  api: unknown
+  api: string
   provider: string
   maxTokens: number
   cost: ModelCost
@@ -108,18 +112,21 @@ export interface ProviderResponseInfo {
   headers: Record<string, string>
 }
 
-export interface StreamOptions {
+export interface StreamOptions<
+  TModel extends ModelLike = ModelLike,
+  TReasoning extends string = string,
+> {
   apiKey?: string
   signal?: AbortSignal
-  headers?: Record<string, string>
+  headers?: Record<string, string | null>
   fetch?: typeof fetch
   maxTokens?: number
   temperature?: number
   sessionId?: string
   /** Resolved pi thinking level; forwarded only through the model's map. */
-  reasoning?: string
-  onPayload?: (payload: unknown, model: ModelLike) => unknown | Promise<unknown>
-  onResponse?: (response: ProviderResponseInfo, model: ModelLike) => void | Promise<void>
+  reasoning?: TReasoning
+  onPayload?: (payload: unknown, model: TModel) => unknown | Promise<unknown>
+  onResponse?: (response: ProviderResponseInfo, model: TModel) => void | Promise<void>
   /**
    * HTTP request timeout in milliseconds.
    * Applied per-attempt; on timeout the request is retried if retries remain.
