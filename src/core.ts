@@ -149,6 +149,18 @@ function mappedReasoningEffort(model: ModelLike, options?: StreamOptions): strin
   return typeof mapped === "string" && mapped !== "off" ? mapped : undefined
 }
 
+/**
+ * Whether the generate request opts the account into Command Code's
+ * server-side taste learning. The official CLI sends its `tasteLearning`
+ * setting on every request (default on). This extension never reads the
+ * learned profile back, so learning is off unless the user enables it, and
+ * always off under the zero-data-retention flag.
+ */
+export function tasteLearningEnabled(env: NodeJS.ProcessEnv): boolean {
+  if (env.CMD_ZDR === "1" || env.COMMANDCODE_ZDR === "1") return false
+  return env.COMMANDCODE_TASTE_LEARNING === "1"
+}
+
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }
@@ -165,6 +177,7 @@ export function projectSlugFromPath(pathName: string): string {
 export function createStreamCommandCode(deps: CoreDependencies) {
   const apiBase = deps.apiBase ?? DEFAULT_API_BASE
   const fetchImpl = deps.fetchImpl ?? fetch
+  const env = () => deps.env ?? process.env
   const cwd = deps.cwd ?? (() => process.cwd())
   const now = deps.now ?? (() => Date.now())
   const uuid = deps.uuid ?? (() => randomUUID())
@@ -588,16 +601,22 @@ export function createStreamCommandCode(deps: CoreDependencies) {
 
         const maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES
         const maxRetryDelayMs = effectiveMaxRetryDelayMs(options?.maxRetryDelayMs)
+        // The privacy policy is authoritative even for differently cased caller headers.
+        const callerHeaders = Object.fromEntries(
+          Object.entries(options?.headers ?? {}).filter(
+            ([name]) => name.toLowerCase() !== "x-taste-learning",
+          ),
+        )
         const requestHeaders = {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
           "x-command-code-version": COMMAND_CODE_CLI_VERSION,
           "x-cli-environment": "production",
           "x-project-slug": projectSlugFromPath(workingDir),
-          "x-taste-learning": "true",
+          "x-taste-learning": String(tasteLearningEnabled(env())),
           ...(options?.sessionId ? { "x-session-id": options.sessionId } : {}),
           "User-Agent": "cli",
-          ...options?.headers,
+          ...callerHeaders,
         }
         const bodyStr = JSON.stringify(body)
 

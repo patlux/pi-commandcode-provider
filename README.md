@@ -144,6 +144,16 @@ On Oh My Pi the provider also registers an OMP usage provider through the `usage
 
 Set `CMD_ZDR=1` to send Command Code's documented `x-cmd-zdr: 1` zero-data-retention header. The legacy `COMMANDCODE_ZDR=1` alias remains supported.
 
+### Request metadata on the generate transport
+
+The legacy `/alpha/generate` fallback used by Go accounts mirrors the official CLI's request shape, which includes metadata the Provider API path does not send:
+
+- the absolute working directory (`config.workingDir`) and a slug derived from it (`x-project-slug`);
+- the host session id (`x-session-id`) and, when it is a UUID, the same value as `threadId`;
+- `x-taste-learning`, the CLI's opt-in for Command Code's server-side taste learning. The CLI sends its `tasteLearning` setting (default on); this extension never reads the learned profile back, so it sends `false` unless `COMMANDCODE_TASTE_LEARNING=1` is set, and always `false` under `CMD_ZDR=1` or `COMMANDCODE_ZDR=1`. Caller headers cannot override this policy.
+
+The dedicated local-files, git-state, memory, and skills request fields stay empty. Conversation messages, tool results, system prompts, and tool definitions are still sent as required for inference.
+
 The following environment variables are intended for tests, local mocks, and compatible API endpoints:
 
 - `COMMANDCODE_API_BASE` (Provider API base; the alpha endpoints used by `/login` key validation and `/commandcode-quota` are derived from it without the `/provider/v1` suffix; an explicitly empty value does not fall back to production)
