@@ -102,6 +102,14 @@ live API calls are made. Set `COMMANDCODE_CONTRACT_HOST=pi` or `omp` to select a
 host. `PI_LOCAL_REQUIRED=1` and `OMP_COMPAT_REQUIRED=1` make missing selected hosts
 fail instead of skip. `PI_BIN` and `OMP_BIN` select explicit binaries.
 
+`npm run test:routing` covers persisted endpoint choices and private recovery
+backups. `npm run test:routing-hosts` drives the real Pi and OMP RPC lifecycles:
+command, catalog refresh, emitted wire, reasoning/tool follow-up, auto reset,
+restart, malformed-file warning and explicit repair. It uses the same host
+selection/required flags and bounded process helper as the protocol contracts.
+Both suites run in `npm test`; the OMP CI job also requires the routing-host
+suite, and the package smoke runner targets the installed artifact.
+
 The fixtures depend on reasoning and image capabilities for DeepSeek V4.1 Flash,
 Muse Spark 1.3 and Claude Sonnet 4.6. A preflight extension checks those catalog
 capabilities, the common `high` thinking effort and routing rules in the tested
