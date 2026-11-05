@@ -1,7 +1,7 @@
 // Persistence and model constraints carried forward from #158 by @patlux;
 // recovery, prototype safety and per-wire compatibility hardened during the carry.
 import assert from "node:assert/strict"
-import { mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises"
+import { mkdtemp, mkdir, open, readFile, readdir, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, it } from "node:test"
@@ -30,6 +30,19 @@ async function isolated(run: (path: string, dir: string) => Promise<void>) {
     await run(join(dir, "commandcode-routing.json"), dir)
   } finally {
     await rm(dir, { recursive: true, force: true })
+  }
+}
+
+// Read content and metadata from the same open file, not stat(path) then
+// readFile(path). Reopening for the second snapshot still detects replacements.
+async function fileSnapshot(path: string) {
+  const file = await open(path, "r")
+  try {
+    const content = await file.readFile("utf8")
+    const { dev, ino, mtimeMs } = await file.stat()
+    return { content, dev, ino, mtimeMs }
+  } finally {
+    await file.close()
   }
 }
 
@@ -131,7 +144,7 @@ describe("persistent endpoint choices", () => {
     isolated(async (path, dir) => {
       const raw = '{"secret":"synthetic-private-content", broken'
       await writeFile(path, raw)
-      const before = await stat(path)
+      const before = await fileSnapshot(path)
       await assert.rejects(
         loadEndpointOverrides(path),
         (error: unknown) =>
@@ -140,8 +153,9 @@ describe("persistent endpoint choices", () => {
           !error.message.includes("synthetic-private-content") &&
           !error.message.includes(dir),
       )
-      assert.equal(await readFile(path, "utf8"), raw)
-      assert.equal((await stat(path)).mtimeMs, before.mtimeMs)
+      const after = await fileSnapshot(path)
+      assert.equal(after.content, raw)
+      assert.deepEqual(after, before)
       assert.deepEqual(await readdir(dir), ["commandcode-routing.json"])
       const saved = await saveEndpointChoice(path, model.id, "chat-completions")
       assert.match(saved.backupFile!, /^commandcode-routing\.json\.invalid-[\w-]+\.bak$/)
