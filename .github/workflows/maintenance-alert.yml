@@ -1,0 +1,43 @@
+name: Maintenance alerts
+
+on:
+  workflow_run:
+    # Coupled to model-metadata.yml and maintenance-alert.mjs; tested together.
+    workflows: [Command Code catalog sync]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: commandcode-maintenance-alerts
+  cancel-in-progress: false
+
+jobs:
+  alert:
+    if: >-
+      github.repository == 'patlux/pi-commandcode-provider' &&
+      github.event.workflow_run.head_branch ==
+        github.event.repository.default_branch &&
+      github.event.workflow_run.head_repository.full_name ==
+        github.repository &&
+      (github.event.workflow_run.event == 'schedule' ||
+        github.event.workflow_run.event == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Trusted default-branch code only; never the run's ref/artifacts.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      # actions/github-script v7
+      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
+        with:
+          script: |
+            const script = process.env.GITHUB_WORKSPACE +
+              '/.github/scripts/maintenance-alert.mjs'
+            const { maintainAlert } = await import(script)
+            core.info(await maintainAlert({ github, context }))
