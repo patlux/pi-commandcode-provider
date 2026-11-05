@@ -201,7 +201,10 @@ await writeFile(
     description: "Reload synthetic host model overrides for routing tests",
     handler: async (_args, ctx) => {
       await ctx.modelRegistry.refresh("offline")
-      await pi.setModel(ctx.modelRegistry.find("commandcode", ${JSON.stringify(model)}))
+      const selected = ctx.modelRegistry.find("commandcode", ${JSON.stringify(model)})
+      if (!selected || !await pi.setModel(selected)) {
+        throw new Error("Could not select the reloaded routing test model")
+      }
       ctx.ui.notify("routing host model config refreshed", "info")
     }
   })
@@ -521,25 +524,47 @@ try {
     })
     if (host.host === "omp") {
       advertiseResponses = false
-      await writeFile(
-        join(home, "models.json"),
-        JSON.stringify({
-          providers: {
-            commandcode: {
-              modelOverrides: {
-                [model]: {
-                  compat: { maxTokensField: "max_completion_tokens", supportsDeveloperRole: true },
+      // This contract starts on one wire, independently of earlier cached
+      // Responses models and persisted routing scenarios. Apply a new native
+      // config only after live catalog registration: an unchanged startup file
+      // does not guarantee that OMP's offline refresh rebuilds its projections.
+      const compatHome = join(temp, "omp-user-compat")
+      await mkdir(compatHome)
+      await rpc(host, compatHome, async ({ notify, prompt }) => {
+        await prompt("/provider/v1/chat/completions")
+        const baseline = requests.at(-1).body
+        assert.ok(baseline.max_tokens > 0, "baseline must use the registered max_tokens default")
+        assert.equal(Object.hasOwn(baseline, "max_completion_tokens"), false)
+        assert.equal(
+          baseline.messages.some((message) => message.role === "developer"),
+          false,
+        )
+        // JSON is valid YAML; use OMP's native path, not its legacy migration.
+        await writeFile(
+          join(compatHome, "models.yml"),
+          JSON.stringify({
+            providers: {
+              commandcode: {
+                modelOverrides: {
+                  [model]: {
+                    compat: {
+                      maxTokensField: "max_completion_tokens",
+                      supportsDeveloperRole: true,
+                    },
+                  },
                 },
               },
             },
-          },
-        }),
-      )
-      await rpc(host, home, async ({ notify, prompt }) => {
+          }),
+        )
         await notify("/routing-reload-host-models", /routing host model config refreshed/)
         await prompt("/provider/v1/chat/completions")
         const body = requests.at(-1).body
-        assert.equal(Object.hasOwn(body, "max_tokens"), false)
+        assert.equal(
+          Object.hasOwn(body, "max_tokens"),
+          false,
+          "reloaded user maxTokensField must replace the default",
+        )
         assert.ok(body.max_completion_tokens > 0, "same-wire OMP user maxTokensField must survive")
         assert.ok(
           body.messages.some((message) => message.role === "developer"),
