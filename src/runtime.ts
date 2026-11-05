@@ -33,13 +33,8 @@ export interface CommandCodeRuntimeOptions<TProviderConfig> {
   /** Cached catalog only; resolves to an empty list when no valid cache exists. */
   loadCachedModels: () => Promise<readonly CommandCodeModel[]>
   createProviderConfig: (models: readonly CommandCodeModel[]) => TProviderConfig
-  getTransport?: () => "unknown" | "provider" | "generate"
-  /**
-   * Forget the probed transport so the next request re-tries the Provider API.
-   * Called by `/commandcode-refresh`, the user's explicit "re-check my
-   * account" action, since an account upgraded from Go stays on the generate
-   * fallback until the key changes or the host restarts.
-   */
+  getTransport?: () => "unknown" | "provider"
+  /** Reset the latest transport status on an explicit catalog refresh. */
   resetTransport?: () => void
   getDiagnostics?: (model: CommandCodeCommandContext["model"]) => string
   getStreamWarning?: () => string | undefined
@@ -48,7 +43,7 @@ export interface CommandCodeRuntimeOptions<TProviderConfig> {
 }
 
 export interface CommandCodeRuntimeStatus {
-  transport: "unknown" | "provider" | "generate"
+  transport: "unknown" | "provider"
   source: LoadCommandCodeModelsResult["source"]
   modelCount: number
   lastSuccess?: number

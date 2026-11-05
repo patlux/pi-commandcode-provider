@@ -19,8 +19,6 @@ npm run format:check
 npm run test:unit
 npm run test:models
 npm run test:oauth
-npm run test:abort
-npm run test:stream
 npm run test:pi-isolated
 npm run test:pi-authenticated
 npm run test:pi-local
@@ -45,12 +43,11 @@ Both commands accept additional pi arguments after `--`, for example `npm run pi
 Run the transport-specific live tests with separate credentials:
 
 ```sh
-COMMANDCODE_E2E_GO_API_KEY_FILE=/path/to/go-key npm run test:e2e:live:go
 COMMANDCODE_E2E_GOAT_API_KEY_FILE=/path/to/goat-key npm run test:e2e:live:goat
 COMMANDCODE_E2E_PROVIDER_API_KEY_FILE=/path/to/provider-key npm run test:e2e:live:provider
 ```
 
-Use `npm run test:e2e:live:all` with the Go and GOAT file variables to run both subscription transports sequentially. Store keys in a secret manager and export each one to a new mode-`0600` temporary file for the test; never add key files to the repository. Direct `*_API_KEY` variables are intended primarily for protected CI secrets.
+Use `npm run test:e2e:live:all` with the GOAT and Provider file variables to run both entitled profiles sequentially. Store keys in a secret manager and export each one to a new mode-`0600` temporary file for the test; never add key files to the repository. Direct `*_API_KEY` variables are intended primarily for protected CI secrets.
 
 ### pi end-to-end
 
@@ -78,7 +75,7 @@ are not audited, but our source and its use of the host contracts are checked.
 
 This static gate targets Pi's public declarations. Real Pi **and** Oh My Pi mock
 integration tests remain necessary to cover runtime exports, loader aliases, and
-Go/GOAT transport behavior; this does not claim an OMP declaration-level check.
+Provider API entitlement and transport behavior; this does not claim an OMP declaration-level check.
 
 ### Oh My Pi compatibility
 
@@ -114,7 +111,7 @@ The fixtures depend on reasoning and image capabilities for DeepSeek V4.1 Flash,
 Muse Spark 1.3 and Claude Sonnet 4.6. A preflight extension checks those catalog
 capabilities, the common `high` thinking effort and routing rules in the tested
 checkout or installed package before registering tools. Responses also checks that a long native item-ID suffix does
-not leak into replayed call IDs; this is not the generate fallback's #141 test.
+not leak into replayed call IDs.
 
 Host timeouts signal the isolated POSIX process group with SIGTERM then SIGKILL,
 including descendants that retain inherited pipes. On Windows only the direct

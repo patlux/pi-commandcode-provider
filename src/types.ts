@@ -127,22 +127,11 @@ export interface StreamOptions<
   reasoning?: TReasoning
   onPayload?: (payload: unknown, model: TModel) => unknown | Promise<unknown>
   onResponse?: (response: ProviderResponseInfo, model: TModel) => void | Promise<void>
-  /**
-   * HTTP request timeout in milliseconds.
-   * Applied per-attempt; on timeout the request is retried if retries remain.
-   */
+  /** Forwarded to the native host; it owns timeout and retry semantics. */
   timeoutMs?: number
-  /**
-   * Maximum retry attempts for transient HTTP errors (429, 5xx).
-   * Default: 0 (pi agent-level retry handles visible retries when unset).
-   */
+  /** Native provider retry budget, separate from the host agent's retries. */
   maxRetries?: number
-  /**
-   * Maximum delay in milliseconds to wait for a retry when the server requests
-   * a long wait via Retry-After. If the server's requested delay exceeds this
-   * value, the request fails immediately. Default: 60000 (60 seconds).
-   * Set to 0 to disable the cap.
-   */
+  /** Native provider Retry-After limit; no extension-owned retry loop exists. */
   maxRetryDelayMs?: number
 }
 
@@ -201,19 +190,4 @@ export type AssistantMessageEvent =
 export interface AssistantMessageEventStreamLike extends AsyncIterable<AssistantMessageEvent> {
   push(event: AssistantMessageEvent): void
   end(): void
-}
-
-export interface CoreDependencies {
-  createStream: () => AssistantMessageEventStreamLike
-  calculateCost: (model: ModelLike, usage: Usage, atMs?: number) => void
-  apiBase?: string
-  fetchImpl?: typeof fetch
-  authPaths?: readonly string[]
-  env?: NodeJS.ProcessEnv
-  cwd?: () => string
-  now?: () => number
-  uuid?: () => string
-  homeDir?: () => string
-  /** Injectable delay for retry backoff. Defaults to setTimeout. */
-  delay?: (ms: number, signal: AbortSignal) => Promise<void>
 }

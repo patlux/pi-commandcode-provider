@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import { createRequestDiagnostics, formatDiagnostics, priceStatus } from "../src/diagnostics.ts"
 import {
-  createTestDeps,
+  createDiagnosticSource,
   createTestEventStream,
   collectEvents,
   makeContext,
@@ -46,9 +46,9 @@ describe("content-free diagnostics", () => {
   it("preserves streams and measures body chunks without retaining contents", async () => {
     let now = 0
     const diagnostics = createRequestDiagnostics(() => now)
-    const { streamCommandCode } = createTestDeps()
+    const streamDiagnostic = createDiagnosticSource()
     const events = await collectEvents(
-      diagnostics.stream(streamCommandCode, createTestEventStream, makeModel(), makeContext(), {
+      diagnostics.stream(streamDiagnostic, createTestEventStream, makeModel(), makeContext(), {
         apiKey: "synthetic-key",
         fetch: async () =>
           new Response(
@@ -133,10 +133,10 @@ describe("diagnostics trust boundary and lifecycle", () => {
   ]) {
     it(`redacts an unsafe model identifier: ${modelId}`, async () => {
       const diagnostics = createRequestDiagnostics()
-      const { streamCommandCode } = createTestDeps()
+      const streamDiagnostic = createDiagnosticSource()
       await throughEnd(
         diagnostics.stream(
-          streamCommandCode,
+          streamDiagnostic,
           createTestEventStream,
           makeModel({ id: modelId }),
           makeContext(),
@@ -161,14 +161,14 @@ describe("diagnostics trust boundary and lifecycle", () => {
       const diagnostics = createRequestDiagnostics()
       const controller = new AbortController()
       controller.abort()
-      const { streamCommandCode } = createTestDeps()
+      const streamDiagnostic = createDiagnosticSource()
       const events = await throughEnd(
         diagnostics.stream(
           throws
             ? () => {
                 throw new Error("synthetic private abort detail")
               }
-            : streamCommandCode,
+            : streamDiagnostic,
           createTestEventStream,
           makeModel(),
           makeContext(),
@@ -202,9 +202,9 @@ describe("diagnostics trust boundary and lifecycle", () => {
           responseDelay,
         })
         const diagnostics = createRequestDiagnostics()
-        const { streamCommandCode } = createTestDeps({ apiBase: server.baseUrl() })
+        const streamDiagnostic = createDiagnosticSource(server.baseUrl())
         const events = await throughEnd(
-          diagnostics.stream(streamCommandCode, createTestEventStream, makeModel(), makeContext(), {
+          diagnostics.stream(streamDiagnostic, createTestEventStream, makeModel(), makeContext(), {
             apiKey: "mock-key",
             signal: controller.signal,
           }),
@@ -232,10 +232,10 @@ describe("diagnostics trust boundary and lifecycle", () => {
     let now = 0
     let attempts = 0
     const diagnostics = createRequestDiagnostics(() => now)
-    const { streamCommandCode } = createTestDeps()
+    const streamDiagnostic = createDiagnosticSource()
     const requestId = "01234567-89ab-cdef-0123-456789abcdef"
     const events = await throughEnd(
-      diagnostics.stream(streamCommandCode, createTestEventStream, makeModel(), makeContext(), {
+      diagnostics.stream(streamDiagnostic, createTestEventStream, makeModel(), makeContext(), {
         apiKey: "synthetic-key",
         maxRetries: 1,
         fetch: async () => {
@@ -254,7 +254,7 @@ describe("diagnostics trust boundary and lifecycle", () => {
       attempts: 2,
       longestChunkGapMs: 0,
       outcome: "done",
-      endpoint: "/alpha/generate",
+      endpoint: "/provider/v1/chat/completions",
       status: 200,
       requestId,
       firstChunkMs: 20,
@@ -264,7 +264,7 @@ describe("diagnostics trust boundary and lifecycle", () => {
 
   it("lets the most recently started request own the report despite late completion", async () => {
     const diagnostics = createRequestDiagnostics()
-    const { streamCommandCode } = createTestDeps()
+    const streamDiagnostic = createDiagnosticSource()
     let oldBody!: ReadableStreamDefaultController<Uint8Array>
     let newBody!: ReadableStreamDefaultController<Uint8Array>
     const oldResponse = new Response(
@@ -283,7 +283,7 @@ describe("diagnostics trust boundary and lifecycle", () => {
     )
     const oldEvents = throughEnd(
       diagnostics.stream(
-        streamCommandCode,
+        streamDiagnostic,
         createTestEventStream,
         makeModel({ id: "older/model" }),
         makeContext(),
@@ -292,7 +292,7 @@ describe("diagnostics trust boundary and lifecycle", () => {
     )
     const newEvents = throughEnd(
       diagnostics.stream(
-        streamCommandCode,
+        streamDiagnostic,
         createTestEventStream,
         makeModel({ id: "newer/model" }),
         makeContext(),

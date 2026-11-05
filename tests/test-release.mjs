@@ -119,7 +119,7 @@ describe("package contents", () => {
   const files = [
     "package.json",
     "index.ts",
-    "src/core.ts",
+    "src/transport.ts",
     "scripts/pi-isolated.mjs",
     "LICENSE",
     "README.md",
@@ -131,6 +131,10 @@ describe("package contents", () => {
     assert.doesNotThrow(() => checkPackageFiles(files))
   })
   for (const file of [
+    "src/core.ts",
+    "src/converters.ts",
+    "src/transcript.ts",
+    "src/json-schema.ts",
     ".env",
     "src/.env",
     "src/auth.json",
@@ -174,7 +178,7 @@ describe("git release guards", () => {
         writeFileSync(join(origin, file), "// release fixture\n")
       }
       mkdirSync(join(origin, "src"))
-      writeFileSync(join(origin, "src", "core.ts"), "export const fixture = true\n")
+      writeFileSync(join(origin, "src", "transport.ts"), "export const fixture = true\n")
       git(origin, "add", ".")
       git(origin, "commit", "-m", "fixture")
       const sha = git(origin, "rev-parse", "HEAD")

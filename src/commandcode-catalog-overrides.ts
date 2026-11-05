@@ -11,7 +11,7 @@ import type { CommandCodeReasoningEffort } from "./commandcode-catalog.ts"
  * be removed by hand.
  *
  * An entry only takes effect for a model the generated catalog already marks as
- * reasoning-capable: `src/core.ts` drops `reasoning_effort` when `model.reasoning`
+ * reasoning-capable: native hosts omit reasoning options when `model.reasoning`
  * is false, and a model missing from `MODEL_REASONING` stays false. Upstream emits
  * the flag whenever it emits efforts, so a sync that brings in new efforts brings
  * the flag with it.

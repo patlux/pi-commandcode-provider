@@ -59,13 +59,14 @@ if (piCheck.error) {
   process.exit(0)
 }
 
+let generateRequestCount = 0
 let requestCount = 0
 let modelListRequestCount = 0
 let lastRequestBody
 let lastRequestPath
 let lastRequestHeaders = {}
 // When true the Provider API answers 403 upgrade_required, as it does for
-// plans without Provider API access, so requests fall back to /alpha/generate.
+// plans without Provider API access, which must never retry /alpha/generate.
 let providerUpgradeRequired = false
 let overflowMode = false
 let overflowRequestCount = 0
@@ -319,11 +320,9 @@ const server = createServer((req, res) => {
     }
 
     if (isGenerateRequest) {
-      res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" })
-      res.write(`${JSON.stringify({ type: "text-delta", text: "mock-pi-ok" })}\n`)
-      res.end(
-        `${JSON.stringify({ type: "finish", finishReason: "stop", totalUsage: { inputTokens: 1, outputTokens: 1 } })}\n`,
-      )
+      generateRequestCount += 1
+      res.writeHead(404)
+      res.end("No internal generation endpoint")
       return
     }
 
@@ -695,9 +694,17 @@ async function runRpcExtensionCommands(timeoutMs = 30_000) {
       return lastRequestPath
     }
     providerUpgradeRequired = true
-    assert.equal(await promptAndPath("go-probe"), "/alpha/generate")
+    const beforeDeniedRequests = requestCount
+    const beforeDeniedEvents = events.length
+    assert.equal(await promptAndPath("go-probe"), "/provider/v1/chat/completions")
+    assert.equal(requestCount, beforeDeniedRequests + 1)
+    assert.equal(generateRequestCount, 0)
+    const deniedMessage = events
+      .slice(beforeDeniedEvents)
+      .find((event) => event.type === "message_end" && event.message?.role === "assistant")
+    assert.match(deniedMessage?.message?.errorMessage ?? "", /Provider API access is required/)
     providerUpgradeRequired = false
-    assert.equal(await promptAndPath("sticky-go"), "/alpha/generate")
+    assert.equal(await promptAndPath("entitled-retry"), "/provider/v1/chat/completions")
 
     includeRefreshedModel = true
     send({ id: "refresh", type: "prompt", message: "/commandcode-refresh" })
@@ -1237,13 +1244,10 @@ export default async function (pi) {
     "string",
   )
 
-  // pi 0.86+ passes providers a TranscriptContext whose system prompt and tools
-  // live in system messages. The generate transport builds its own request, so
-  // it must still declare them or models write tool calls as plain text.
-  console.log("[pi-local] generate fallback sends pi's system prompt and tools")
+  console.log("[pi-local] denied Provider API access never retries generate")
   requestCount = 0
   providerUpgradeRequired = true
-  const generatePrint = await runPi(
+  const deniedPrint = await runPi(
     [
       "--no-extensions",
       "-e",
@@ -1258,23 +1262,11 @@ export default async function (pi) {
     30_000,
   )
   providerUpgradeRequired = false
-  assert.equal(generatePrint.code, 0, generatePrint.stderr)
-  assert.match(generatePrint.stdout, /mock-pi-ok/)
-  assert.equal(requestCount, 2)
-  assert.equal(lastRequestPath, "/alpha/generate")
-  const generateTools = lastRequestBody?.params?.tools
-  assert.ok(
-    Array.isArray(generateTools) && generateTools.some((tool) => tool.name === "read"),
-    `generate request must declare pi's tools, got ${JSON.stringify(generateTools)}`,
-  )
-  assert.ok(
-    typeof lastRequestBody?.params?.system === "string" && lastRequestBody.params.system.length > 0,
-    "generate request must carry pi's system prompt",
-  )
-  assert.ok(
-    (lastRequestBody?.params?.messages ?? []).every((message) => message.role !== "system"),
-    "system messages must not leak into the generate message list",
-  )
+  assert.match(deniedPrint.stdout + deniedPrint.stderr, /Provider API access is required/)
+  assert.doesNotMatch(deniedPrint.stdout, /mock-pi-ok/)
+  assert.equal(requestCount, 1)
+  assert.equal(lastRequestPath, "/provider/v1/chat/completions")
+  assert.equal(generateRequestCount, 0)
 
   // pi resolves `/login` credentials, `--api-key`, and env keys through the
   // provider's registered auth methods. Stored credentials and `--api-key`

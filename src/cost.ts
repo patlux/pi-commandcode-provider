@@ -1,13 +1,6 @@
-/**
- * Local cost calculation for Command Code usage.
- *
- * Mirrors pi-ai's `calculateCost` arithmetic exactly. The provider ships its
- * own copy because Oh My Pi's legacy pi-ai shim does not export
- * `calculateCost`, which broke extension installation there (issue #24).
- * `tests/test-cost.ts` locks this implementation to the pi-ai original.
- */
+/** Request-time Provider API rates; the native host calculates usage costs. */
 
-import type { ModelCost, ModelCostRates, ModelCostTier, ModelLike, Usage } from "./types.ts"
+import type { ModelCost, ModelCostRates, ModelCostTier } from "./types.ts"
 
 const DEEPSEEK_V4_TIME_PRICED_MODELS = new Set([
   "deepseek/deepseek-v4-pro",
@@ -41,8 +34,7 @@ function doubledRates<T extends ModelCostRates>(rates: T): T {
 }
 
 /**
- * Select request-time rates for both the native provider transport and the
- * local generate fallback. DeepSeek V4 peak rates are exactly 2x off-peak.
+ * Select request-time rates for the native provider transport. DeepSeek V4 peak rates are exactly 2x off-peak.
  * Context tiers on a full model cost table are kept and doubled alongside
  * the base rates so the host's tier selection still applies during peak.
  */
@@ -67,30 +59,4 @@ export function commandCodeNativeCostRatesAt(
 ): ModelCostRates & { tiers?: ModelCostTier[] } {
   const selected = commandCodeCostRatesAt(modelId, rates, atMs)
   return { ...selected, tiers: selected.tiers?.map((tier) => ({ ...tier })) }
-}
-
-export function calculateCommandCodeCost(
-  model: ModelLike,
-  usage: Usage,
-  atMs: number = Date.now(),
-): void {
-  const inputTokens = usage.input + usage.cacheRead + usage.cacheWrite
-  let rates: ModelCostRates = model.cost
-  let matchedThreshold = -1
-  for (const tier of model.cost.tiers ?? []) {
-    if (inputTokens > tier.inputTokensAbove && tier.inputTokensAbove > matchedThreshold) {
-      rates = tier
-      matchedThreshold = tier.inputTokensAbove
-    }
-  }
-  rates = commandCodeCostRatesAt(model.id, rates, atMs)
-
-  const longWrite = usage.cacheWrite1h ?? 0
-  const shortWrite = usage.cacheWrite - longWrite
-  usage.cost.input = (rates.input / 1_000_000) * usage.input
-  usage.cost.output = (rates.output / 1_000_000) * usage.output
-  usage.cost.cacheRead = (rates.cacheRead / 1_000_000) * usage.cacheRead
-  usage.cost.cacheWrite = (rates.cacheWrite * shortWrite + rates.input * 2 * longWrite) / 1_000_000
-  usage.cost.total =
-    usage.cost.input + usage.cost.output + usage.cost.cacheRead + usage.cost.cacheWrite
 }

@@ -12,7 +12,7 @@ on:
       - "package.json"
       - "src/commandcode-catalog-overrides.ts"
       - "src/commandcode-catalog.ts"
-      - "src/core.ts"
+      - "src/transport.ts"
       - "src/cost.ts"
       - "src/models.ts"
       - "src/pricing.ts"

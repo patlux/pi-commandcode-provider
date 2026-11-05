@@ -297,7 +297,7 @@ describe("Command Code runtime", () => {
   it("resets the transport probe when the user refreshes the catalog", async () => {
     const pi = new ExtensionAPITestDouble()
     const context = new CommandContext()
-    let transport: "unknown" | "provider" | "generate" = "generate"
+    let transport: "unknown" | "provider" = "provider"
     let resetCalls = 0
     const runtime = createCommandCodeRuntime(pi, {
       endpoint: "https://api.commandcode.ai/provider/v1/models",
@@ -315,7 +315,7 @@ describe("Command Code runtime", () => {
 
     await runtime.initialize()
     assert.equal(resetCalls, 0, "startup and background refreshes keep the probe")
-    assert.equal(runtime.getStatus().transport, "generate")
+    assert.equal(runtime.getStatus().transport, "provider")
 
     const refreshCommand = pi.commands.get("commandcode-refresh")
     assert.ok(refreshCommand)

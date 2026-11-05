@@ -14,7 +14,7 @@
  */
 
 import { getConfiguredApiKey } from "./api-key.ts"
-import { pickCommandCodeApiKey } from "./converters.ts"
+import { pickCommandCodeApiKey } from "./api-key.ts"
 import { fetchCommandCodeQuota } from "./quota.ts"
 import type {
   CommandCodeQuota,

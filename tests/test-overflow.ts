@@ -1,33 +1,10 @@
 import assert from "node:assert/strict"
-import { after, before, beforeEach, describe, it } from "node:test"
-
+import { describe, it } from "node:test"
 import {
   commandCodeErrorMessage,
   normalizeCommandCodeErrorMessage,
   normalizeCommandCodeMessage,
 } from "../src/overflow.ts"
-import {
-  collectEvents,
-  createTestDeps,
-  makeContext,
-  makeModel,
-  startMockCommandCodeServer,
-  type MockCommandCodeServer,
-} from "./helpers.ts"
-
-let server: MockCommandCodeServer
-
-before(async () => {
-  server = await startMockCommandCodeServer()
-})
-
-after(async () => {
-  await server.close()
-})
-
-beforeEach(() => {
-  server.reset()
-})
 
 describe("Command Code overflow normalization", () => {
   it("normalizes Command Code context errors to pi's generic overflow marker", () => {
@@ -119,103 +96,42 @@ describe("Command Code overflow normalization", () => {
     )
   })
 
-  it("redacts secrets from finalized provider errors", async () => {
-    server.mockResponse({
-      type: "error",
-      status: 400,
-      body: "api_key=user_secret_value",
-    })
-    const { streamCommandCode } = createTestDeps({ apiBase: server.baseUrl() })
-
-    const events = await collectEvents(
-      streamCommandCode(makeModel(), makeContext(), { apiKey: "mock-key" }),
-    )
-    const error = events.at(-1)
-    assert.equal(error?.type, "error")
-    if (error?.type !== "error") throw new Error("expected error")
-    assert.doesNotMatch(error.error.errorMessage ?? "", /user_secret_value/)
-    assert.match(error.error.errorMessage ?? "", /api_key=\[redacted\]/)
-  })
-
-  it("normalizes HTTP error bodies containing nested context errors", async () => {
-    server.mockResponse({
-      type: "error",
-      status: 400,
-      body: JSON.stringify({ error: { message: "Prompt token limit exceeded" } }),
-    })
-    const { streamCommandCode } = createTestDeps({ apiBase: server.baseUrl() })
-
-    const events = await collectEvents(
-      streamCommandCode(makeModel(), makeContext(), { apiKey: "mock-key" }),
-    )
-    const error = events.at(-1)
-
-    assert.equal(error?.type, "error")
-    if (error?.type !== "error") throw new Error("expected error")
-    const normalized = normalizeCommandCodeMessage(error.error)
+  it("normalizes finalized native host errors without retaining credentials", () => {
+    const message = {
+      role: "assistant" as const,
+      provider: "commandcode",
+      stopReason: "error" as const,
+      errorMessage: "Prompt token limit exceeded: api_key=private_test_secret",
+    }
+    const normalized = normalizeCommandCodeMessage(message)
     assert.match(normalized?.message.errorMessage ?? "", /^context_length_exceeded:/)
+    assert.doesNotMatch(normalized?.message.errorMessage ?? "", /private_test_secret/)
+    assert.equal(message.errorMessage, "Prompt token limit exceeded: api_key=private_test_secret")
   })
 
-  it("does not normalize an HTTP rate-limit response that mentions context", async () => {
-    server.mockResponse({
-      type: "error",
-      status: 429,
-      body: JSON.stringify({ error: { message: "context window exceeded" } }),
+  it("extracts nested HTTP errors and preserves their status for normalization", () => {
+    const error = commandCodeErrorMessage({
+      error: { details: { message: "Prompt token limit exceeded" } },
+      status: 400,
     })
-    const { streamCommandCode } = createTestDeps({ apiBase: server.baseUrl() })
-
-    const events = await collectEvents(
-      streamCommandCode(makeModel(), makeContext(), { apiKey: "mock-key" }),
-    )
-    const error = events.at(-1)
-
-    assert.equal(error?.type, "error")
-    if (error?.type !== "error") throw new Error("expected error")
-    assert.equal(normalizeCommandCodeMessage(error.error), undefined)
-  })
-
-  it("normalizes nested stream error events", async () => {
-    server.mockResponse({
-      type: "success",
-      events: [
-        JSON.stringify({
-          type: "error",
-          error: { details: { message: "model context window exceeded" } },
-        }),
-      ],
-    })
-    const { streamCommandCode } = createTestDeps({ apiBase: server.baseUrl() })
-
-    const events = await collectEvents(
-      streamCommandCode(makeModel(), makeContext(), { apiKey: "mock-key" }),
-    )
-    const error = events.at(-1)
-
-    assert.equal(error?.type, "error")
-    if (error?.type !== "error") throw new Error("expected error")
-    const normalized = normalizeCommandCodeMessage(error.error)
+    assert.match(normalizeCommandCodeErrorMessage(error) ?? "", /^context_length_exceeded:/)
     assert.equal(
-      normalized?.message.errorMessage,
-      "context_length_exceeded: model context window exceeded",
+      normalizeCommandCodeErrorMessage(
+        commandCodeErrorMessage({ error: { message: "context window exceeded" }, status: 429 }),
+      ),
+      undefined,
     )
+  })
 
-    server.mockResponse({
-      type: "success",
-      events: [
-        JSON.stringify({
-          type: "error",
-          error: { message: "context window exceeded", status: 429 },
-        }),
-      ],
-    })
-    const retryEvents = await collectEvents(
-      createTestDeps({ apiBase: server.baseUrl() }).streamCommandCode(makeModel(), makeContext(), {
-        apiKey: "mock-key",
+  it("does not normalize finalized native rate-limit errors as context overflow", () => {
+    assert.equal(
+      normalizeCommandCodeMessage({
+        role: "assistant",
+        provider: "commandcode",
+        stopReason: "error",
+        errorMessage: "context window exceeded: status: 429",
       }),
+      undefined,
     )
-    const retryError = retryEvents.at(-1)
-    assert.equal(retryError?.type, "error")
-    if (retryError?.type !== "error") throw new Error("expected error")
-    assert.equal(normalizeCommandCodeMessage(retryError.error), undefined)
   })
 })

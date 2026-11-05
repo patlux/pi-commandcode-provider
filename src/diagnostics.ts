@@ -67,7 +67,6 @@ const ENDPOINTS = [
   "/provider/v1/responses",
   "/provider/v1/chat/completions",
   "/provider/v1/messages",
-  "/alpha/generate",
 ]
 
 /** Memory-only, content-free measurements. Never retain URLs, headers, bodies or credentials. */

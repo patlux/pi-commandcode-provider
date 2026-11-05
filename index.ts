@@ -22,10 +22,12 @@ import { readFile } from "node:fs/promises"
 import * as hostPackage from "@earendil-works/pi-coding-agent"
 import { createRequestDiagnostics, formatDiagnostics, priceStatus } from "./src/diagnostics.ts"
 
-import { getConfiguredApiKey } from "./src/api-key.ts"
-import { pickCommandCodeApiKey, withResolvedCommandCodeApiKey } from "./src/converters.ts"
-import { createStreamCommandCode } from "./src/core.ts"
-import { calculateCommandCodeCost, commandCodeNativeCostRatesAt } from "./src/cost.ts"
+import {
+  getConfiguredApiKey,
+  pickCommandCodeApiKey,
+  withResolvedCommandCodeApiKey,
+} from "./src/api-key.ts"
+import { commandCodeNativeCostRatesAt } from "./src/cost.ts"
 import {
   apiForModelId,
   baseUrlForModel,
@@ -56,7 +58,6 @@ import {
   type EndpointOverrides,
 } from "./src/routing.ts"
 import { createCommandCodeUsageProvider, type UsageProvider } from "./src/usage.ts"
-import { transcriptReadersFrom, withTranscriptPromptAndTools } from "./src/transcript.ts"
 import { createCommandCodeTransportRouter } from "./src/transport.ts"
 
 const COMMAND_CODE_API = "commandcode-custom"
@@ -190,7 +191,7 @@ function createProviderConfig(
     headers,
     // Same alpha endpoints and credentials as the /commandcode-quota command.
     usage: createCommandCodeUsageProvider({
-      apiBase: legacyApiBase(apiBase),
+      apiBase: quotaApiBase(apiBase),
       headers,
     }),
     oauth: {
@@ -220,7 +221,7 @@ function createProviderConfig(
   }
 }
 
-function legacyApiBase(providerApiBase: string): string {
+function quotaApiBase(providerApiBase: string): string {
   return providerApiBase.replace(/\/provider\/v1\/?$/, "")
 }
 
@@ -269,17 +270,8 @@ export default async function (pi: ExtensionAPI) {
   const modelsTimeoutMs = getModelsTimeoutMs()
   const modelsCachePath =
     process.env.COMMANDCODE_MODELS_CACHE ?? join(getAgentDir(), "commandcode-models.json")
-  const streamGenerate = createStreamCommandCode<HostModel>({
-    createStream: createAssistantMessageEventStream,
-    calculateCost: calculateCommandCodeCost,
-    apiBase: legacyApiBase(apiBase),
-  })
   const resolveStreamOptions = (options?: Parameters<typeof streamNativeProvider>[2]) =>
     withResolvedCommandCodeApiKey(options, getConfiguredApiKey())
-  // The provider transport delegates to pi-ai, which reads the transcript
-  // itself. The generate transport builds its own request body and needs the
-  // flat prompt and tool fields that pi 0.86+ no longer passes.
-  const transcriptReaders = transcriptReadersFrom(piAiCompat)
   // The host dispatches every Command Code model through one custom api id, so
   // the wire each model answers on is resolved here from the catalog that
   // `createProviderConfig` registered. Unknown ids fall back to the id rule.
@@ -395,12 +387,6 @@ export default async function (pi: ExtensionAPI) {
         nativeOptions,
       )
     },
-    streamGenerate: (model, context, options) =>
-      streamGenerate(
-        model,
-        withTranscriptPromptAndTools(context, transcriptReaders),
-        resolveStreamOptions(options),
-      ),
   })
 
   // pi dispatches the main chat through the registered provider, but sibling
@@ -432,7 +418,7 @@ export default async function (pi: ExtensionAPI) {
   })
 
   registerCommandCodeQuota(pi, {
-    apiBase: legacyApiBase(apiBase),
+    apiBase: quotaApiBase(apiBase),
     headers: commandCodeHeaders(),
   })
 
