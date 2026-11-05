@@ -2,12 +2,14 @@
 
 ## Unreleased
 
-### Breaking changes — target 0.8.0, not a patch
+## 0.8.0 - 2026-11-05
+
+### Breaking changes and migration
 
 - Require documented Provider API access for inference, carrying [#164](https://github.com/patlux/pi-commandcode-provider/pull/164) by @patlux. `403 upgrade_required` stops without any internal `/alpha/generate` retry. Go users must use the official CLI within its supported plan or an account with Provider API entitlement; GOAT, Pro and Max retain their entitled API access. This deliberately supersedes the fallback hardened in #154 and the subsequent generate-specific fixes. Remove the retired client, serializers and Go live profile from the package; preserve credentials, sessions, endpoint choices and native host gates. Read-only quota/account endpoints remain an explicit exception, not an entitlement bypass. Retry after an entitlement change; sign in again only if changing accounts.
-- The target is a separately authorized 0.8.0 release. This change does not bump the package version, publish a release or migrate user data.
+- The Provider-only policy was integrated through [#203](https://github.com/patlux/pi-commandcode-provider/pull/203). Generate-only behavior, including the `COMMANDCODE_TASTE_LEARNING` opt-in, no longer applies. Native hosts own inference serialization, timeout and retry behavior; the extension no longer implements a generate retry loop. Updating does not delete or migrate credentials, sessions or persisted endpoint choices. A successful login or quota request is not evidence of API entitlement.
 
-### Other unreleased changes
+### Improvements and fixes
 
 - Add `/commandcode-endpoint <model-id> auto|responses|chat-completions` for persistent per-model Provider API routing, carried forward from [#158](https://github.com/patlux/pi-commandcode-provider/pull/158) by @patlux. Choices survive refresh/restart and appear in status/diagnostics. Malformed routing files fall back to catalog routing with a visible warning; explicit command repair preserves their previous contents in a private backup. Wire changes replace stale compatibility flags rather than merging them, while same-wire host/user settings and Oh My Pi reasoning replay are preserved. The global routing default is unchanged; no automatic retries or mid-stream switching are added. Inference entitlement follows the breaking change above.
 
@@ -15,6 +17,17 @@
 - Require a dedicated entrypoint typecheck against the installed Pi declarations, with compile-time host contracts. Copy model costs and context tiers into independent mutable registration metadata without applying request-time peak pricing; cover registration at peak and off-peak hours through the real Pi loader ([#198](https://github.com/patlux/pi-commandcode-provider/pull/198)).
 - Refresh the capability snapshot to `command-code@1.88.3`: advertise image input for `stealth/crouton-alpha`, plus reasoning and selectable efforts for Crouton (`low`/`medium`/`high`/`xhigh`/`max`) and `inclusionai/ling-3.1-flash-1019` (`low`/`medium`/`high`). Use their published output limits of 943,718 and 262,144 tokens respectively, still capped by the model's context window. Pricing and endpoint routing are unchanged.
 - Add content-free `/commandcode-diagnostics` reports, per-request body-chunk timing and error categories, plus explicit unknown-price warnings. Measurements use the caller's fetch hook without retaining request bodies. Carried forward from #159 by @patlux; the per-model endpoint routing from the same stack stays with #158.
+- Add guarded, bounded and deduplicated catalog maintenance alerts, carrying [#163](https://github.com/patlux/pi-commandcode-provider/pull/163) by @patlux through [#202](https://github.com/patlux/pi-commandcode-provider/pull/202). Two consecutive default-branch catalog failures create or reopen one bot-owned incident, and a processed current success comments and closes it. Recovery can be delayed by newer failed runs; loss of the reserved label can hide an incident and allow duplicates. See `RELEASE.md` for the operational limits and manual triage.
+
+### Integration and validation
+
+- This release includes the diagnostics, routing and reasoning carries [#180](https://github.com/patlux/pi-commandcode-provider/pull/180), [#200](https://github.com/patlux/pi-commandcode-provider/pull/200) and [#201](https://github.com/patlux/pi-commandcode-provider/pull/201), the catalog snapshot [#199](https://github.com/patlux/pi-commandcode-provider/pull/199), the entrypoint gate [#198](https://github.com/patlux/pi-commandcode-provider/pull/198), and the maintenance and entitlement carries #202 and #203.
+- Source and packed-package checks use real Pi and Oh My Pi hosts against isolated loopback mocks, including all three Provider API protocols, reasoning/tool/image history and persisted endpoint routing. These checks do not claim live account entitlement, billing accuracy or upstream performance. Existing catalog-workflow action pinning and host-action deprecation warnings remain separate maintenance work.
+
+### Contributors
+
+- @patlux (Patrick Wozniak) — authored the diagnostics, endpoint routing, Oh My Pi reasoning, maintenance policy and Provider API entitlement work carried forward from #159, #158, #162, #163 and #164.
+- @pierreraby — reviewed and adapted the carries, added integration and regression guards, updated capability metadata, introduced the real-host entrypoint gate, and prepared this release.
 
 ## 0.7.12 - 2026-11-04
 
