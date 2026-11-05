@@ -5,7 +5,10 @@
  * https://api.commandcode.ai/provider/v1
  */
 
-import { AssistantMessageEventStream } from "@earendil-works/pi-ai"
+import {
+  createAssistantMessageEventStream,
+  type AssistantMessageEventStream,
+} from "@earendil-works/pi-ai"
 import * as piAiCompat from "@earendil-works/pi-ai/compat"
 import { streamSimple as streamNativeProvider } from "@earendil-works/pi-ai/compat"
 import {
@@ -114,7 +117,17 @@ function commandCodeHeaders(): Record<string, string> | undefined {
  */
 type CommandCodeProviderConfig = ProviderConfig & { usage?: UsageProvider }
 
-type CommandCodeModelCompat = NonNullable<ProviderConfig["models"]>[number]["compat"]
+type NativeModel = Parameters<typeof streamNativeProvider>[0]
+type HostContext = Parameters<typeof streamNativeProvider>[1]
+type HostReasoning = NonNullable<
+  NonNullable<Parameters<typeof streamNativeProvider>[2]>["reasoning"]
+>
+// Preserve the historical passthrough flag even when the current Pi declarations omit it.
+type CommandCodeModelCompat = NonNullable<NativeModel["compat"]> & {
+  supportsToolReferences?: boolean
+}
+// OMP stores resolved compatibility metadata here; Pi uses `compat`.
+type HostModel = NativeModel & { compatConfig?: CommandCodeModelCompat }
 
 /**
  * Compatibility flags per wire. Chat Completions mirrors what the Provider API
@@ -179,7 +192,11 @@ function createProviderConfig(
       reasoning: model.reasoning,
       ...(thinkingMetadataForModel(model.id) ?? {}),
       input: [...inputModalitiesForModel(model.id)],
-      cost: MODEL_COSTS[model.id] ?? ZERO_MODEL_COST,
+      // Registration hands mutable metadata to the host, never the readonly catalog.
+      cost: {
+        ...(MODEL_COSTS[model.id] ?? ZERO_MODEL_COST),
+        tiers: MODEL_COSTS[model.id]?.tiers?.map((tier) => ({ ...tier })),
+      },
       contextWindow: model.contextWindow,
       maxTokens: model.maxTokens,
       headers,
@@ -237,8 +254,8 @@ export default async function (pi: ExtensionAPI) {
   const modelsTimeoutMs = getModelsTimeoutMs()
   const modelsCachePath =
     process.env.COMMANDCODE_MODELS_CACHE ?? join(getAgentDir(), "commandcode-models.json")
-  const streamGenerate = createStreamCommandCode({
-    createStream: () => new AssistantMessageEventStream(),
+  const streamGenerate = createStreamCommandCode<HostModel>({
+    createStream: createAssistantMessageEventStream,
     calculateCost: calculateCommandCodeCost,
     apiBase: legacyApiBase(apiBase),
   })
@@ -257,8 +274,8 @@ export default async function (pi: ExtensionAPI) {
   // Diagnostic for /commandcode-status: reflects the most recent Responses
   // request, so a one-off malformed stream does not stick until restart.
   let streamWarning: string | undefined
-  const transport = createCommandCodeTransportRouter({
-    createStream: () => new AssistantMessageEventStream(),
+  const transport = createCommandCodeTransportRouter<HostModel, HostContext, HostReasoning>({
+    createStream: createAssistantMessageEventStream,
     streamProvider: (model, context, options) => {
       const wire = resolveModelApi(model.id)
       const resolvedOptions: Parameters<typeof streamNativeProvider>[2] =
@@ -305,8 +322,6 @@ export default async function (pi: ExtensionAPI) {
   // custom api there so those calls reach the same transport. The registry
   // resolves no credentials for extension providers, so fall back to the
   // configured key when the caller passes none or a placeholder.
-  // The wrapper returns the instance from our host factory below, retaining result().
-  // Its local structural return type omits that host method; the assertion restores it.
   const measuredStream = (
     model: Parameters<typeof transport.stream>[0],
     context: Parameters<typeof transport.stream>[1],
@@ -314,13 +329,11 @@ export default async function (pi: ExtensionAPI) {
   ) =>
     diagnostics.stream(
       transport.stream,
-      () => new AssistantMessageEventStream(),
+      createAssistantMessageEventStream,
       model,
       context,
-      // The instrumentation only replaces fetch; preserve the host's options unchanged.
-      // The host/local option interfaces already diverge at the router's native boundary.
-      resolveStreamOptions(options) as Parameters<typeof transport.stream>[2],
-    ) as AssistantMessageEventStream
+      resolveStreamOptions(options),
+    )
   const compatStream: CompatStreamFunction = measuredStream
   registerCompatApiProvider(compatStream)
 

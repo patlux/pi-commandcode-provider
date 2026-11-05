@@ -32,9 +32,9 @@ import type {
   CoreDependencies,
   ErrorReason,
   ModelLike,
+  JsonValue,
   StopReason,
   StreamOptions,
-  TerminalReason,
   TextContent,
   ToolCallContent,
   Usage,
@@ -127,12 +127,15 @@ function timeoutError(timeoutMs: number | undefined): Error {
   )
 }
 
-function successStopReason(reason: TerminalReason): StopReason {
+function successStopReason(reason: AssistantMessageLike["stopReason"]): StopReason {
   if (reason === "length" || reason === "toolUse") return reason
   return "stop"
 }
 
-function generateMaxTokens(model: ModelLike, options?: StreamOptions): number {
+function generateMaxTokens<TModel extends ModelLike>(
+  model: TModel,
+  options?: StreamOptions<TModel>,
+): number {
   return Math.min(
     options?.maxTokens ?? model.maxTokens,
     model.maxTokens,
@@ -140,7 +143,10 @@ function generateMaxTokens(model: ModelLike, options?: StreamOptions): number {
   )
 }
 
-function mappedReasoningEffort(model: ModelLike, options?: StreamOptions): string | undefined {
+function mappedReasoningEffort<TModel extends ModelLike>(
+  model: TModel,
+  options?: StreamOptions<TModel>,
+): string | undefined {
   const level = options?.reasoning
   if (!level || level === "off" || !model.reasoning) return undefined
 
@@ -174,7 +180,9 @@ export function projectSlugFromPath(pathName: string): string {
   return slug || "project"
 }
 
-export function createStreamCommandCode(deps: CoreDependencies) {
+export function createStreamCommandCode<TModel extends ModelLike = ModelLike>(
+  deps: CoreDependencies,
+) {
   const apiBase = deps.apiBase ?? DEFAULT_API_BASE
   const fetchImpl = deps.fetchImpl ?? fetch
   const env = () => deps.env ?? process.env
@@ -243,9 +251,9 @@ export function createStreamCommandCode(deps: CoreDependencies) {
   }
 
   return function streamCommandCode(
-    model: ModelLike,
+    model: TModel,
     context: ContextLike,
-    options?: StreamOptions,
+    options?: StreamOptions<TModel>,
   ): AssistantMessageEventStreamLike {
     const stream = deps.createStream()
 
@@ -343,7 +351,7 @@ export function createStreamCommandCode(deps: CoreDependencies) {
         thinkingIdx = -1
       }
 
-      const handleEvent = (event: unknown) => {
+      const handleEvent = (event: JsonValue | undefined) => {
         if (!isRecord(event)) return
 
         switch (event.type) {

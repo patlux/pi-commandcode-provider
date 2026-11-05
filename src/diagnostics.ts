@@ -75,17 +75,22 @@ export function createRequestDiagnostics(now: () => number = Date.now) {
   let latest: RequestDiagnostic | undefined
   return {
     snapshot: () => (latest ? { ...latest } : undefined),
-    stream(
+    stream<
+      TModel extends ModelLike,
+      TContext extends ContextLike,
+      TReasoning extends string,
+      TStream extends AssistantMessageEventStreamLike,
+    >(
       source: (
-        model: ModelLike,
-        context: ContextLike,
-        options?: StreamOptions,
+        model: TModel,
+        context: TContext,
+        options?: StreamOptions<TModel, TReasoning>,
       ) => AssistantMessageEventStreamLike,
-      createStream: () => AssistantMessageEventStreamLike,
-      model: ModelLike,
-      context: ContextLike,
-      options?: StreamOptions,
-    ): AssistantMessageEventStreamLike {
+      createStream: () => TStream,
+      model: TModel,
+      context: TContext,
+      options?: StreamOptions<TModel, TReasoning>,
+    ): TStream {
       const started = now()
       const record: RequestDiagnostic = {
         model: safeIdentifier(model.id),
@@ -96,7 +101,7 @@ export function createRequestDiagnostics(now: () => number = Date.now) {
       latest = record
       const output = createStream()
       let lastChunk: number | undefined
-      const instrumented: StreamOptions = {
+      const instrumented: StreamOptions<TModel, TReasoning> = {
         ...options,
         fetch: async (input, init) => {
           record.attempts += 1

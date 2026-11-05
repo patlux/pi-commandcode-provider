@@ -28,7 +28,7 @@ export interface OAuthLoginCallbacks {
   onPrompt(params: { message: string }): Promise<string>
 }
 
-export interface OAuthCredentials {
+export type OAuthCredentials = {
   refresh: string
   access: string
   expires: number

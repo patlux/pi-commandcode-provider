@@ -72,12 +72,32 @@ let overflowRequestCount = 0
 let modelsDelayMs = 0
 let includeRefreshedModel = false
 let includeResponsesModel = false
+let includeRegistrationCostModels = false
+const REGISTRATION_COST_MODELS = [
+  TEST_MODEL,
+  "deepseek/deepseek-v4.1-flash",
+  "Qwen/Qwen3.7-Flash",
+  "cc-unknown-price-model",
+]
 // When set, the Responses mock holds the reasoning item open until the test
 // resolves this promise, proving deltas arrive before the item completes.
 let responsesReasoningGate
 let malformedResponsesReasoning = false
 
 function modelCatalog() {
+  if (includeRegistrationCostModels) {
+    return {
+      object: "list",
+      data: REGISTRATION_COST_MODELS.map((id) => ({
+        id,
+        name: id,
+        object: "model",
+        owned_by: "command-code",
+        context_length: 1_000_000,
+        supported_endpoints: ["/chat/completions"],
+      })),
+    }
+  }
   const data = [
     {
       id: TEST_MODEL,
@@ -949,6 +969,104 @@ async function runRpcOverflowRecovery(timeoutMs = 60_000) {
 }
 
 try {
+  console.log("[pi-local] registration copies catalog costs without applying peak pricing")
+  // Load the actual entrypoint through Pi's loader, but capture its raw
+  // registerProvider arguments before host normalization can copy metadata.
+  // Everything runs in this harness's isolated HOME against its local mock.
+  const registrationExtension = join(tempHome, "registration-costs.ts")
+  writeFileSync(
+    registrationExtension,
+    `import assert from "node:assert/strict"
+import commandCode from ${JSON.stringify(EXT_PATH)}
+import { MODEL_COSTS, ZERO_MODEL_COST } from ${JSON.stringify(resolve(PROJECT_DIR, "src/pricing.ts"))}
+import { commandCodeCostRatesAt, isDeepSeekV4Peak } from ${JSON.stringify(resolve(PROJECT_DIR, "src/cost.ts"))}
+
+export default async function (pi) {
+  const atMs = Number(process.env.COMMANDCODE_TEST_REGISTRATION_TIME)
+  const peakModel = "deepseek/deepseek-v4.1-flash"
+  const peak = isDeepSeekV4Peak(atMs)
+  const peakRates = MODEL_COSTS[peakModel]
+  assert.ok(peakRates.input > 0)
+  assert.equal(commandCodeCostRatesAt(peakModel, peakRates, atMs).input,
+    peakRates.input * (peak ? 2 : 1))
+  assert.ok(MODEL_COSTS["Qwen/Qwen3.7-Flash"].tiers.length > 0)
+  assert.equal(MODEL_COSTS["cc-unknown-price-model"], undefined)
+
+  const registrations = []
+  const captureApi = new Proxy(pi, {
+    get(target, key) {
+      if (key === "registerProvider") {
+        return (name, config) => registrations.push({ name, config })
+      }
+      return Reflect.get(target, key)
+    },
+  })
+  const originalNow = Date.now
+  Date.now = () => atMs
+  try {
+    await commandCode(captureApi)
+    assert.equal(registrations.length, 1)
+    assert.equal(registrations[0].name, "commandcode")
+    const models = registrations[0].config.models
+    assert.deepEqual(models.map((model) => model.id).sort(),
+      ${JSON.stringify(REGISTRATION_COST_MODELS)}.sort())
+    for (const model of models) {
+      const catalog = MODEL_COSTS[model.id] ?? ZERO_MODEL_COST
+      const before = structuredClone(catalog)
+      // In particular, DeepSeek must retain base rates even at peak hours.
+      assert.deepEqual({ ...model.cost, tiers: model.cost.tiers },
+        { ...catalog, tiers: catalog.tiers }, model.id)
+      assert.notEqual(model.cost, catalog, model.id + " cost alias")
+      if (catalog.tiers) {
+        assert.notEqual(model.cost.tiers, catalog.tiers, model.id + " tiers alias")
+        for (let i = 0; i < catalog.tiers.length; i++) {
+          assert.notEqual(model.cost.tiers[i], catalog.tiers[i], model.id + " tier alias")
+          model.cost.tiers[i].input = 999
+        }
+        model.cost.tiers.push({ ...catalog.tiers[0], inputTokensAbove: 9999999 })
+      }
+      model.cost.input = 999
+      assert.deepEqual(catalog, before, model.id + " catalog mutated by host")
+    }
+    console.log("[registration-costs] PASS " + (peak ? "peak" : "off-peak"))
+  } finally {
+    Date.now = originalNow
+  }
+}
+`,
+  )
+  includeRegistrationCostModels = true
+  try {
+    for (const [label, timestamp] of [
+      ["off-peak", "2026-09-28T05:00:00Z"],
+      ["peak", "2026-09-28T06:00:00Z"],
+    ]) {
+      modelListRequestCount = 0
+      requestCount = 0
+      const registration = await runPi(
+        ["--no-extensions", "-e", registrationExtension, "--list-models", "commandcode"],
+        {
+          timeoutMs: 20_000,
+          env: {
+            COMMANDCODE_TEST_REGISTRATION_TIME: String(Date.parse(timestamp)),
+            COMMANDCODE_MODELS_CACHE: join(agentDir, `registration-${label}.json`),
+          },
+        },
+      )
+      assert.equal(registration.code, 0, registration.stderr)
+      assert.doesNotMatch(registration.stderr, /Failed to load extension/)
+      assert.ok(
+        registration.stdout.includes(`[registration-costs] PASS ${label}`),
+        registration.stdout + registration.stderr,
+      )
+      assert.equal(modelListRequestCount, 1)
+      assert.equal(requestCount, 0, "registration must not perform inference")
+      console.log(`[pi-local] registration costs ${label} PASS`)
+    }
+  } finally {
+    includeRegistrationCostModels = false
+  }
+
   console.log("[pi-local] first offline start without a cache")
   const onlineModelsUrl = env.COMMANDCODE_MODELS_URL
   env.COMMANDCODE_MODELS_URL = "http://127.0.0.1:1/provider/v1/models"
