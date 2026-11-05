@@ -122,9 +122,12 @@ type HostContext = Parameters<typeof streamNativeProvider>[1]
 type HostReasoning = NonNullable<
   NonNullable<Parameters<typeof streamNativeProvider>[2]>["reasoning"]
 >
-// Preserve the historical passthrough flag even when the current Pi declarations omit it.
+// Host-specific passthrough flags may be absent from Pi's declarations.
 type CommandCodeModelCompat = NonNullable<NativeModel["compat"]> & {
   supportsToolReferences?: boolean
+  // OMP's completions encoder requires this opt-in; Pi ignores the extra flag.
+  // Verified in @oh-my-pi/pi-ai 18.16.0, src/providers/openai-completions.ts.
+  replayReasoningContent?: boolean
 }
 // OMP stores resolved compatibility metadata here; Pi uses `compat`.
 type HostModel = NativeModel & { compatConfig?: CommandCodeModelCompat }
@@ -156,6 +159,7 @@ function compatForModel(model: CommandCodeModel): CommandCodeModelCompat {
     supportsStore: false,
     supportsDeveloperRole: false,
     supportsReasoningEffort: MODEL_EFFORTS[model.id] !== undefined,
+    replayReasoningContent: model.reasoning,
     maxTokensField: "max_tokens",
   }
 }

@@ -66,7 +66,7 @@ try {
   console.log(
     `[release-package] Testing installed ${manifest.name}@${manifest.version} from ${packagePath}`,
   )
-  for (const suite of ["test-pi-local.mjs", "test-omp-compat.mjs"]) {
+  for (const suite of ["test-pi-local.mjs", "test-omp-compat.mjs", "test-host-protocols.mjs"]) {
     run(process.execPath, [join(testsDir, suite)], { cwd: temp, env })
   }
   console.log("[release-package] PASS: packed package loaded and exercised by Pi and OMP")

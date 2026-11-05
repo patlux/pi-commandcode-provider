@@ -84,12 +84,41 @@ Go/GOAT transport behavior; this does not claim an OMP declaration-level check.
 
 `tests/test-omp-compat.mjs` runs the extension inside a real `omp` binary against a mock Command Code API. It skips locally when `omp` is not on `PATH`; CI installs Oh My Pi and runs it as a required check with `OMP_COMPAT_REQUIRED=1`, so a change that only loads on pi fails CI instead of the next `omp plugin install`.
 
-To run it locally, point `OMP_BIN` at an omp executable (Oh My Pi needs Bun ≥ 1.3.14):
+To run it locally, point `OMP_BIN` at an omp executable (OMP 18.16.0 requires Bun ≥ 1.4.4; check the installed version's engine requirements):
 
 ```sh
 npm install -g @oh-my-pi/pi-coding-agent
 OMP_BIN="$(npm prefix -g)/bin/omp" node tests/test-omp-compat.mjs
 ```
+
+### Protocol and host contracts
+
+`npm run test:host-protocols` checks the helper regressions, then runs available Pi
+and OMP binaries against loopback mocks over Chat Completions, Responses and
+Anthropic Messages. It verifies system instructions, reasoning replay (including
+encrypted/signed reasoning), two tool-call/result pairs, and actual image payloads
+on the follow-up request. Homes and credentials are synthetic and isolated; no
+live API calls are made. Set `COMMANDCODE_CONTRACT_HOST=pi` or `omp` to select a
+host. `PI_LOCAL_REQUIRED=1` and `OMP_COMPAT_REQUIRED=1` make missing selected hosts
+fail instead of skip. `PI_BIN` and `OMP_BIN` select explicit binaries.
+
+The fixtures depend on reasoning and image capabilities for DeepSeek V4.1 Flash,
+Muse Spark 1.3 and Claude Sonnet 4.6. A preflight extension checks those catalog
+capabilities, the common `high` thinking effort and routing rules in the tested
+checkout or installed package before registering tools. Responses also checks that a long native item-ID suffix does
+not leak into replayed call IDs; this is not the generate fallback's #141 test.
+
+Host timeouts signal the isolated POSIX process group with SIGTERM then SIGKILL,
+including descendants that retain inherited pipes. On Windows only the direct
+child is signalled. The helper normally waits for `close` and retains late output;
+if stdio still has not closed after the final grace period, it destroys its read
+pipes, unreferences the child and fails with cleanup explicitly unconfirmed.
+This bounds the runner, not arbitrary descendants that escape the process group.
+
+PR CI continues to test `@latest` hosts with the required Pi entrypoint gate and
+Bun 1.4.4 for OMP. No older host baseline or weekly-only drift gate is introduced.
+The package smoke runner also executes these contracts against the installed
+artifact; see `RELEASE.md` for that separately authorized installation.
 
 Before opening a PR, run:
 
