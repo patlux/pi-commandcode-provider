@@ -1,5 +1,5 @@
 import { getConfiguredApiKey } from "./api-key.ts"
-import { pickCommandCodeApiKey } from "./converters.ts"
+import { pickCommandCodeApiKey } from "./api-key.ts"
 import { fetchCommandCodeQuota, redactValue } from "./quota.ts"
 import { formatQuota } from "./quota-format.ts"
 

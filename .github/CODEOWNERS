@@ -4,7 +4,7 @@
 # Security-critical: auth, secrets, OAuth flow
 /src/auth-server.ts @patlux @pierreraby @karaaslanz
 /src/oauth.ts @patlux @pierreraby @karaaslanz
-/src/converters.ts @patlux @pierreraby @karaaslanz
+/src/api-key.ts @patlux @pierreraby @karaaslanz
 
 # CI/CD pipeline
 .github/workflows/ @patlux @pierreraby @karaaslanz

@@ -5,7 +5,6 @@ import { join } from "node:path"
 import { describe, it } from "node:test"
 
 import { defaultAuthPaths, getConfiguredApiKey } from "../src/api-key.ts"
-import { getApiKey as getGenerateApiKey } from "../src/core.ts"
 
 async function withAuthFile(
   value: unknown,
@@ -56,11 +55,6 @@ describe("getConfiguredApiKey()", () => {
     }
   })
 
-  it("is the reader the generate transport uses", () => {
-    // Both transports must agree on auth-file precedence and credential shapes.
-    assert.equal(getGenerateApiKey, getConfiguredApiKey)
-  })
-
   it("consults auth files in the documented order", () => {
     assert.deepEqual(defaultAuthPaths("/home/user", {}), [
       join("/home/user", ".commandcode", "auth.json"),
@@ -104,14 +98,13 @@ describe("getConfiguredApiKey()", () => {
       )
       const options = { env: { PI_CODING_AGENT_DIR: profileDir }, homeDir: () => home }
       assert.equal(getConfiguredApiKey(options), "omp-key")
-      assert.equal(getGenerateApiKey(options), "omp-key")
+
       await mkdir(join(home, ".commandcode"), { recursive: true })
       await writeFile(
         join(home, ".commandcode", "auth.json"),
         JSON.stringify({ "command-code": "cli-key" }),
       )
       assert.equal(getConfiguredApiKey(options), "cli-key")
-      assert.equal(getGenerateApiKey(options), "cli-key")
     } finally {
       await rm(home, { recursive: true, force: true })
       await rm(profileDir, { recursive: true, force: true })

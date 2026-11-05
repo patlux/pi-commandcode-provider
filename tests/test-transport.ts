@@ -10,6 +10,9 @@ import type {
 } from "../src/types.ts"
 import { collectEvents, createTestEventStream, makeContext, makeModel } from "./helpers.ts"
 
+const PROVIDER_ACCESS_REQUIRED =
+  "Command Code Provider API access is required (403 upgrade_required). The Go plan does not include API use. Use a plan with documented Provider API access and retry. If you changed accounts, sign in again. See https://commandcode.ai/docs/provider."
+
 function completedStream(text: string): AssistantMessageEventStreamLike {
   const stream = createTestEventStream()
   const model = makeModel()
@@ -42,11 +45,7 @@ function completedStream(text: string): AssistantMessageEventStreamLike {
   return stream
 }
 
-function providerStream(
-  response: Response,
-  text: string,
-  options?: StreamOptions,
-): AssistantMessageEventStreamLike {
+function providerStream(text: string, options?: StreamOptions): AssistantMessageEventStreamLike {
   const stream = createTestEventStream()
   const run = async () => {
     const received = await (options?.fetch ?? fetch)("https://provider.test", {})
@@ -62,361 +61,315 @@ function providerStream(
   return stream
 }
 
-describe("Command Code transport router", () => {
-  it("keeps using the Provider API after a successful request", async () => {
-    let providerCalls = 0
-    let generateCalls = 0
-    const router = createCommandCodeTransportRouter({
+// A decoy makes an accidental reintroduction of the old fallback observable.
+// Passing a variable retains structural compatibility without exposing an opt-in API.
+function providerOnlyRouter(deps: Parameters<typeof createCommandCodeTransportRouter>[0]) {
+  const dependencies = { ...deps, streamGenerate: () => completedStream("unexpected-generate") }
+  return createCommandCodeTransportRouter(dependencies)
+}
+
+describe("Command Code Provider API entitlement", () => {
+  it("uses the provider and preserves successful events", async () => {
+    let calls = 0
+    const router = providerOnlyRouter({
       createStream: createTestEventStream,
-      streamProvider: (_model, _context, options) => {
-        providerCalls += 1
-        return providerStream(new Response("ok", { status: 200 }), "provider", options)
-      },
-      streamGenerate: () => {
-        generateCalls += 1
-        return completedStream("generate")
+      streamProvider: () => {
+        calls += 1
+        return completedStream("provider")
       },
     })
-
-    const options: StreamOptions = {
-      fetch: () => Promise.resolve(new Response("ok", { status: 200 })),
+    assert.equal(router.getTransport(), "unknown")
+    for (let index = 0; index < 2; index++) {
+      const events = await collectEvents(router.stream(makeModel(), makeContext()))
+      assert.equal(events.at(-1)?.type, "done")
     }
-    const first = await collectEvents(router.stream(makeModel(), makeContext(), options))
-    const second = await collectEvents(router.stream(makeModel(), makeContext(), options))
-
-    assert.equal(first.at(-1)?.type, "done")
-    assert.equal(second.at(-1)?.type, "done")
+    assert.equal(calls, 2)
     assert.equal(router.getTransport(), "provider")
-    assert.equal(providerCalls, 2)
-    assert.equal(generateCalls, 0)
-  })
-
-  it("falls back only for 403 upgrade_required and remembers generate", async () => {
-    let providerCalls = 0
-    let generateCalls = 0
-    const responseBody = JSON.stringify({
-      error: { code: "upgrade_required", type: "permission_error" },
-    })
-    const router = createCommandCodeTransportRouter({
-      createStream: createTestEventStream,
-      streamProvider: (_model, _context, options) => {
-        providerCalls += 1
-        return providerStream(new Response(responseBody, { status: 403 }), "blocked", options)
-      },
-      streamGenerate: () => {
-        generateCalls += 1
-        return completedStream("generate")
-      },
-    })
-    const options: StreamOptions = {
-      fetch: () => Promise.resolve(new Response(responseBody, { status: 403 })),
-    }
-
-    const first = await collectEvents(router.stream(makeModel(), makeContext(), options))
-    const second = await collectEvents(router.stream(makeModel(), makeContext(), options))
-
-    assert.equal(first.at(-1)?.type, "done")
-    assert.equal(second.at(-1)?.type, "done")
-    assert.equal(router.getTransport(), "generate")
-    assert.equal(providerCalls, 1)
-    assert.equal(generateCalls, 2)
-  })
-
-  it("re-probes the Provider API after an explicit reset with the same key", async () => {
-    // An account upgraded from Go keeps the same key; /commandcode-refresh
-    // resets the sticky generate choice so the next request tries again.
-    let providerCalls = 0
-    let generateCalls = 0
-    let upgraded = false
-    const upgradeBody = JSON.stringify({ error: { code: "upgrade_required" } })
-    const currentResponse = () =>
-      upgraded ? new Response("ok", { status: 200 }) : new Response(upgradeBody, { status: 403 })
-    const router = createCommandCodeTransportRouter({
-      createStream: createTestEventStream,
-      streamProvider: (_model, _context, options) => {
-        providerCalls += 1
-        return providerStream(currentResponse(), "provider", options)
-      },
-      streamGenerate: () => {
-        generateCalls += 1
-        return completedStream("generate")
-      },
-    })
-    const options: StreamOptions = {
-      apiKey: "same-key",
-      fetch: () => Promise.resolve(currentResponse()),
-    }
-
-    await collectEvents(router.stream(makeModel(), makeContext(), options))
-    assert.equal(router.getTransport(), "generate")
-
-    upgraded = true
-    await collectEvents(router.stream(makeModel(), makeContext(), options))
-    assert.equal(router.getTransport(), "generate", "generate stays sticky without a reset")
-    assert.equal(providerCalls, 1)
-
     router.reset()
     assert.equal(router.getTransport(), "unknown")
-    const events = await collectEvents(router.stream(makeModel(), makeContext(), options))
-    assert.equal(events.at(-1)?.type, "done")
-    assert.equal(router.getTransport(), "provider")
-    assert.equal(providerCalls, 2)
-    assert.equal(generateCalls, 2)
   })
 
-  it("re-detects the transport after the API key changes", async () => {
-    let providerCalls = 0
-    let generateCalls = 0
-    const upgradeBody = JSON.stringify({ error: { code: "upgrade_required" } })
-    const router = createCommandCodeTransportRouter({
-      createStream: createTestEventStream,
-      streamProvider: (_model, _context, options) => {
-        providerCalls += 1
-        const response =
-          options?.apiKey === "go-key"
-            ? new Response(upgradeBody, { status: 403 })
-            : new Response("ok", { status: 200 })
-        return providerStream(response, "provider", options)
-      },
-      streamGenerate: () => {
-        generateCalls += 1
-        return completedStream("generate")
-      },
-    })
-
-    await collectEvents(
-      router.stream(makeModel(), makeContext(), {
-        apiKey: "go-key",
-        fetch: () => Promise.resolve(new Response(upgradeBody, { status: 403 })),
-      }),
-    )
-    await collectEvents(
-      router.stream(makeModel(), makeContext(), {
-        apiKey: "provider-key",
-        fetch: () => Promise.resolve(new Response("ok", { status: 200 })),
-      }),
-    )
-
-    assert.equal(router.getTransport(), "provider")
-    assert.equal(providerCalls, 2)
-    assert.equal(generateCalls, 1)
-  })
-
-  it("does not let a stale request overwrite the transport for a new API key", async () => {
-    let releaseGoRequest: (() => void) | undefined
-    const goRequestGate = new Promise<void>((resolve) => {
-      releaseGoRequest = resolve
-    })
-    let providerCalls = 0
-    let generateCalls = 0
-    const upgradeBody = JSON.stringify({ error: { code: "upgrade_required" } })
-    const router = createCommandCodeTransportRouter({
-      createStream: createTestEventStream,
-      streamProvider: (_model, _context, options) => {
-        providerCalls += 1
-        const response =
-          options?.apiKey === "go-key"
-            ? new Response(upgradeBody, { status: 403 })
-            : new Response("ok", { status: 200 })
-        const stream = createTestEventStream()
-        const run = async () => {
-          if (options?.apiKey === "go-key") await goRequestGate
-          const received = await (options?.fetch ?? fetch)("https://provider.test", {})
-          await options?.onResponse?.(
-            { status: received.status, headers: {} },
-            makeModel({ api: "openai-completions" }),
-          )
-          if (response.ok) {
-            for await (const event of completedStream("provider")) stream.push(event)
+  for (const rejects of [false, true]) {
+    it(`rejects upgrade_required without fallback (iterator rejects=${rejects})`, async () => {
+      let requests = 0
+      const statuses: number[] = []
+      const router = providerOnlyRouter({
+        createStream: createTestEventStream,
+        streamProvider: (_model, _context, options) => {
+          const stream = createTestEventStream()
+          stream[Symbol.asyncIterator] = async function* () {
+            const response = await (options?.fetch ?? fetch)("https://provider.test", {})
+            await options?.onResponse?.({ status: response.status, headers: {} }, makeModel())
+            yield* completedStream("blocked-provider-output")
+            if (rejects) throw new Error("raw-private-provider-error")
           }
-          stream.end()
-        }
-        run().catch(() => stream.end())
-        return stream
-      },
-      streamGenerate: () => {
-        generateCalls += 1
-        return completedStream("generate")
-      },
+          return stream
+        },
+      })
+      for (const apiKey of ["go-key", "go-key", "new-key"]) {
+        const events = await collectEvents(
+          router.stream(makeModel(), makeContext(), {
+            apiKey,
+            fetch: async () => {
+              requests += 1
+              return new Response(
+                JSON.stringify({
+                  error: { code: "upgrade_required", message: "raw-private-provider-error" },
+                }),
+                { status: 403 },
+              )
+            },
+            onResponse: async (response) => {
+              statuses.push(response.status)
+            },
+          }),
+        )
+        assert.deepEqual(
+          events.map((event) => event.type),
+          ["error"],
+        )
+        const terminal = events.at(-1)
+        assert.ok(terminal?.type === "error")
+        assert.equal(terminal.error.errorMessage, PROVIDER_ACCESS_REQUIRED)
+        assert.doesNotMatch(
+          JSON.stringify(events),
+          /raw-private-provider-error|blocked-provider-output/,
+        )
+      }
+      assert.equal(
+        requests,
+        3,
+        "exactly one provider request per stream; no fallback or cached bypass",
+      )
+      assert.deepEqual(statuses, [403, 403, 403], "diagnostics still see denied responses")
+      assert.equal(router.getTransport(), "unknown", "a denial is not a successful transport probe")
     })
+  }
 
-    const staleGoRequest = collectEvents(
-      router.stream(makeModel(), makeContext(), {
-        apiKey: "go-key",
-        fetch: () => Promise.resolve(new Response(upgradeBody, { status: 403 })),
-      }),
-    )
-    await collectEvents(
-      router.stream(makeModel(), makeContext(), {
-        apiKey: "provider-key",
-        fetch: () => Promise.resolve(new Response("ok", { status: 200 })),
-      }),
-    )
-    releaseGoRequest?.()
-    await staleGoRequest
-    await collectEvents(
-      router.stream(makeModel(), makeContext(), {
-        apiKey: "provider-key",
-        fetch: () => Promise.resolve(new Response("ok", { status: 200 })),
-      }),
-    )
-
-    assert.equal(router.getTransport(), "provider")
-    assert.equal(providerCalls, 3)
-    assert.equal(generateCalls, 1)
+  it("does not rewrite unrelated errors or malformed entitlement responses", async () => {
+    for (const [status, body] of [
+      [401, '{"error":{"code":"upgrade_required"}}'],
+      [403, '{"error":{"code":"permission_denied"}}'],
+      [403, "invalid JSON"],
+      [429, "limited"],
+    ]) {
+      const router = providerOnlyRouter({
+        createStream: createTestEventStream,
+        streamProvider: (_model, _context, options) => {
+          const stream = createTestEventStream()
+          stream[Symbol.asyncIterator] = async function* () {
+            await (options?.fetch ?? fetch)("https://provider.test", {})
+            throw new Error("original host error")
+          }
+          return stream
+        },
+      })
+      assert.ok(typeof status === "number" && typeof body === "string")
+      const events = await collectEvents(
+        router.stream(makeModel(), makeContext(), {
+          fetch: async () => new Response(body, { status }),
+        }),
+      )
+      const terminal = events.at(-1)
+      assert.ok(terminal?.type === "error")
+      assert.equal(terminal.error.errorMessage, "original host error")
+    }
   })
 
-  it("does not let a pre-reset request overwrite the probe after the same key is reused", async () => {
-    let release!: () => void
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    let calls = 0
-    const router = createCommandCodeTransportRouter({
+  it("does not cache an entitlement denial after the key changes", async () => {
+    const router = providerOnlyRouter({
       createStream: createTestEventStream,
-      streamProvider: (_model, _context, options) => {
-        calls += 1
-        const stale = calls === 1
-        const stream = createTestEventStream()
-        const run = async () => {
-          if (stale) await gate
-          await options?.fetch?.("https://provider.test", {})
-          for await (const event of completedStream("provider")) stream.push(event)
-          stream.end()
-        }
-        run().catch(() => stream.end())
-        return stream
-      },
-      streamGenerate: () => completedStream("generate"),
+      streamProvider: (_model, _context, options) => providerStream("provider", options),
     })
-    const stale = collectEvents(
+    const denied = await collectEvents(
       router.stream(makeModel(), makeContext(), {
-        apiKey: "same-key",
-        fetch: async () =>
-          new Response(JSON.stringify({ error: { code: "upgrade_required" } }), { status: 403 }),
+        apiKey: "go-key",
+        fetch: async () => new Response('{"code":"upgrade_required"}', { status: 403 }),
       }),
     )
-    router.reset()
-    await collectEvents(
+    assert.equal(denied.at(-1)?.type, "error")
+    const accepted = await collectEvents(
       router.stream(makeModel(), makeContext(), {
-        apiKey: "same-key",
+        apiKey: "provider-key",
         fetch: async () => new Response("ok"),
       }),
     )
-    assert.equal(router.getTransport(), "provider")
-    release()
-    await stale
-    assert.equal(router.getTransport(), "provider")
+    assert.equal(accepted.at(-1)?.type, "done")
   })
 
-  it("falls back when a Provider stream throws after an upgrade_required 403", async () => {
-    const upgradeBody = JSON.stringify({ error: { code: "upgrade_required" } })
-    let providerCalls = 0
-    let generateCalls = 0
-    const router = createCommandCodeTransportRouter({
+  it("preserves abort classification without a second request", async () => {
+    const controller = new AbortController()
+    controller.abort()
+    const router = providerOnlyRouter({
       createStream: createTestEventStream,
-      streamProvider: (_model, _context, options) => {
-        providerCalls += 1
-        const stream = createTestEventStream()
-        stream[Symbol.asyncIterator] = async function* () {
-          const response = await (options?.fetch ?? fetch)("https://provider.test", {})
-          await options?.onResponse?.(
-            { status: response.status, headers: {} },
-            makeModel({ api: "openai-completions" }),
-          )
-          // Even events emitted before the iterator rejects must stay suppressed.
-          yield* completedStream("blocked-provider-output")
-          throw new Error("Provider stream rejected after 403")
-        }
-        return stream
-      },
-      streamGenerate: () => {
-        generateCalls += 1
-        return completedStream("generate")
+      streamProvider: () => {
+        throw new Error("aborted")
       },
     })
-    const options: StreamOptions = {
-      apiKey: "go-key",
-      fetch: () => Promise.resolve(new Response(upgradeBody, { status: 403 })),
-    }
+    const events = await collectEvents(
+      router.stream(makeModel(), makeContext(), { signal: controller.signal }),
+    )
+    const terminal = events.at(-1)
+    assert.ok(terminal?.type === "error")
+    assert.equal(terminal.reason, "aborted")
+  })
+})
 
-    const first = await collectEvents(router.stream(makeModel(), makeContext(), options))
-    const second = await collectEvents(router.stream(makeModel(), makeContext(), options))
-
-    for (const events of [first, second]) {
+describe("Provider entitlement diagnostics and error boundaries", () => {
+  it(
+    "keeps a single done terminal when the host iterator rejects after completion",
+    { timeout: 2_000 },
+    async () => {
+      let lateRejectionReached = false
+      const router = providerOnlyRouter({
+        createStream: createTestEventStream,
+        streamProvider: () => {
+          const stream = createTestEventStream()
+          stream[Symbol.asyncIterator] = async function* () {
+            yield* completedStream("provider")
+            lateRejectionReached = true
+            throw new Error("late host rejection")
+          }
+          return stream
+        },
+      })
+      const events: AssistantMessageEvent[] = []
+      // Unlike collectEvents, drain through end so a second terminal stays observable.
+      for await (const event of router.stream(makeModel(), makeContext())) events.push(event)
+      assert.equal(lateRejectionReached, true, "consume the host iterator through its rejection")
       assert.deepEqual(
         events.map((event) => event.type),
         ["start", "text_start", "text_delta", "text_end", "done"],
       )
-      assert.deepEqual(
-        events.flatMap((event) => (event.type === "text_delta" ? [event.delta] : [])),
-        ["generate"],
+      assert.equal(events.filter((event) => event.type === "done").length, 1)
+      assert.equal(
+        events.some((event) => event.type === "error"),
+        false,
       )
-      const terminal = events.at(-1)
-      assert.ok(terminal?.type === "done")
-      assert.deepEqual(terminal.message.content, [{ type: "text", text: "generate" }])
-    }
-    assert.equal(router.getTransport(), "generate")
-    assert.equal(providerCalls, 1)
-    assert.equal(generateCalls, 2)
-  })
+      assert.equal(router.getTransport(), "provider")
+    },
+  )
 
-  it("does not fall back when a Provider stream rejects after another 403", async () => {
-    let generateCalls = 0
-    const router = createCommandCodeTransportRouter({
+  it("redacts rejected host errors", async () => {
+    const router = providerOnlyRouter({
       createStream: createTestEventStream,
-      streamProvider: (_model, _context, options) => {
-        const stream = createTestEventStream()
-        stream[Symbol.asyncIterator] = async function* () {
-          await (options?.fetch ?? fetch)("https://provider.test", {})
-          throw new Error("Provider stream rejected on denied request")
-        }
-        return stream
-      },
-      streamGenerate: () => {
-        generateCalls += 1
-        return completedStream("generate")
+      streamProvider: () => {
+        throw new Error("api_key=private_test_secret")
       },
     })
-    const events = await collectEvents(
-      router.stream(makeModel(), makeContext(), {
-        fetch: () =>
-          Promise.resolve(
-            new Response(JSON.stringify({ error: { code: "permission_denied" } }), { status: 403 }),
-          ),
-      }),
-    )
-    assert.deepEqual(
-      events.map((event) => event.type),
-      ["error"],
-    )
+    const events = await collectEvents(router.stream(makeModel(), makeContext()))
     const terminal = events.at(-1)
     assert.ok(terminal?.type === "error")
-    assert.equal(terminal.error.errorMessage, "Provider stream rejected on denied request")
-    assert.equal(generateCalls, 0)
+    assert.match(terminal.error.errorMessage ?? "", /api_key=\[redacted\]/)
+    assert.doesNotMatch(JSON.stringify(events), /private_test_secret/)
+    assert.equal(router.getTransport(), "unknown")
   })
 
-  it("does not fall back for other 403 errors", async () => {
-    let generateCalls = 0
-    const responseBody = JSON.stringify({ error: { code: "permission_denied" } })
-    const router = createCommandCodeTransportRouter({
+  it("redacts emitted host errors and retains abort classification", async () => {
+    const model = makeModel()
+    const error = {
+      role: "assistant" as const,
+      content: [],
+      api: model.api,
+      provider: model.provider,
+      model: model.id,
+      usage: {
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+        totalTokens: 0,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+      },
+      stopReason: "aborted" as const,
+      errorMessage: "Bearer private_test_secret",
+      timestamp: 1,
+    }
+    const router = providerOnlyRouter({
       createStream: createTestEventStream,
-      streamProvider: (_model, _context, options) =>
-        providerStream(new Response(responseBody, { status: 403 }), "blocked", options),
-      streamGenerate: () => {
-        generateCalls += 1
-        return completedStream("generate")
+      streamProvider: () => {
+        const stream = createTestEventStream()
+        stream.push({ type: "error", reason: "aborted", error })
+        stream.end()
+        return stream
       },
     })
-    const options: StreamOptions = {
-      fetch: () => Promise.resolve(new Response(responseBody, { status: 403 })),
-    }
-
-    await collectEvents(router.stream(makeModel(), makeContext(), options))
-
-    assert.equal(router.getTransport(), "provider")
-    assert.equal(generateCalls, 0)
+    const events = await collectEvents(router.stream(model, makeContext()))
+    const terminal = events.at(-1)
+    assert.ok(terminal?.type === "error")
+    assert.equal(terminal.reason, "aborted")
+    assert.equal(terminal.error.stopReason, "aborted")
+    assert.equal(terminal.error.errorMessage, "Bearer [redacted]")
+    assert.equal(error.errorMessage, "Bearer private_test_secret", "do not mutate host events")
+    assert.equal(router.getTransport(), "unknown")
   })
+
+  it("forgets previous success when a new attempt is denied, even with the same key", async () => {
+    let denied = false
+    const router = providerOnlyRouter({
+      createStream: createTestEventStream,
+      streamProvider: (_model, _context, options) => providerStream("provider", options),
+    })
+    const options = {
+      apiKey: "same-key",
+      fetch: async () =>
+        denied
+          ? new Response('{"error":{"code":"upgrade_required"}}', { status: 403 })
+          : new Response("ok"),
+    }
+    await collectEvents(router.stream(makeModel(), makeContext(), options))
+    assert.equal(router.getTransport(), "provider")
+    denied = true
+    assert.equal(
+      (await collectEvents(router.stream(makeModel(), makeContext(), options))).at(-1)?.type,
+      "error",
+    )
+    assert.equal(router.getTransport(), "unknown")
+    denied = false
+    assert.equal(
+      (await collectEvents(router.stream(makeModel(), makeContext(), options))).at(-1)?.type,
+      "done",
+    )
+    assert.equal(router.getTransport(), "provider", "no sticky denial or fallback")
+  })
+
+  for (const reset of [false, true]) {
+    it(`does not let an older request overwrite a newer denied attempt (reset=${reset})`, async () => {
+      let release!: () => void
+      const gate = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      const router = providerOnlyRouter({
+        createStream: createTestEventStream,
+        streamProvider: (_model, _context, options) => providerStream("provider", options),
+      })
+      const older = collectEvents(
+        router.stream(makeModel(), makeContext(), {
+          apiKey: "old-key",
+          fetch: async () => {
+            await gate
+            return new Response("ok")
+          },
+        }),
+      )
+      if (reset) router.reset()
+      const newer = await collectEvents(
+        router.stream(makeModel(), makeContext(), {
+          apiKey: reset ? "old-key" : "new-key",
+          fetch: async () => new Response('{"code":"upgrade_required"}', { status: 403 }),
+        }),
+      )
+      assert.equal(newer.at(-1)?.type, "error")
+      assert.equal(router.getTransport(), "unknown")
+      release()
+      await older
+      assert.equal(
+        router.getTransport(),
+        "unknown",
+        "stale success must not replace the current denial",
+      )
+    })
+  }
 })
 
 const encoder = new TextEncoder()

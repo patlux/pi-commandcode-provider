@@ -50,6 +50,7 @@ if (!OMP_BIN) {
 }
 
 const tempHome = mkdtempSync(join(tmpdir(), "omp-cc-home-"))
+let generateRequestCount = 0
 let requestCount = 0
 let skillDescriptionRequestCount = 0
 let modelListRequestCount = 0
@@ -57,7 +58,7 @@ let lastRequestBody
 let requestBodies = []
 let lastRequestHeaders = {}
 // When true the mock Provider API answers 403 upgrade_required so the
-// transport router falls back to the legacy /alpha/generate transport.
+// transport must report denial without retrying /alpha/generate.
 let providerUpgradeRequired = false
 
 // OMP >= 18.13 compresses skill descriptions into routing hints before the
@@ -133,7 +134,7 @@ const server = createServer((req, res) => {
         requestBodies.push(parsedBody)
       }
 
-      // The upgrade fallback is exercised by agent requests only: a pre-pass
+      // The entitlement denial is exercised by agent requests only: a pre-pass
       // failing with 403 would abort the compression instead of the turn under
       // test, so pre-passes keep the ordinary mock response.
       if (providerUpgradeRequired && !skillDescriptionRequest) {
@@ -160,42 +161,12 @@ const server = createServer((req, res) => {
     return
   }
 
-  if (req.method !== "POST" || req.url !== "/alpha/generate") {
-    res.writeHead(404)
-    res.end("Not found")
-    return
+  if (req.method === "POST" && req.url === "/alpha/generate") {
+    generateRequestCount += 1
+    requestCount += 1
   }
-
-  requestCount += 1
-  lastRequestHeaders = Object.fromEntries(
-    Object.entries(req.headers).map(([key, value]) => [
-      key,
-      Array.isArray(value) ? value.join(", ") : (value ?? ""),
-    ]),
-  )
-
-  let generateBody = ""
-  req.on("data", (chunk) => {
-    generateBody += chunk.toString("utf-8")
-  })
-  req.on("end", () => {
-    try {
-      lastRequestBody = JSON.parse(generateBody)
-      requestBodies.push(lastRequestBody)
-    } catch {
-      lastRequestBody = undefined
-    }
-
-    res.writeHead(200, {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Transfer-Encoding": "chunked",
-    })
-    res.write(`${JSON.stringify({ type: "text-delta", text: "mock-omp-ok" })}\n`)
-    res.write(
-      `${JSON.stringify({ type: "finish", finishReason: "stop", totalUsage: { inputTokens: 1, outputTokens: 1 } })}\n`,
-    )
-    res.end()
-  })
+  res.writeHead(404)
+  res.end("No internal generation endpoint")
 })
 
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve))
@@ -439,11 +410,23 @@ try {
   assert.equal(requestCount, 0, JSON.stringify(lastRequestHeaders))
   assert.doesNotMatch(noKeyChat.stdout + noKeyChat.stderr, /\$COMMAND_CODE_API_KEY/)
 
-  console.log("[omp-compat] developer advisory reaches the legacy generate request body")
+  console.log("[omp-compat] denied Provider API access never retries generate")
+  requestCount = 0
+  requestBodies = []
+  providerUpgradeRequired = true
+  const denied = await runOmp([...chatArgs, "--no-title"])
+  assert.match(denied.stdout + denied.stderr, /Provider API access is required/)
+  assert.doesNotMatch(denied.stdout, /mock-omp-ok/)
+  assert.equal(requestCount, 1)
+  assert.equal(generateRequestCount, 0)
+  assert.equal(requestBodies[0]?.params, undefined)
+  providerUpgradeRequired = false
+
+  console.log("[omp-compat] developer advisory reaches the Provider API request body")
   requestCount = 0
   skillDescriptionRequestCount = 0
   requestBodies = []
-  providerUpgradeRequired = true
+  providerUpgradeRequired = false
   const advisoryRun = await runOmp(
     [
       "-e",
@@ -463,12 +446,12 @@ try {
   assert.match(advisoryRun.stdout, /mock-omp-ok/)
 
   const promptBodies = requestBodies.filter((body) =>
-    JSON.stringify(body?.params?.messages ?? []).includes("say mock token"),
+    JSON.stringify(body?.messages ?? []).includes("say mock token"),
   )
-  assert.ok(promptBodies.length >= 1, "expected at least one generate request with the prompt")
+  assert.ok(promptBodies.length >= 1, "expected at least one provider request with the prompt")
 
   for (const body of promptBodies) {
-    const messages = body?.params?.messages ?? []
+    const messages = body?.messages ?? []
     const advisoryMessages = messages.filter((message) =>
       JSON.stringify(message).includes("Stop and correct the benchmark."),
     )
@@ -492,7 +475,7 @@ try {
       "advisory must keep its chronological position relative to the prompt",
     )
     assert.doesNotMatch(
-      String(body?.params?.system ?? ""),
+      JSON.stringify(messages.filter((message) => message.role === "system")),
       /Stop and correct the benchmark|<advisory/,
       "advisory must not be hoisted into the system prompt",
     )

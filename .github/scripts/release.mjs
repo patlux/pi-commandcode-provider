@@ -78,7 +78,17 @@ export function checkPackageFiles(files) {
     "RELEASE.md",
     "LICENSE",
   ])
+  const retiredClients = new Set([
+    "src/core.ts",
+    "src/converters.ts",
+    "src/transcript.ts",
+    "src/json-schema.ts",
+  ])
   for (const file of files) {
+    assert.ok(
+      !retiredClients.has(file),
+      `Unexpected package file: ${file} (retired generate client)`,
+    )
     const allowedSource = /^(src|scripts)\/[\w/-]+\.(ts|mjs)$/.test(file)
     assert.ok(rootFiles.has(file) || allowedSource, `Unexpected package file: ${file}`)
   }

@@ -7,6 +7,16 @@ A custom provider for [pi](https://github.com/earendil-works/pi) that connects t
 
 > **Disclaimer:** This is an unofficial, community-maintained integration. It is not affiliated with, endorsed by, or supported by Command Code. You need your own Command Code account, API key, and a plan with Provider API access. Command Code's terms, availability, and pricing apply.
 
+## Provider API access required
+
+This extension requires [Provider API access](https://commandcode.ai/docs/provider). GOAT, Pro, Max, Team and Provider accounts with API entitlement use the documented inference endpoints. The Go plan does not include API access. A successful login or quota response does not establish inference entitlement.
+
+A `403 upgrade_required` stops with an actionable error; the extension never retries the prompt on the internal `/alpha/generate` endpoint. There is no switch to restore that fallback. Endpoint overrides select a supported Provider API wire, not a way around plan restrictions.
+
+If you previously used the Go fallback, use the official Command Code CLI within its supported plan, or an account with Provider API entitlement. After an entitlement change, retry a small request; if you changed accounts, run `/login` again and reload the host. Existing credentials, sessions and persisted endpoint choices are not deleted or migrated.
+
+The Provider API-only rule here applies to **inference**. Authentication/key validation and read-only account/quota reporting still use internal account endpoints; they do not generate text or grant missing API access. These are not claimed to be documented Provider API routes. See the quota limitations below.
+
 ## Install
 
 ```sh
@@ -57,7 +67,7 @@ The provider also reads existing credentials from, in this order:
 - `~/.pi/agent/auth.json` (or `$PI_CODING_AGENT_DIR/auth.json` when pi runs with that variable)
 - `~/.omp/agent/auth.json`
 
-Both transports and the quota commands use the same ambient lookup, after any credentials supplied by the host. `PI_CODING_AGENT_DIR` redirects only the pi auth-file slot; the `.commandcode` and `.omp` paths still use `HOME`. Isolate `HOME` as well when a sandbox must not read those credentials.
+The Provider API path and the quota commands use the same ambient lookup, after any credentials supplied by the host. `PI_CODING_AGENT_DIR` redirects only the pi auth-file slot; the `.commandcode` and `.omp` paths still use `HOME`. Isolate `HOME` as well when a sandbox must not read those credentials.
 
 Supported examples:
 
@@ -106,7 +116,7 @@ Use `/commandcode-endpoint <model-id> chat-completions` to select Chat Completio
 /commandcode-endpoint zai-org/GLM-5.3 chat-completions
 ```
 
-Use `responses` to select Responses where the catalog advertises it, or `auto` to remove that model's override and restore catalog routing. Claude models require `auto` (Anthropic Messages). Use the exact catalog model ID, without the host's `commandcode/` provider prefix. The command waits for the current turn to finish and affects subsequent requests; it never retries a partial stream on another endpoint. `/commandcode-status` and `/commandcode-diagnostics` show the effective model endpoint and whether it came from the catalog or a user override. The account transport (`provider` or `generate`) is independent: endpoint overrides apply only to Provider API requests, not the Go/GOAT generate fallback. This is a routing choice, not a guarantee of upstream capacity, throughput or caching.
+Use `responses` to select Responses where the catalog advertises it, or `auto` to remove that model's override and restore catalog routing. Claude models require `auto` (Anthropic Messages). Use the exact catalog model ID, without the host's `commandcode/` provider prefix. The command waits for the current turn to finish and affects subsequent requests; it never retries a partial stream on another endpoint. `/commandcode-status` and `/commandcode-diagnostics` show the effective model endpoint and whether it came from the catalog or a user override. Endpoint overrides apply only to Provider API requests and cannot grant missing plan access. This is a routing choice, not a guarantee of upstream capacity, throughput or caching.
 
 Choices are stored in `commandcode-routing.json` inside the host agent directory, separate from the generated model cache. They survive refreshes, restarts and package updates. Do not edit the model cache. A malformed or unreadable routing file is ignored with a visible warning, so requests use catalog routing until repaired. Startup does not rewrite it. Run an explicit `/commandcode-endpoint` command to repair a malformed file: the invalid choices are replaced, and its previous contents are preserved in a mode-`0600` `commandcode-routing.json.invalid-*.bak` file in the same directory. An unreadable file is not overwritten; fix its permissions first. A syntactically valid choice that the current catalog no longer supports is rejected for that model; use `auto` to reset it.
 
@@ -116,7 +126,7 @@ Changes made to the file externally require a reload (or a successful endpoint c
 
 ### Reasoning support
 
-Reasoning capability and selectable effort levels follow the official CLI catalog independently. Models can therefore be marked as reasoning-capable even when Command Code chooses their depth automatically. Models with explicit effort support register a model-specific `thinkingLevelMap`, so pi and OMP expose only valid levels. For a few reasoning models the CLI catalog ships no effort levels although the endpoint accepts `reasoning_effort`; `src/commandcode-catalog-overrides.ts` adds a manual level set for those on top of the generated catalog (currently empty because upstream publishes every level). The catalog sync removes an override as soon as upstream publishes its own levels. Pi's native OpenAI- and Anthropic-compatible providers translate the selected level for Provider API accounts; the existing Command Code generate transport sends the matching `reasoning_effort` for Go accounts.
+Reasoning capability and selectable effort levels follow the official CLI catalog independently. Models can therefore be marked as reasoning-capable even when Command Code chooses their depth automatically. Models with explicit effort support register a model-specific `thinkingLevelMap`, so pi and OMP expose only valid levels. For a few reasoning models the CLI catalog ships no effort levels although the endpoint accepts `reasoning_effort`; `src/commandcode-catalog-overrides.ts` adds a manual level set for those on top of the generated catalog (currently empty because upstream publishes every level). The catalog sync removes an override as soon as upstream publishes its own levels. Pi's native OpenAI- and Anthropic-compatible providers translate the selected level for Provider API accounts.
 
 List Command Code models from the terminal:
 
@@ -150,26 +160,16 @@ When a valid cache exists, the provider registers the cached catalog immediately
 
 While pi is running, use these provider commands without restarting:
 
-- `/commandcode-refresh` fetches and re-registers the current model catalog, and forgets the probed transport so the next request tries the Provider API again (for example after upgrading a Go account). Overlapping refreshes are coalesced, and a failed refresh keeps the last valid catalog active.
-- `/commandcode-status` shows redacted discovery diagnostics, including the source, model count, timestamps, cache path, endpoint, and warning. If a Responses reasoning event has an unsupported shape, a separate stream warning is cleared when the next Responses HTTP request starts, before its outcome is known. Requests on Chat Completions, Messages, or generate do not clear it. The slot is shared by concurrent Responses requests, so a late warning from an older in-flight response can still replace it. The event is preserved unchanged; no reasoning text is included in the warning.
+- `/commandcode-refresh` fetches and re-registers the current model catalog, and resets the latest transport status. Every inference attempt uses the Provider API; entitlement denials are not cached. Overlapping refreshes are coalesced, and a failed refresh keeps the last valid catalog active.
+- `/commandcode-status` shows redacted discovery diagnostics, including the source, model count, timestamps, cache path, endpoint, and warning. Transport status is `unknown` until the latest inference attempt completes successfully; a denial remains `unknown`, not proof of API entitlement. If a Responses reasoning event has an unsupported shape, a separate stream warning is cleared when the next Responses HTTP request starts, before its outcome is known. Requests on Chat Completions or Messages do not clear it. The slot is shared by concurrent Responses requests, so a late warning from an older in-flight response can still replace it. The event is preserved unchanged; no reasoning text is included in the warning.
 - `/commandcode-diagnostics` shows a shareable support report: plugin/host version, CLI snapshot, selected transport and wire, capability provenance, price status, and the latest request's HTTP status, attempts, outcome, first body-chunk latency and longest gap. It keeps only one request summary in memory. It never collects prompts, tool content, credentials, raw errors, account data or configured local paths. Model identifiers come from the host; recognized path-/credential-shaped values are redacted, but custom names can still identify your setup. Request IDs are included only when they match a bounded hexadecimal/UUID format. Timing is measured between body chunks, not tokens; first-chunk latency may include an error response. A request started most recently owns the report even if another request finishes later. Retry counts are scoped to that stream call, not host-level retries. Review the report before sharing it.
 - `/commandcode-quota` shows your Command Code account usage and quota in a dashboard-style layout: credits remaining and used with a percentage, monthly/purchased/free sources, the current plan, available usage totals, the API key name, and the 5-hour and weekly usage windows.
 
-The `commandcode-quota` command reads from the Command Code alpha usage endpoints (the same ones the `cmd` CLI `/usage` command uses): `whoami`, `billing/credits`, `billing/subscriptions`, and `usage/summary`. It authenticates with the same API key the provider already uses. If the command cannot reach those endpoints or an endpoint schema changes, unavailable sections are reported explicitly instead of being displayed as zero usage. Output is plain text (via `ui.notify`) so it works across pi and compatible hosts such as OMP.
+As an explicit exception to the inference policy, the `commandcode-quota` command reads from the internal Command Code alpha usage endpoints (the same ones the `cmd` CLI `/usage` command uses): `whoami`, `billing/credits`, `billing/subscriptions`, and `usage/summary`. It authenticates with the same API key the provider already uses. These requests are GET-only account/usage reads, not an inference fallback. Their success says nothing about Provider API entitlement; the undocumented schemas and availability may change independently. If the command cannot reach those endpoints or an endpoint schema changes, unavailable sections are reported explicitly instead of being displayed as zero usage. Output is plain text (via `ui.notify`) so it works across pi and compatible hosts such as OMP.
 
 On Oh My Pi the provider also registers an OMP usage provider through the `usage` field of `pi.registerProvider`, reading the same endpoints with the same credentials. It supplies the account's 5-hour and weekly usage windows, credits remaining and used against the billing-period pool, and the current plan to the host's usage surfaces, and it follows the same rule for sections the API does not report. pi has no such field and ignores it.
 
 Set `CMD_ZDR=1` to send Command Code's documented `x-cmd-zdr: 1` zero-data-retention header. The legacy `COMMANDCODE_ZDR=1` alias remains supported.
-
-### Request metadata on the generate transport
-
-The legacy `/alpha/generate` fallback used by Go accounts mirrors the official CLI's request shape, which includes metadata the Provider API path does not send:
-
-- the absolute working directory (`config.workingDir`) and a slug derived from it (`x-project-slug`);
-- the host session id (`x-session-id`) and, when it is a UUID, the same value as `threadId`;
-- `x-taste-learning`, the CLI's opt-in for Command Code's server-side taste learning. The CLI sends its `tasteLearning` setting (default on); this extension never reads the learned profile back, so it sends `false` unless `COMMANDCODE_TASTE_LEARNING=1` is set, and always `false` under `CMD_ZDR=1` or `COMMANDCODE_ZDR=1`. Caller headers cannot override this policy.
-
-The dedicated local-files, git-state, memory, and skills request fields stay empty. Conversation messages, tool results, system prompts, and tool definitions are still sent as required for inference.
 
 The following environment variables are intended for tests, local mocks, and compatible API endpoints:
 
@@ -184,11 +184,11 @@ The provider advertises image input only for models marked with the `image` inpu
 
 For vision-capable models, Pi's native provider adapters forward image blocks from user messages and tool results using the documented OpenAI or Anthropic message schema. Unknown and text-only models remain marked text-only in Pi.
 
-The legacy generate transport resolves image support from the host's `model.input` when the host supplies it, and falls back to the capability snapshot otherwise. Because the snapshot is generated from a single CLI release, a host that marks a model as `["text", "image"]` — for example through a `models.yml` or `models.json` model override — can send images on both transports before the catalog catches up. A host that narrows a catalogued vision model to text is likewise honored.
+The native host adapter uses the registered model's input capabilities on the Provider API. Host overrides can advertise image support before the catalog catches up, but cannot grant missing model or plan access.
 
 ## Pricing display
 
-The Command Code Provider API does not currently include prices in its model catalog. This extension therefore keeps a static table for models with known prices so pi and OMP can display estimated request costs. DeepSeek V4 uses time-dependent rates: the extension applies the documented 2x peak rates on weekdays from 01:00-04:00 and 06:00-10:00 UTC, and off-peak rates at all other times, including the entire weekend. The same request-time selection is used by the native Provider API path and the legacy generate fallback.
+The Command Code Provider API does not currently include prices in its model catalog. This extension therefore keeps a static table for models with known prices so pi and OMP can display estimated request costs. DeepSeek V4 uses time-dependent rates: the extension applies the documented 2x peak rates on weekdays from 01:00-04:00 and 06:00-10:00 UTC, and off-peak rates at all other times, including the entire weekend. These rates are selected at request time on the native Provider API path.
 
 Models missing from that table display zero cost in pi. The provider warns once per selected unpriced model per load, and diagnostics distinguishes an unknown price from an explicitly free model. An expired tracked promotion is marked `review-required`; the snapshot verification date is always shown. This does **not** mean that Command Code will bill the request at zero. The Command Code Usage page remains authoritative for each request. Check the current [Command Code pricing](https://commandcode.ai/docs/resources/pricing-limits) before relying on the displayed value.
 
@@ -238,26 +238,23 @@ Both commands accept additional pi arguments after `--`, for example `npm run pi
 
 ### Live transport tests
 
-Keep Go-, GOAT-, and optional Provider-plan test keys in separate secret-manager entries. Pass them through protected files so the keys do not enter shell history:
+Keep GOAT- and Provider-plan test keys in separate secret-manager entries. Pass them through protected files so the keys do not enter shell history:
 
 ```sh
-COMMANDCODE_E2E_GO_API_KEY_FILE=/path/to/go-key \
-  npm run test:e2e:live:go
-
 COMMANDCODE_E2E_GOAT_API_KEY_FILE=/path/to/goat-key \
   npm run test:e2e:live:goat
 
 COMMANDCODE_E2E_PROVIDER_API_KEY_FILE=/path/to/provider-key \
   npm run test:e2e:live:provider
 
-COMMANDCODE_E2E_GO_API_KEY_FILE=/path/to/go-key \
+COMMANDCODE_E2E_PROVIDER_API_KEY_FILE=/path/to/provider-key \
 COMMANDCODE_E2E_GOAT_API_KEY_FILE=/path/to/goat-key \
   npm run test:e2e:live:all
 ```
 
-Each profile runs with an isolated Pi agent directory and asserts transport selection, reasoning across turns, quota plan identity, abort handling, tool calls, and the packed npm artifact. Go must select `generate` and reject unsupported images; GOAT must select `provider` and complete a live vision request. The profile-specific `*_API_KEY` environment variables are also supported for CI secrets, but key files are preferred for local use.
+Each profile runs with an isolated Pi agent directory and asserts transport selection, reasoning across turns, quota plan identity, abort handling, tool calls, and the packed npm artifact. Both profiles must select `provider`; GOAT also completes a live vision request. Go entitlement denial and zero internal-generation requests are covered by isolated mock Pi/OMP tests, not paid probes. The profile-specific `*_API_KEY` environment variables are also supported for CI secrets, but key files are preferred for local use.
 
-The Go profile defaults to DeepSeek V4 Flash; GOAT defaults to Grok 4.6 because its Provider API stream exposes reasoning consistently across consecutive turns. Override them with `COMMANDCODE_E2E_GO_MODEL`, `COMMANDCODE_E2E_GOAT_MODEL`, or `COMMANDCODE_E2E_PROVIDER_MODEL`. The GOAT vision phase defaults to GPT-5.6 Luna and can be overridden with `COMMANDCODE_E2E_GOAT_VISION_MODEL`. A successful live Anthropic `/provider/v1/messages` test requires a paid account whose plan includes the selected Claude model.
+The Provider profile defaults to DeepSeek V4 Flash; GOAT defaults to Grok 4.6 because its Provider API stream exposes reasoning consistently across consecutive turns. Override them with `COMMANDCODE_E2E_GOAT_MODEL` or `COMMANDCODE_E2E_PROVIDER_MODEL`. The GOAT vision phase defaults to GPT-5.6 Luna and can be overridden with `COMMANDCODE_E2E_GOAT_VISION_MODEL`. A successful live Anthropic `/provider/v1/messages` test requires a paid account whose plan includes the selected Claude model.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup and tests. See [RELEASE.md](RELEASE.md) for the release process.
 

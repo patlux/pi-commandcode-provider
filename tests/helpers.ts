@@ -1,14 +1,11 @@
-import { createServer, type IncomingHttpHeaders, type Server } from "node:http"
-
-import {
-  createStreamCommandCode,
-  type AssistantMessageEvent,
-  type AssistantMessageEventStreamLike,
-  type ContextLike,
-  type CoreDependencies,
-  type ModelLike,
-  type Usage,
-} from "../src/core.ts"
+import { createServer, type Server } from "node:http"
+import type {
+  AssistantMessageEvent,
+  AssistantMessageEventStreamLike,
+  ContextLike,
+  ModelLike,
+  StreamOptions,
+} from "../src/types.ts"
 
 export function createTestEventStream(): AssistantMessageEventStreamLike {
   const events: AssistantMessageEvent[] = []
@@ -93,32 +90,6 @@ export function makeContext(overrides: Partial<ContextLike> = {}): ContextLike {
   }
 }
 
-export interface TestDepsResult {
-  streamCommandCode: ReturnType<typeof createStreamCommandCode>
-  calculatedUsages: Usage[]
-}
-
-export function createTestDeps(overrides: Partial<CoreDependencies> = {}): TestDepsResult {
-  const calculatedUsages: Usage[] = []
-  const streamCommandCode = createStreamCommandCode({
-    createStream: createTestEventStream,
-    calculateCost: (_model, usage) => {
-      calculatedUsages.push({
-        ...usage,
-        cost: { ...usage.cost },
-      })
-    },
-    env: {},
-    authPaths: [],
-    now: () => new Date("2026-05-05T12:00:00Z").getTime(),
-    uuid: () => "00000000-0000-4000-8000-000000000000",
-    cwd: () => "/repo",
-    delay: async () => {},
-    ...overrides,
-  })
-  return { streamCommandCode, calculatedUsages }
-}
-
 type SuccessPlan = {
   type: "success"
   status?: number
@@ -139,58 +110,29 @@ type ErrorPlan = {
 
 export type ResponsePlan = SuccessPlan | ErrorPlan
 
-function headersToRecord(headers: IncomingHttpHeaders): Record<string, string> {
-  const out: Record<string, string> = {}
-  for (const [key, value] of Object.entries(headers)) {
-    if (typeof value === "string") out[key] = value
-    else if (Array.isArray(value)) out[key] = value.join(", ")
-  }
-  return out
-}
-
 export interface MockCommandCodeServer {
   baseUrl(): string
   mockResponse(plan: ResponsePlan): void
-  mockResponseQueue(plans: ResponsePlan[]): void
-  reset(): void
   close(): Promise<void>
-  lastRequestBody(): unknown
-  lastRequestHeaders(): Record<string, string>
-  requestCount(): number
   responseClosedBeforeEnd(): boolean
 }
 
 export async function startMockCommandCodeServer(): Promise<MockCommandCodeServer> {
-  let planQueue: ResponsePlan[] = [{ type: "success", events: [] }]
-  let lastBody: unknown
-  let lastHeaders: Record<string, string> = {}
-  let requests = 0
+  let responsePlan: ResponsePlan = { type: "success", events: [] }
   let closedBeforeEnd = false
   let port = 0
 
   const server: Server = createServer((req, res) => {
-    if (req.method !== "POST" || req.url !== "/alpha/generate") {
+    if (req.method !== "POST" || req.url !== "/provider/v1/chat/completions") {
       res.writeHead(404)
       res.end("Not found")
       return
     }
 
-    requests += 1
-    lastHeaders = headersToRecord(req.headers)
-    let body = ""
-    req.on("data", (chunk: Buffer) => {
-      body += chunk.toString("utf-8")
-    })
+    // Drain the request without retaining unused payload or header snapshots.
+    req.resume()
     req.on("end", () => {
-      try {
-        const parsed: unknown = JSON.parse(body)
-        lastBody = parsed
-      } catch {
-        lastBody = undefined
-      }
-
-      // Pop the first plan from the queue; keep the last one as fallback.
-      const plan = planQueue.length > 1 ? planQueue.shift()! : planQueue[0]
+      const plan = responsePlan
 
       if (plan.type === "error") {
         const headers: Record<string, string> = { "Content-Type": "text/plain", ...plan.headers }
@@ -251,17 +193,7 @@ export async function startMockCommandCodeServer(): Promise<MockCommandCodeServe
   return {
     baseUrl: () => `http://127.0.0.1:${port}`,
     mockResponse(plan: ResponsePlan) {
-      planQueue = [plan]
-    },
-    mockResponseQueue(plans: ResponsePlan[]) {
-      planQueue = [...plans]
-    },
-    reset() {
-      planQueue = [{ type: "success", events: [] }]
-      lastBody = undefined
-      lastHeaders = {}
-      requests = 0
-      closedBeforeEnd = false
+      responsePlan = plan
     },
     close() {
       return new Promise<void>((resolve) => {
@@ -270,24 +202,101 @@ export async function startMockCommandCodeServer(): Promise<MockCommandCodeServe
         server.closeAllConnections()
       })
     },
-    lastRequestBody: () => lastBody,
-    lastRequestHeaders: () => lastHeaders,
-    requestCount: () => requests,
     responseClosedBeforeEnd: () => closedBeforeEnd,
   }
 }
 
-export function objectAt(value: unknown, path: readonly string[]): unknown {
-  let current = value
-  for (const key of path) {
-    if (Array.isArray(current)) {
-      const index = Number(key)
-      if (!Number.isInteger(index)) return undefined
-      current = current[index]
-      continue
+/** Synthetic byte source for diagnostics tests, NOT a production host adapter.
+ * The fixture's newline frames only drive chunk timing/abort assertions. Real
+ * Chat/Responses/Messages serialization is covered by the host contract suites.
+ */
+export function createDiagnosticSource(apiBase = "https://provider.test") {
+  return (
+    model: ModelLike,
+    _context: ContextLike,
+    options?: StreamOptions,
+  ): AssistantMessageEventStreamLike => {
+    const stream = createTestEventStream()
+    const message = {
+      role: "assistant" as const,
+      content: [],
+      api: model.api,
+      provider: model.provider,
+      model: model.id,
+      usage: {
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+        totalTokens: 0,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+      },
+      stopReason: "stop" as const,
+      timestamp: Date.now(),
     }
-    if (typeof current !== "object" || current === null) return undefined
-    current = Object.getOwnPropertyDescriptor(current, key)?.value
+    const run = async () => {
+      options?.signal?.throwIfAborted()
+      let response: Response
+      let attempt = 0
+      for (;;) {
+        response = await (options?.fetch ?? fetch)(`${apiBase}/provider/v1/chat/completions`, {
+          method: "POST",
+          body: "{}",
+          signal: options?.signal,
+        })
+        if (response.ok) break
+        const detail = await response.text()
+        if (response.status !== 429 || attempt++ >= (options?.maxRetries ?? 0))
+          throw new Error(detail)
+      }
+      const reader = response.body!.getReader()
+      const cancel = () => {
+        void reader.cancel().catch(() => {})
+      }
+      options?.signal?.addEventListener("abort", cancel, { once: true })
+      try {
+        const decoder = new TextDecoder()
+        let pending = ""
+        for (;;) {
+          options?.signal?.throwIfAborted()
+          const { done, value } = await reader.read()
+          options?.signal?.throwIfAborted()
+          if (done) break
+          pending += decoder.decode(value, { stream: true })
+          let index: number
+          while ((index = pending.indexOf("\n")) >= 0) {
+            const line = pending.slice(0, index)
+            pending = pending.slice(index + 1)
+            const frame: unknown = JSON.parse(line)
+            if (typeof frame !== "object" || frame === null) continue
+            if (
+              "type" in frame &&
+              frame.type === "text-delta" &&
+              "text" in frame &&
+              typeof frame.text === "string"
+            ) {
+              stream.push({
+                type: "text_delta",
+                contentIndex: 0,
+                delta: frame.text,
+                partial: message,
+              })
+            }
+          }
+        }
+        stream.push({ type: "done", reason: "stop", message })
+      } finally {
+        options?.signal?.removeEventListener("abort", cancel)
+        if (options?.signal?.aborted) await reader.cancel().catch(() => {})
+        reader.releaseLock()
+      }
+    }
+    run()
+      .catch(() => {
+        const reason = options?.signal?.aborted ? "aborted" : "error"
+        stream.push({ type: "error", reason, error: { ...message, stopReason: reason } })
+      })
+      .finally(() => stream.end())
+    return stream
   }
-  return current
 }

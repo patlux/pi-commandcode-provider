@@ -15,7 +15,7 @@ type HostContext = Parameters<typeof streamSimple>[1]
 type HostOptions = NonNullable<Parameters<typeof streamSimple>[2]>
 type HostReasoning = NonNullable<HostOptions["reasoning"]>
 
-// Event compatibility must work in both directions: core -> host factory and
+// Event compatibility must work in both directions: local events -> host factory and
 // native host -> router/instrumentation. Neither boundary may erase JSON types.
 export function toHostEvent(event: AssistantMessageEvent): HostEvent {
   return event
@@ -38,7 +38,6 @@ export function toHostCredentials(
 const transport = createCommandCodeTransportRouter<HostModel, HostContext, HostReasoning>({
   createStream: createAssistantMessageEventStream,
   streamProvider: streamSimple,
-  streamGenerate: streamSimple,
 })
 const diagnostics = createRequestDiagnostics()
 export const measuredStream: NonNullable<ProviderConfig["streamSimple"]> = (
