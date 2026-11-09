@@ -4,6 +4,8 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { test } from "node:test"
+import { fileURLToPath } from "node:url"
+import prettier from "prettier"
 import * as alertModule from "../.github/scripts/maintenance-alert.mjs"
 
 const { maintainAlert } = alertModule
@@ -597,6 +599,22 @@ test(
       /npx --no-install prettier --write src\/commandcode-catalog.ts src\/commandcode-catalog-overrides.ts README.md/,
     )
     assert.doesNotMatch(metadata, /npm run format --/)
+    // The narrowed --write above only rewrites sources, while `format:check` still globs
+    // every markdown file: the generated reports must stay outside Prettier, otherwise the
+    // sync job fails before it can open its pull request.
+    const ignorePath = fileURLToPath(new URL("../.prettierignore", import.meta.url))
+    for (const [, , report] of pipelines) {
+      const info = await prettier.getFileInfo(
+        fileURLToPath(new URL(`../${report}`, import.meta.url)),
+        { ignorePath },
+      )
+      assert.equal(info.ignored, true, `${report} must stay outside the format checks`)
+    }
+    const sourceFile = await prettier.getFileInfo(
+      fileURLToPath(new URL("../src/pricing.ts", import.meta.url)),
+      { ignorePath },
+    )
+    assert.equal(sourceFile.ignored, false, "tracked sources must stay formatted")
     const directory = await mkdtemp(join(tmpdir(), "cc-alert-report-test-"))
     try {
       // Execute the exact workflow pipelines, but replace npm with a local function.
