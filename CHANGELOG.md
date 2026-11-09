@@ -2,7 +2,10 @@
 
 ## Unreleased
 
+## 0.8.1 - 2026-11-09
+
 - Refresh the capability snapshot to `command-code@1.88.5`: advertise image input, reasoning and selectable efforts (`off`/`low`/`high`/`max`) for `deepseek/deepseek-v4.1-flash-ultrafast`, and drop the retired `poolside/laguna-s-2.1-free` reasoning flag, effort defaults and 32,768-token output limit. Add reviewed display pricing for the ultrafast model at $2.40 input / $9.60 output / $0.048 cache read per million tokens, with no cache-write charge and a single published rate, and remove the retired free `poolside/laguna-s-2.1-free` price entry. Refresh the 96-model API and pricing snapshots to 2026-11-09. Endpoint routing defaults are unchanged. ([#209](https://github.com/patlux/pi-commandcode-provider/pull/209))
+- The Provider API already lists new models without a package release, because the model list comes from the live `/provider/v1/models` response. Until this release the ultrafast model appeared there with a zero cost estimate, an unknown-price warning, text-only input, no reasoning flag and no effort levels; this update supplies the reviewed values. Models without a published output limit keep the shared 65,536-token default, capped by the context window.
 
 ## 0.8.0 - 2026-11-05
 
