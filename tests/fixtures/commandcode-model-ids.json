@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-11-04T10:40:23.255Z",
+  "fetchedAt": "2026-11-09T04:35:01.182Z",
   "source": "https://api.commandcode.ai/provider/v1/models",
   "modelIds": [
     "claude-sonnet-5-5",
@@ -31,6 +31,7 @@
     "deepseek/deepseek-v4-flash-fast",
     "deepseek/deepseek-v4.1-flash",
     "deepseek/deepseek-v4.1-flash-fast",
+    "deepseek/deepseek-v4.1-flash-ultrafast",
     "moonshotai/Kimi-K3.1-Pro",
     "moonshotai/Kimi-K3",
     "moonshotai/Kimi-K2.7-Code",
@@ -84,7 +85,6 @@
     "stealth/glyph-cluster:free",
     "stealth/crouton-alpha",
     "reflection/beam:free",
-    "poolside/laguna-s-2.1-free",
     "inclusionai/ling-3.1-flash",
     "inclusionai/ling-3.1-flash-1019",
     "meta/muse-spark-1.1",

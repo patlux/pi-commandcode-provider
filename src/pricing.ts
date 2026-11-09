@@ -20,7 +20,7 @@ export interface TemporaryPricing {
 }
 
 export const PRICING_SOURCE_URL = "https://commandcode.ai/docs/resources/pricing-limits"
-export const PRICING_LAST_VERIFIED = "2026-11-04"
+export const PRICING_LAST_VERIFIED = "2026-11-09"
 
 export const ZERO_MODEL_COST: CommandCodeModelCost = {
   input: 0,
@@ -41,7 +41,6 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   // Free models
   // Free while the stealth preview lasts; no fixed expiry is published.
   "stealth/crouton-alpha": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-  "poolside/laguna-s-2.1-free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   "stealth/glyph-cluster:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   // Free while capacity lasts; no fixed expiry is published.
   "reflection/beam:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -111,6 +110,13 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
     input: 0.16,
     output: 0.58,
     cacheRead: 0.016,
+    cacheWrite: 0,
+  },
+  // Single published rate; no peak windows and no long-context tier.
+  "deepseek/deepseek-v4.1-flash-ultrafast": {
+    input: 2.4,
+    output: 9.6,
+    cacheRead: 0.048,
     cacheWrite: 0,
   },
   "Qwen/Qwen3.8-Max-Prime": { input: 4, output: 12, cacheRead: 0.5, cacheWrite: 5 },

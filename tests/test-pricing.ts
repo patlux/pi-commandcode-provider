@@ -29,7 +29,6 @@ const pricingFixtureUrl = new URL("./fixtures/commandcode-pricing.json", import.
 const pricingFixture = JSON.parse(await readFile(pricingFixtureUrl, "utf-8")) as PricingSnapshot
 const freeModels = new Set([
   "stealth/crouton-alpha",
-  "poolside/laguna-s-2.1-free",
   "stealth/glyph-cluster:free",
   "reflection/beam:free",
 ])
@@ -183,6 +182,12 @@ describe("MODEL_COSTS pricing overlay", () => {
       input: 0.15,
       output: 0.6,
       cacheRead: 0.003,
+      cacheWrite: 0,
+    })
+    assertCost("deepseek/deepseek-v4.1-flash-ultrafast", {
+      input: 2.4,
+      output: 9.6,
+      cacheRead: 0.048,
       cacheWrite: 0,
     })
     assertCost("stepfun/Step-3.5-Flash", {
@@ -437,7 +442,7 @@ describe("MODEL_COSTS pricing overlay", () => {
 
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-11-04")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-11-09")
   })
 
   it("fails once temporary pricing needs review", () => {
