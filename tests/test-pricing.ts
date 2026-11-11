@@ -27,11 +27,7 @@ const fixtureUrl = new URL("./fixtures/commandcode-model-ids.json", import.meta.
 const fixture = JSON.parse(await readFile(fixtureUrl, "utf-8")) as ModelCatalogSnapshot
 const pricingFixtureUrl = new URL("./fixtures/commandcode-pricing.json", import.meta.url)
 const pricingFixture = JSON.parse(await readFile(pricingFixtureUrl, "utf-8")) as PricingSnapshot
-const freeModels = new Set([
-  "stealth/crouton-alpha",
-  "stealth/glyph-cluster:free",
-  "reflection/beam:free",
-])
+const freeModels = new Set(["stealth/glyph-cluster:free"])
 
 function assertCost(
   modelId: string,
@@ -114,16 +110,10 @@ describe("MODEL_COSTS pricing overlay", () => {
     assert.equal(MODEL_COSTS["ornith/ornith-1.5-122b:free"], undefined)
   })
 
-  it("prices Crouton Alpha as free during its undated stealth preview", () => {
-    assertCost("stealth/crouton-alpha", { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 })
-    assert.ok(
-      !TEMPORARY_PRICING.some((pricing) => pricing.models.includes("stealth/crouton-alpha")),
-      "the source publishes no fixed expiry for this preview",
-    )
-  })
-
-  it("matches reviewed late-October Beam promotion rates", () => {
-    assertCost("reflection/beam:free", { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 })
+  it("retires stealth previews that left the API", () => {
+    // Crouton Alpha and Beam's free pool stopped advertising before 2026-11-11.
+    assert.equal(MODEL_COSTS["stealth/crouton-alpha"], undefined)
+    assert.equal(MODEL_COSTS["reflection/beam:free"], undefined)
   })
 
   it("prices Ling 3.1 Flash 1019 after its free preview ends", () => {
@@ -260,6 +250,22 @@ describe("MODEL_COSTS pricing overlay", () => {
       input: 0.1,
       output: 0.2,
       cacheRead: 0.002,
+      cacheWrite: 0,
+    })
+  })
+
+  it("uses reviewed rates for the November catalog additions", () => {
+    assertCost("claude-fable-5-2", { input: 8, output: 40, cacheRead: 0.2, cacheWrite: 10 })
+    assertCost("google/gemini-4-carbon", {
+      input: 2,
+      output: 10,
+      cacheRead: 0.1,
+      cacheWrite: 0,
+    })
+    assertCost("meta/muse-ember", {
+      input: 0.1,
+      output: 0.5,
+      cacheRead: 0.004,
       cacheWrite: 0,
     })
   })
@@ -442,7 +448,7 @@ describe("MODEL_COSTS pricing overlay", () => {
 
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-11-09")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-11-11")
   })
 
   it("fails once temporary pricing needs review", () => {

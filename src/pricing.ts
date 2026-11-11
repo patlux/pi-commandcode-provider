@@ -20,7 +20,7 @@ export interface TemporaryPricing {
 }
 
 export const PRICING_SOURCE_URL = "https://commandcode.ai/docs/resources/pricing-limits"
-export const PRICING_LAST_VERIFIED = "2026-11-09"
+export const PRICING_LAST_VERIFIED = "2026-11-11"
 
 export const ZERO_MODEL_COST: CommandCodeModelCost = {
   input: 0,
@@ -40,10 +40,7 @@ export const ZERO_MODEL_COST: CommandCodeModelCost = {
 export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   // Free models
   // Free while the stealth preview lasts; no fixed expiry is published.
-  "stealth/crouton-alpha": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   "stealth/glyph-cluster:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-  // Free while capacity lasts; no fixed expiry is published.
-  "reflection/beam:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 
   // Open and open-weight models
   "inclusionai/ling-3.1-flash-1019": { input: 0.3, output: 0.9, cacheRead: 0.06, cacheWrite: 0 },
@@ -209,6 +206,7 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   "meta/muse-spark-1.3": { input: 1.25, output: 4.25, cacheRead: 0.15, cacheWrite: 0 },
   "meta/muse-spark-open": { input: 1.25, output: 4.25, cacheRead: 0.15, cacheWrite: 0 },
   "meta/muse-wonder-1.0": { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 0 },
+  "meta/muse-ember": { input: 0.1, output: 0.5, cacheRead: 0.004, cacheWrite: 0 },
   "meta/muse-spark-1.2-contributor": {
     input: 0.1,
     output: 0.2,
@@ -226,6 +224,7 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   "claude-sonnet-5-5": { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 },
   "claude-sonnet-5": { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
   "claude-sonnet-4-6": { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 },
+  "claude-fable-5-2": { input: 8, output: 40, cacheRead: 0.2, cacheWrite: 10 },
   "claude-fable-5-1": { input: 10, output: 50, cacheRead: 0.25, cacheWrite: 12.5 },
   "claude-fable-5": { input: 10, output: 50, cacheRead: 1, cacheWrite: 12.5 },
   "claude-opus-5-5": { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 },
@@ -327,6 +326,7 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
     cacheRead: 0.15,
     cacheWrite: 0.08334,
   },
+  "google/gemini-4-carbon": { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 0 },
   "google/gemini-4-argon": { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 0 },
   "google/gemini-3.8-flash": {
     input: 1.5,
