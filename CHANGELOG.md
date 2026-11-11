@@ -2,7 +2,10 @@
 
 ## Unreleased
 
-- Price the November Provider API additions per million tokens: `claude-fable-5-2` at $8.00 input / $40.00 output / $0.20 cache read / $10.00 cache write, `google/gemini-4-carbon` at $2.00 / $10.00 / $0.10 with no cache-write charge, and `meta/muse-ember` at $0.10 / $0.50 / $0.004 with no cache-write charge. Remove the retired `stealth/crouton-alpha` and `reflection/beam:free` zero prices, and refresh the 97-model API and pricing snapshots to 2026-11-11. The new models were already usable through the live `/provider/v1/models` response with a zero estimate and an unknown-price warning; static capability metadata stays at `command-code@1.88.5`, so they remain text-only without reasoning or effort flags until upstream ships them.
+## 0.8.2 - 2026-11-11
+
+- Price the November Provider API additions per million tokens: `claude-fable-5-2` at $8.00 input / $40.00 output / $0.20 cache read / $10.00 cache write, `google/gemini-4-carbon` at $2.00 / $10.00 / $0.10 with no cache-write charge, and `meta/muse-ember` at $0.10 / $0.50 / $0.004 with no cache-write charge. Remove the retired `stealth/crouton-alpha` and `reflection/beam:free` zero prices, and refresh the 97-model API and pricing snapshots to 2026-11-11. The new models were already usable through the live `/provider/v1/models` response with a zero estimate and an unknown-price warning; static capability metadata stays at `command-code@1.88.5`, so they remain text-only without reasoning or effort flags until upstream ships them. ([#211](https://github.com/patlux/pi-commandcode-provider/pull/211))
+- The daily catalog workflow passes its pricing gate again on the same 97-model snapshot, which closes the reopened maintenance incident [#207](https://github.com/patlux/pi-commandcode-provider/issues/207) on the next successful scheduled run.
 
 ## 0.8.1 - 2026-11-09
 
