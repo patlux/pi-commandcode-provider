@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Price the November Provider API additions per million tokens: `claude-fable-5-2` at $8.00 input / $40.00 output / $0.20 cache read / $10.00 cache write, `google/gemini-4-carbon` at $2.00 / $10.00 / $0.10 with no cache-write charge, and `meta/muse-ember` at $0.10 / $0.50 / $0.004 with no cache-write charge. Remove the retired `stealth/crouton-alpha` and `reflection/beam:free` zero prices, and refresh the 97-model API and pricing snapshots to 2026-11-11. The new models were already usable through the live `/provider/v1/models` response with a zero estimate and an unknown-price warning; static capability metadata stays at `command-code@1.88.5`, so they remain text-only without reasoning or effort flags until upstream ships them.
+
 ## 0.8.1 - 2026-11-09
 
 - Refresh the capability snapshot to `command-code@1.88.5`: advertise image input, reasoning and selectable efforts (`off`/`low`/`high`/`max`) for `deepseek/deepseek-v4.1-flash-ultrafast`, and drop the retired `poolside/laguna-s-2.1-free` reasoning flag, effort defaults and 32,768-token output limit. Add reviewed display pricing for the ultrafast model at $2.40 input / $9.60 output / $0.048 cache read per million tokens, with no cache-write charge and a single published rate, and remove the retired free `poolside/laguna-s-2.1-free` price entry. Refresh the 96-model API and pricing snapshots to 2026-11-09. Endpoint routing defaults are unchanged. ([#209](https://github.com/patlux/pi-commandcode-provider/pull/209))
