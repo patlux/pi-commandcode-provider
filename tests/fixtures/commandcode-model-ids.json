@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-11-11T21:10:50.031Z",
+  "fetchedAt": "2026-11-13T07:12:48.985Z",
   "source": "https://api.commandcode.ai/provider/v1/models",
   "modelIds": [
     "claude-sonnet-5-5",
@@ -84,6 +84,7 @@
     "nvidia/nemotron-3.5-super-vl",
     "thinkingmachines/inkling",
     "thinkingmachines/inkling-small",
+    "thinkingmachines/inkling-2-small:free",
     "stealth/glyph-cluster:free",
     "inclusionai/ling-3.1-flash",
     "inclusionai/ling-3.1-flash-1019",
