@@ -47,6 +47,7 @@ import { normalizeCommandCodeMessage } from "./src/overflow.ts"
 import { MODEL_COSTS, ZERO_MODEL_COST } from "./src/pricing.ts"
 import { registerCommandCodeQuota } from "./src/quota-command.ts"
 import { normalizeCommandCodeResponsesResponse } from "./src/responses-stream.ts"
+import { withResponsesWireRepairs } from "./src/responses-compat.ts"
 import { createCommandCodeRuntime } from "./src/runtime.ts"
 import {
   compatForEndpoint,
@@ -360,7 +361,7 @@ export default async function (pi: ExtensionAPI) {
               fetch: async (...args: Parameters<typeof fetch>) => {
                 streamWarning = undefined
                 return normalizeCommandCodeResponsesResponse(
-                  await (resolvedOptions?.fetch ?? fetch)(...args),
+                  await (resolvedOptions?.fetch ?? fetch)(...withResponsesWireRepairs(args)),
                   (warning) => {
                     streamWarning = warning
                   },
