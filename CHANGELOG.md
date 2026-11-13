@@ -1,11 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.8.3 - 2026-11-13
 
-- Tag the Responses `system`/`developer` and `user` items with the item-level `type: "message"` the Provider API adapter requires for `zai-org/GLM-5.3`, which answered `400 invalid_request: input item is missing type` on the first turn. The rewrite is limited to the models known to need the verbose form, so every other model keeps the exact body the host sends. ([#214](https://github.com/patlux/pi-commandcode-provider/issues/214))
-- Drop the inert `reasoning` block pi sends when thinking is off for `zai-org/GLM-5.3` and `mistral/mistral-large-4`, which reject `effort: "none"` with `unsupported output_config.effort` and `reasoning_effort none is not supported for this model`. Omitting the field succeeds; declaring `off: null` would clamp to the lowest allowed level and silently force reasoning on. The repair table is per-model and evidence-driven, so no other model's request body changes. ([#214](https://github.com/patlux/pi-commandcode-provider/issues/214))
+- Tag the Responses `system`/`developer` and `user` items with the item-level `type: "message"` the Provider API adapter requires for `zai-org/GLM-5.3`, which answered `400 invalid_request: input item is missing type` on the first turn. The rewrite is limited to the models known to need the verbose form, so every other model keeps the exact body the host sends. ([#214](https://github.com/patlux/pi-commandcode-provider/issues/214), [#215](https://github.com/patlux/pi-commandcode-provider/pull/215))
+- Drop the inert `reasoning` block pi sends when thinking is off for `zai-org/GLM-5.3` and `mistral/mistral-large-4`, which reject `effort: "none"` with `unsupported output_config.effort` and `reasoning_effort none is not supported for this model`. Omitting the field succeeds; declaring `off: null` would clamp to the lowest allowed level and silently force reasoning on. The repair table is per-model and evidence-driven, so no other model's request body changes. ([#214](https://github.com/patlux/pi-commandcode-provider/issues/214), [#215](https://github.com/patlux/pi-commandcode-provider/pull/215))
+- Add the live Provider API addition `thinkingmachines/inkling-2-small:free` to the reviewed pricing snapshot at zero cost, free while the free tier lasts with no fixed expiry published, and refresh the 98-model API and pricing snapshots to 2026-11-13. The model is already usable through the live `/provider/v1/models` response with a zero estimate and an unknown-price warning; static capability metadata stays at `command-code@1.88.5`, so it remains text-only without reasoning or effort flags until upstream ships it. ([#213](https://github.com/patlux/pi-commandcode-provider/pull/213))
 
-- Add the live Provider API addition `thinkingmachines/inkling-2-small:free` to the reviewed pricing snapshot at zero cost, free while the free tier lasts with no fixed expiry published, and refresh the 98-model API and pricing snapshots to 2026-11-13. The model is already usable through the live `/provider/v1/models` response with a zero estimate and an unknown-price warning; static capability metadata stays at `command-code@1.88.5`, so it remains text-only without reasoning or effort flags until upstream ships it.
+### Contributors
+
+- @ThomasByr — reported the `zai-org/GLM-5.3` failures on the Responses endpoint with a minimal reproduction ([#214](https://github.com/patlux/pi-commandcode-provider/issues/214)).
+- @sandexzx — refreshed the reviewed pricing snapshot for `thinkingmachines/inkling-2-small:free` ([#213](https://github.com/patlux/pi-commandcode-provider/pull/213)).
+- @pierreraby — isolated and proved both wire causes against the live Provider API, swept all 74 `/responses` models to bound the blast radius, implemented the per-model repair table with tests, and prepared this release.
 
 ## 0.8.2 - 2026-11-11
 
