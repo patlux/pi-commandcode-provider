@@ -51,7 +51,7 @@ Run `/login` in pi or OMP. Select **Use a subscription**, then **Command Code**.
 
 If automatic transfer from the browser fails, copy the API key shown by Command Code and paste it into the terminal prompt.
 
-On Oh My Pi, `/login` stores those credentials in OMP's credential store and chat uses them directly. If chat still returns `401 Invalid 'Authorization' header`, restart OMP after `/login` and confirm `/commandcode-quota` shows your account.
+On Oh My Pi, `/login` stores those credentials in OMP's credential store and chat uses them directly. When the Provider API rejects a stored login with `401`, OMP asks the provider to refresh it, and the provider checks the key against `whoami`. If Command Code no longer accepts the key, OMP signs that login out with the warning "A Command Code account was signed out automatically" and uses the next stored credential. If chat still returns `401 Invalid 'Authorization' header`, run `/login` again, restart OMP, and confirm `/commandcode-quota` shows your account.
 
 ### Environment variable
 

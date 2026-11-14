@@ -108,9 +108,19 @@ export function validationApiBase(env: NodeJS.ProcessEnv = process.env): string 
   return providerApiBase.replace(/\/provider\/v1\/?$/, "")
 }
 
+/** Thrown when `whoami` answers `401`: Command Code does not accept the key. */
+export class InvalidApiKeyError extends Error {
+  constructor() {
+    super("Invalid Command Code API key")
+    this.name = "InvalidApiKeyError"
+  }
+}
+
+type ValidateApiKeyOptions = { fetchImpl?: typeof fetch; apiBase?: string; timeoutMs?: number }
+
 export async function validateApiKey(
   apiKey: string,
-  options: { fetchImpl?: typeof fetch; apiBase?: string; timeoutMs?: number } = {},
+  options: ValidateApiKeyOptions = {},
 ): Promise<void> {
   const timeoutMs = options.timeoutMs ?? VALIDATE_API_KEY_TIMEOUT_MS
   // AbortSignal is cooperative: a custom fetch may ignore it, so the deadline
@@ -148,7 +158,7 @@ export async function validateApiKey(
     clearTimeout(timer)
   }
 
-  if (response.status === 401) throw new Error("Invalid Command Code API key")
+  if (response.status === 401) throw new InvalidApiKeyError()
   if (!response.ok) {
     throw new Error(`Could not validate the Command Code API key (${response.status})`)
   }
@@ -248,10 +258,29 @@ export async function login(callbacks: OAuthLoginCallbacks): Promise<OAuthCreden
 }
 
 /**
- * Command Code API keys don't expire, so "refresh" is a no-op.
- * Returns the same credentials with an updated far-future expiry.
+ * Command Code API keys don't expire, so a successful refresh returns the
+ * same key with a new expiry date far in the future. pi refreshes on expiry,
+ * and Oh My Pi also forces a refresh after the Provider API answers `401`.
+ * Refresh therefore checks the key against `whoami` first, so that a revoked
+ * or rotated key fails the refresh instead of coming back with a new expiry.
+ * The error message contains `401` and `invalid_token`, which Oh My Pi matches
+ * to sign out the stored credential. Network errors and 5xx responses are
+ * rethrown unchanged and do not contain either.
  */
-export async function refreshToken(credentials: OAuthCredentials): Promise<OAuthCredentials> {
+export async function refreshToken(
+  credentials: OAuthCredentials,
+  options: ValidateApiKeyOptions = {},
+): Promise<OAuthCredentials> {
+  try {
+    await validateApiKey(credentials.refresh, options)
+  } catch (error) {
+    if (error instanceof InvalidApiKeyError) {
+      throw new Error(
+        "Command Code rejected the stored API key (401 invalid_token); run /login again",
+      )
+    }
+    throw error
+  }
   return credentialsFromApiKey(credentials.refresh)
 }
 

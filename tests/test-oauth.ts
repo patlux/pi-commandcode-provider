@@ -344,16 +344,50 @@ describe("OAuth functions", () => {
     assert.equal(getApiKey(creds), "access-key")
   })
 
-  it("refreshToken returns updated far-future expiry", async () => {
+  it("refreshToken checks the key with whoami and returns it with a new expiry", async () => {
     const creds = {
       refresh: "my-api-key",
       access: "my-api-key",
       expires: Date.now() - 1000, // already expired
     }
-    const result = await refreshToken(creds)
+    let authorization: string | null = null
+    const result = await refreshToken(creds, {
+      fetchImpl: (_input, init) => {
+        authorization = new Headers(init?.headers).get("authorization")
+        return Promise.resolve(new Response(JSON.stringify({ user: {} }), { status: 200 }))
+      },
+    })
+    assert.equal(authorization, "Bearer my-api-key")
     assert.equal(result.access, "my-api-key")
     assert.equal(result.refresh, "my-api-key")
     assert.ok(result.expires > Date.now(), "expiry should be in the future")
+  })
+
+  it("refreshToken fails with 401 invalid_token when Command Code rejects the stored key", async () => {
+    // Oh My Pi signs out a stored OAuth credential when its refresh fails with
+    // `invalid_token` in the message, or with `401` and no sign of a network
+    // problem. Without that, it keeps selecting the revoked key and every
+    // request returns 401.
+    await assert.rejects(
+      refreshToken(
+        { refresh: "revoked-key", access: "revoked-key", expires: 0 },
+        { fetchImpl: () => Promise.resolve(new Response("unauthorized", { status: 401 })) },
+      ),
+      (error: unknown) =>
+        error instanceof Error &&
+        /\b401\b/.test(error.message) &&
+        /invalid_token/.test(error.message),
+    )
+  })
+
+  it("refreshToken error on a 503 from whoami mentions neither 401 nor invalid_token", async () => {
+    await assert.rejects(
+      refreshToken(
+        { refresh: "key", access: "key", expires: 0 },
+        { fetchImpl: () => Promise.resolve(new Response("busy", { status: 503 })) },
+      ),
+      (error: unknown) => error instanceof Error && !/\b401\b|invalid_token/.test(error.message),
+    )
   })
 
   it("sanitizeApiKey removes paste markers, control chars, and whitespace", () => {

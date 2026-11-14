@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Stop handing revoked or rotated API keys back on refresh. `refreshToken` used to return the stored key unchanged with a new ten-year expiry. On Oh My Pi, that let OMP keep selecting a dead `/login` credential over a valid one, and every request failed with `401 Invalid 'Authorization' header or token`. Refresh now checks the key against `whoami` first, and a `401` there fails the refresh with the message `401 invalid_token`. OMP forces a refresh after a `401`; when the refresh fails with that message, it signs the credential out and uses the next stored one. A network error or 5xx response from `whoami` fails the refresh with its own error, which OMP treats as temporary and does not sign out. pi refreshes only on expiry, so it runs the new check only then.
+
 ## 0.8.3 - 2026-11-13
 
 - Tag the Responses `system`/`developer` and `user` items with the item-level `type: "message"` the Provider API adapter requires for `zai-org/GLM-5.3`, which answered `400 invalid_request: input item is missing type` on the first turn. The rewrite is limited to the models known to need the verbose form, so every other model keeps the exact body the host sends. ([#214](https://github.com/patlux/pi-commandcode-provider/issues/214), [#215](https://github.com/patlux/pi-commandcode-provider/pull/215))
