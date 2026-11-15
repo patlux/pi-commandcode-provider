@@ -344,16 +344,77 @@ describe("OAuth functions", () => {
     assert.equal(getApiKey(creds), "access-key")
   })
 
-  it("refreshToken returns updated far-future expiry", async () => {
+  it("refreshToken checks the key with whoami and returns it with a new expiry", async () => {
     const creds = {
       refresh: "my-api-key",
       access: "my-api-key",
       expires: Date.now() - 1000, // already expired
     }
-    const result = await refreshToken(creds)
+    let authorization: string | null = null
+    const result = await refreshToken(creds, undefined, {
+      fetchImpl: (_input, init) => {
+        authorization = new Headers(init?.headers).get("authorization")
+        return Promise.resolve(new Response(JSON.stringify({ user: {} }), { status: 200 }))
+      },
+    })
+    assert.equal(authorization, "Bearer my-api-key")
     assert.equal(result.access, "my-api-key")
     assert.equal(result.refresh, "my-api-key")
     assert.ok(result.expires > Date.now(), "expiry should be in the future")
+  })
+
+  it("refreshToken fails with 401 invalid_token when Command Code rejects the stored key", async () => {
+    // Oh My Pi signs out a stored OAuth credential when its refresh fails with
+    // `invalid_token` in the message, or with `401` and no sign of a network
+    // problem. Without that, it keeps selecting the revoked key and every
+    // request returns 401.
+    await assert.rejects(
+      refreshToken({ refresh: "revoked-key", access: "revoked-key", expires: 0 }, undefined, {
+        fetchImpl: () => Promise.resolve(new Response("unauthorized", { status: 401 })),
+      }),
+      (error: unknown) =>
+        error instanceof Error &&
+        /\b401\b/.test(error.message) &&
+        /invalid_token/.test(error.message),
+    )
+  })
+
+  it("refreshToken error on a 503 from whoami mentions neither 401 nor invalid_token", async () => {
+    await assert.rejects(
+      refreshToken({ refresh: "key", access: "key", expires: 0 }, undefined, {
+        fetchImpl: () => Promise.resolve(new Response("busy", { status: 503 })),
+      }),
+      (error: unknown) => error instanceof Error && !/\b401\b|invalid_token/.test(error.message),
+    )
+  })
+
+  it("refreshToken honors the host's abort signal and fails without 401 or invalid_token", async () => {
+    // Hosts call refreshToken(credentials, signal). Cancellation must stop the
+    // whoami request, even if fetch ignores the signal. Its error must not
+    // contain 401 or invalid_token, or OMP would sign the credential out.
+    const host = new AbortController()
+    let requestSignal: AbortSignal | undefined
+    const refresh = refreshToken({ refresh: "key", access: "key", expires: 0 }, host.signal, {
+      fetchImpl: (_input, init) => {
+        requestSignal = init?.signal ?? undefined
+        return new Promise<Response>(() => {})
+      },
+    })
+    host.abort()
+    await assert.rejects(
+      refresh,
+      (error: unknown) => error instanceof Error && !/\b401\b|invalid_token/.test(error.message),
+    )
+    assert.equal(requestSignal?.aborted, true)
+
+    const resolvingFetch: typeof fetch = () =>
+      Promise.resolve(new Response(JSON.stringify({ user: {} })))
+    await assert.rejects(
+      refreshToken({ refresh: "key", access: "key", expires: 0 }, AbortSignal.abort(), {
+        fetchImpl: resolvingFetch,
+      }),
+      (error: unknown) => error instanceof Error && !/\b401\b|invalid_token/.test(error.message),
+    )
   })
 
   it("sanitizeApiKey removes paste markers, control chars, and whitespace", () => {
