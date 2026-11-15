@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Refresh the capability snapshot to `command-code@1.89.1`: advertise image input, reasoning and selectable efforts for `claude-fable-5-2`, `google/gemini-4-carbon`, `meta/muse-ember` and `thinkingmachines/inkling-2-small:free`; raise Inkling 2 Small's output limit to 131,072 tokens; drop stale capability metadata for the retired `reflection/beam:free` and `stealth/crouton-alpha`. Public pricing checks pass for all 98 advertised models; prices and endpoint routing are unchanged.
+
 ## 0.8.3 - 2026-11-13
 
 - Tag the Responses `system`/`developer` and `user` items with the item-level `type: "message"` the Provider API adapter requires for `zai-org/GLM-5.3`, which answered `400 invalid_request: input item is missing type` on the first turn. The rewrite is limited to the models known to need the verbose form, so every other model keeps the exact body the host sends. ([#214](https://github.com/patlux/pi-commandcode-provider/issues/214), [#215](https://github.com/patlux/pi-commandcode-provider/pull/215))

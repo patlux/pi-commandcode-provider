@@ -1,4 +1,4 @@
-export const COMMAND_CODE_CLI_VERSION = "1.88.5"
+export const COMMAND_CODE_CLI_VERSION = "1.89.1"
 
 export type CommandCodeInputType = "text" | "image"
 export type CommandCodeReasoningEffort =
@@ -11,12 +11,13 @@ export type CommandCodeReasoningEffort =
   | "max"
 
 /**
- * Generated from command-code@1.88.5 by `npm run sync:commandcode-catalog`.
+ * Generated from command-code@1.89.1 by `npm run sync:commandcode-catalog`.
  * Do not edit manually.
  */
 export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCodeInputType[]>> = {
   "claude-fable-5": ["text", "image"],
   "claude-fable-5-1": ["text", "image"],
+  "claude-fable-5-2": ["text", "image"],
   "claude-haiku-4-5-20251001": ["text", "image"],
   "claude-haiku-5-5": ["text", "image"],
   "claude-opus-4-7": ["text", "image"],
@@ -37,6 +38,7 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "google/gemini-3.7-flash": ["text", "image"],
   "google/gemini-3.8-flash": ["text", "image"],
   "google/gemini-4-argon": ["text", "image"],
+  "google/gemini-4-carbon": ["text", "image"],
   "gpt-5.3-codex": ["text", "image"],
   "gpt-5.4": ["text", "image"],
   "gpt-5.4-mini": ["text", "image"],
@@ -49,6 +51,7 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "gpt-6-sol": ["text", "image"],
   "gpt-6.1-sol": ["text", "image"],
   "gpt-6.1-terra": ["text", "image"],
+  "meta/muse-ember": ["text", "image"],
   "meta/muse-spark-1.1": ["text", "image"],
   "meta/muse-spark-1.2": ["text", "image"],
   "meta/muse-spark-1.2-contributor": ["text", "image"],
@@ -77,10 +80,10 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "Qwen/Qwen3.8-Max-Prime": ["text", "image"],
   "Qwen/Qwen3.8-Omni-Flash": ["text", "image"],
   "sakana/fugu-ultra": ["text", "image"],
-  "stealth/crouton-alpha": ["text", "image"],
   "stepfun/Step-3.7-Flash": ["text", "image"],
   "stepfun/Step-5-Preview": ["text", "image"],
   "thinkingmachines/inkling": ["text", "image"],
+  "thinkingmachines/inkling-2-small:free": ["text", "image"],
   "thinkingmachines/inkling-small": ["text", "image"],
   "xai/grok-4.5": ["text", "image"],
   "xai/grok-4.6": ["text", "image"],
@@ -95,6 +98,7 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
 export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "claude-fable-5": true,
   "claude-fable-5-1": true,
+  "claude-fable-5-2": true,
   "claude-haiku-5-5": true,
   "claude-opus-4-7": true,
   "claude-opus-4-8": true,
@@ -117,6 +121,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "google/gemini-3.7-flash": true,
   "google/gemini-3.8-flash": true,
   "google/gemini-4-argon": true,
+  "google/gemini-4-carbon": true,
   "gpt-5.3-codex": true,
   "gpt-5.4": true,
   "gpt-5.4-mini": true,
@@ -132,6 +137,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "inclusionai/ling-3.1-flash": true,
   "inclusionai/ling-3.1-flash-1019": true,
   "meituan/LongCat-2.0": true,
+  "meta/muse-ember": true,
   "meta/muse-spark-1.1": true,
   "meta/muse-spark-1.2": true,
   "meta/muse-spark-1.2-contributor": true,
@@ -160,9 +166,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "Qwen/Qwen3.8-Max-0902": true,
   "Qwen/Qwen3.8-Max-Prime": true,
   "Qwen/Qwen3.8-Omni-Flash": true,
-  "reflection/beam:free": true,
   "sakana/fugu-ultra": true,
-  "stealth/crouton-alpha": true,
   "stealth/glyph-cluster:free": true,
   "stepfun/Step-3.5-Flash": true,
   "stepfun/Step-3.7-Flash": true,
@@ -170,6 +174,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "tencent/hy3-paid": true,
   "tencent/hy4-preview": true,
   "thinkingmachines/inkling": true,
+  "thinkingmachines/inkling-2-small:free": true,
   "thinkingmachines/inkling-small": true,
   "xai/grok-4.5": true,
   "xai/grok-4.6": true,
@@ -183,6 +188,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
 export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasoningEffort[]>> = {
   "claude-fable-5": ["low", "medium", "high", "xhigh", "max"],
   "claude-fable-5-1": ["low", "medium", "high", "xhigh", "max"],
+  "claude-fable-5-2": ["low", "medium", "high", "xhigh", "max"],
   "claude-haiku-5-5": ["low", "medium", "high", "xhigh", "max"],
   "claude-opus-4-7": ["low", "medium", "high", "xhigh", "max"],
   "claude-opus-4-8": ["low", "medium", "high", "xhigh", "max"],
@@ -205,6 +211,7 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "google/gemini-3.7-flash": ["low", "medium", "high"],
   "google/gemini-3.8-flash": ["low", "medium", "high"],
   "google/gemini-4-argon": ["low", "medium", "high"],
+  "google/gemini-4-carbon": ["low", "medium", "high"],
   "gpt-5.3-codex": ["low", "medium", "high", "xhigh"],
   "gpt-5.4": ["low", "medium", "high", "xhigh"],
   "gpt-5.4-mini": ["low", "medium", "high"],
@@ -219,6 +226,7 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "gpt-6.1-terra": ["low", "medium", "high", "xhigh", "max"],
   "inclusionai/ling-3.1-flash": ["low", "medium", "high"],
   "inclusionai/ling-3.1-flash-1019": ["low", "medium", "high"],
+  "meta/muse-ember": ["low", "medium", "high", "xhigh", "max"],
   "meta/muse-spark-1.1": ["low", "medium", "high", "xhigh"],
   "meta/muse-spark-1.2": ["low", "medium", "high", "xhigh"],
   "meta/muse-spark-1.2-contributor": ["low", "medium", "high", "xhigh"],
@@ -238,12 +246,11 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "Qwen/Qwen3.8-Max-0902": ["low", "medium", "xhigh"],
   "Qwen/Qwen3.8-Max-Prime": ["low", "medium", "xhigh"],
   "Qwen/Qwen3.8-Omni-Flash": ["low", "medium", "xhigh"],
-  "reflection/beam:free": ["low", "medium", "high", "xhigh", "max"],
   "sakana/fugu-ultra": ["high", "xhigh"],
-  "stealth/crouton-alpha": ["low", "medium", "high", "xhigh", "max"],
   "stealth/glyph-cluster:free": ["low", "medium", "high", "xhigh"],
   "stepfun/Step-5-Preview": ["low", "medium", "high"],
   "tencent/hy4-preview": ["low", "medium", "high"],
+  "thinkingmachines/inkling-2-small:free": ["low", "medium", "high", "max"],
   "xai/grok-4.5": ["low", "medium", "high"],
   "xai/grok-4.6": ["low", "medium", "high", "xhigh"],
   "xai/grok-4.7": ["low", "medium", "high", "xhigh"],
@@ -260,9 +267,8 @@ export const MODEL_MAX_OUTPUT_TOKENS: Readonly<Record<string, number>> = {
   "Qwen/Qwen3.8-27B": 32_768,
   "Qwen/Qwen3.8-Max-Prime": 131_072,
   "Qwen/Qwen3.8-Omni-Flash": 131_072,
-  "reflection/beam:free": 131_072,
-  "stealth/crouton-alpha": 943_718,
   "stealth/glyph-cluster:free": 256_000,
+  "thinkingmachines/inkling-2-small:free": 131_072,
   "z-ai/glm-5.3-flash": 131_072,
   "z-ai/glm-5.3-flashx": 131_072,
 }
