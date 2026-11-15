@@ -1,9 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.8.4 - 2026-11-15
 
-- Stop handing revoked or rotated API keys back on refresh. `refreshToken` used to return the stored key unchanged with a new ten-year expiry. On Oh My Pi, that let OMP keep selecting a dead `/login` credential over a valid one, and every request failed with `401 Invalid 'Authorization' header or token`. Refresh now checks the key against `whoami` first, and a `401` there fails the refresh with the message `401 invalid_token`. OMP forces a refresh after a `401`; when the refresh fails with that message, it signs the credential out and uses the next stored one. A network error or 5xx response from `whoami` fails the refresh with its own error, which OMP treats as temporary and does not sign out. pi refreshes only on expiry, so it runs the new check only then.
-- Refresh the capability snapshot to `command-code@1.89.1`: advertise image input, reasoning and selectable efforts for `claude-fable-5-2`, `google/gemini-4-carbon`, `meta/muse-ember` and `thinkingmachines/inkling-2-small:free`; raise Inkling 2 Small's output limit to 131,072 tokens; drop stale capability metadata for the retired `reflection/beam:free` and `stealth/crouton-alpha`. Public pricing checks pass for all 98 advertised models; prices and endpoint routing are unchanged.
+- Stop handing revoked or rotated API keys back on refresh. `refreshToken` used to return the stored key unchanged with a new ten-year expiry. On Oh My Pi, that let OMP keep selecting a dead `/login` credential over a valid one, and every request failed with `401 Invalid 'Authorization' header or token`. Refresh now checks the key against `whoami` first, and a `401` there fails the refresh with the message `401 invalid_token`. OMP forces a refresh after a `401`; when the refresh fails with that message, it signs the credential out and uses the next stored one. A network error or 5xx response from `whoami` fails the refresh with its own error, which OMP treats as temporary and does not sign out. pi refreshes only on expiry, so it runs the new check only then. ([#217](https://github.com/patlux/pi-commandcode-provider/pull/217))
+- Refresh the capability snapshot to `command-code@1.89.1`: advertise image input, reasoning and selectable efforts for `claude-fable-5-2`, `google/gemini-4-carbon`, `meta/muse-ember` and `thinkingmachines/inkling-2-small:free`; raise Inkling 2 Small's output limit to 131,072 tokens; drop stale capability metadata for the retired `reflection/beam:free` and `stealth/crouton-alpha`. Public pricing checks pass for all 98 advertised models; prices and endpoint routing are unchanged. ([#218](https://github.com/patlux/pi-commandcode-provider/pull/218))
+
+### Contributors
+
+- @mrshu — reported and fixed revoked-key refresh handling on Oh My Pi, preserved the host cancellation contract, and added regression tests ([#217](https://github.com/patlux/pi-commandcode-provider/pull/217)).
+- @pierreraby — reviewed and validated the OAuth fix, refreshed the capability catalog with regression tests ([#218](https://github.com/patlux/pi-commandcode-provider/pull/218)), and prepared this release.
 
 ## 0.8.3 - 2026-11-13
 
