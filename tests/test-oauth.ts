@@ -351,7 +351,7 @@ describe("OAuth functions", () => {
       expires: Date.now() - 1000, // already expired
     }
     let authorization: string | null = null
-    const result = await refreshToken(creds, {
+    const result = await refreshToken(creds, undefined, {
       fetchImpl: (_input, init) => {
         authorization = new Headers(init?.headers).get("authorization")
         return Promise.resolve(new Response(JSON.stringify({ user: {} }), { status: 200 }))
@@ -369,10 +369,9 @@ describe("OAuth functions", () => {
     // problem. Without that, it keeps selecting the revoked key and every
     // request returns 401.
     await assert.rejects(
-      refreshToken(
-        { refresh: "revoked-key", access: "revoked-key", expires: 0 },
-        { fetchImpl: () => Promise.resolve(new Response("unauthorized", { status: 401 })) },
-      ),
+      refreshToken({ refresh: "revoked-key", access: "revoked-key", expires: 0 }, undefined, {
+        fetchImpl: () => Promise.resolve(new Response("unauthorized", { status: 401 })),
+      }),
       (error: unknown) =>
         error instanceof Error &&
         /\b401\b/.test(error.message) &&
@@ -382,10 +381,38 @@ describe("OAuth functions", () => {
 
   it("refreshToken error on a 503 from whoami mentions neither 401 nor invalid_token", async () => {
     await assert.rejects(
-      refreshToken(
-        { refresh: "key", access: "key", expires: 0 },
-        { fetchImpl: () => Promise.resolve(new Response("busy", { status: 503 })) },
-      ),
+      refreshToken({ refresh: "key", access: "key", expires: 0 }, undefined, {
+        fetchImpl: () => Promise.resolve(new Response("busy", { status: 503 })),
+      }),
+      (error: unknown) => error instanceof Error && !/\b401\b|invalid_token/.test(error.message),
+    )
+  })
+
+  it("refreshToken honors the host's abort signal and fails without 401 or invalid_token", async () => {
+    // Hosts call refreshToken(credentials, signal). Cancellation must stop the
+    // whoami request, even if fetch ignores the signal. Its error must not
+    // contain 401 or invalid_token, or OMP would sign the credential out.
+    const host = new AbortController()
+    let requestSignal: AbortSignal | undefined
+    const refresh = refreshToken({ refresh: "key", access: "key", expires: 0 }, host.signal, {
+      fetchImpl: (_input, init) => {
+        requestSignal = init?.signal ?? undefined
+        return new Promise<Response>(() => {})
+      },
+    })
+    host.abort()
+    await assert.rejects(
+      refresh,
+      (error: unknown) => error instanceof Error && !/\b401\b|invalid_token/.test(error.message),
+    )
+    assert.equal(requestSignal?.aborted, true)
+
+    const resolvingFetch: typeof fetch = () =>
+      Promise.resolve(new Response(JSON.stringify({ user: {} })))
+    await assert.rejects(
+      refreshToken({ refresh: "key", access: "key", expires: 0 }, AbortSignal.abort(), {
+        fetchImpl: resolvingFetch,
+      }),
       (error: unknown) => error instanceof Error && !/\b401\b|invalid_token/.test(error.message),
     )
   })
