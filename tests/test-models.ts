@@ -170,6 +170,33 @@ describe("commandCodeModelsFromApiResponse()", () => {
     assert.equal(modelSupportsImageInput("unknown-new-model"), false)
   })
 
+  it("advertises the November additions from the reviewed CLI catalog", () => {
+    const effortsById = {
+      "claude-fable-5-2": ["low", "medium", "high", "xhigh", "max"],
+      "google/gemini-4-carbon": ["low", "medium", "high"],
+      "meta/muse-ember": ["low", "medium", "high", "xhigh", "max"],
+      "thinkingmachines/inkling-2-small:free": ["low", "medium", "high", "max"],
+    }
+    for (const [id, efforts] of Object.entries(effortsById)) {
+      assert.deepEqual(inputModalitiesForModel(id), ["text", "image"], id)
+      const [model] = commandCodeModelsFromApiResponse({
+        object: "list",
+        data: [{ ...API_RESPONSE.data[0], id }],
+      })
+      assert.equal(model?.reasoning, true, id)
+      assert.deepEqual(thinkingMetadataForModel(id)?.thinking?.efforts, efforts, id)
+      if (id === "thinkingmachines/inkling-2-small:free") {
+        assert.equal(model?.maxTokens, 131_072)
+      }
+    }
+    for (const id of ["reflection/beam:free", "stealth/crouton-alpha"]) {
+      assert.equal(MODEL_REASONING[id], undefined, id)
+      assert.equal(MODEL_EFFORTS[id], undefined, id)
+      assert.equal(MODEL_MAX_OUTPUT_TOKENS[id], undefined, id)
+      assert.equal(modelSupportsImageInput(id), false, id)
+    }
+  })
+
   it("advertises Qwen 3.8 Omni Flash capabilities from the CLI catalog", () => {
     const id = "Qwen/Qwen3.8-Omni-Flash"
     assert.deepEqual(inputModalitiesForModel(id), ["text", "image"])
@@ -218,13 +245,6 @@ describe("commandCodeModelsFromApiResponse()", () => {
       contextWindow: 1_000_000,
       maxTokens: 262_144,
     },
-    {
-      id: "stealth/crouton-alpha",
-      input: ["text", "image"],
-      efforts: ["low", "medium", "high", "xhigh", "max"],
-      contextWindow: 1_048_576,
-      maxTokens: 943_718,
-    },
   ]) {
     it(`advertises the command-code@1.88.3 capabilities for ${id}`, () => {
       assert.deepEqual(inputModalitiesForModel(id), input)
@@ -245,18 +265,13 @@ describe("commandCodeModelsFromApiResponse()", () => {
     })
   }
 
-  it("advertises MiniMax Flash, Beam, and Ornith capabilities from the refreshed CLI", () => {
+  it("advertises MiniMax Flash and Ornith capabilities from the refreshed CLI", () => {
     const efforts = ["low", "medium", "high", "xhigh", "max"]
     for (const id of ["minimax/minimax-m3.1-flash"]) {
       assert.deepEqual(inputModalitiesForModel(id), ["text", "image"])
       assert.equal(MODEL_REASONING[id], true)
       assert.deepEqual(thinkingMetadataForModel(id)?.thinking?.efforts, efforts)
     }
-    const beam = "reflection/beam:free"
-    assert.deepEqual(inputModalitiesForModel(beam), ["text"])
-    assert.equal(MODEL_REASONING[beam], true)
-    assert.deepEqual(thinkingMetadataForModel(beam)?.thinking?.efforts, efforts)
-    assert.equal(MODEL_MAX_OUTPUT_TOKENS[beam], 131_072)
     for (const id of ["ornith/ornith-1.5-122b"]) {
       assert.deepEqual(inputModalitiesForModel(id), ["text", "image"])
       assert.equal(MODEL_REASONING[id], true)
