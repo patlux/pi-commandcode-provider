@@ -268,6 +268,18 @@ describe("MODEL_COSTS pricing overlay", () => {
       cacheRead: 0.004,
       cacheWrite: 0,
     })
+    assertCost("Qwen/Qwen4-Max", {
+      input: 1.5,
+      output: 4.5,
+      cacheRead: 0.075,
+      cacheWrite: 1.875,
+    })
+    assertCost("tencent/hy4-flash", {
+      input: 0.07,
+      output: 0.281,
+      cacheRead: 0.003,
+      cacheWrite: 0,
+    })
   })
 
   it("prices Inkling 2 Small free as free during its undated free tier", () => {
@@ -463,7 +475,7 @@ describe("MODEL_COSTS pricing overlay", () => {
 
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-11-13")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-11-16")
   })
 
   it("fails once temporary pricing needs review", () => {
