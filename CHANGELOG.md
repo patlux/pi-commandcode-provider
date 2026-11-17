@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Add reviewed display pricing for the two Provider API additions published after the previous snapshot: `Qwen/Qwen4-Max` at $1.50 input / $4.50 output / $0.075 cache read / $1.875 cache write per million tokens, and `tencent/hy4-flash` at $0.07 / $0.281 / $0.003 with no cache-write charge. Both values come from the official pricing page rows `qwen-4-max` and `tencent/hy4-flash`, publish no long-context tier, and carry no promotion. No model left the API in this window. Refresh the 100-model API and pricing snapshots to 2026-11-16; the pricing check reports no drift. Static capability metadata stays at `command-code@1.89.1`, which does not list either model, so both remain text-only without reasoning or effort flags until upstream ships them.
+- Add reviewed display pricing for the two Provider API additions: `Qwen/Qwen4-Max` at $1.50 input / $4.50 output / $0.075 cache read / $1.875 cache write per million tokens, and `tencent/hy4-flash` at $0.07 / $0.281 / $0.003 with no cache-write charge. Both values come from the official pricing page rows `qwen-4-max` and `tencent/hy4-flash`, publish no long-context tier, and carry no promotion. ([#220](https://github.com/patlux/pi-commandcode-provider/pull/220))
+- Refresh the capability snapshot to `command-code@1.89.2`: advertise image input, reasoning and selectable efforts for `Qwen/Qwen4-Max` (`off`, `low`, `high`, `xhigh`) and `tencent/hy4-flash` (`off`, `high`). Add text-only reasoning for `recursive/flint-v1.0:free`, with no selectable effort metadata. All three retain the default 65,536-token output limit, capped by context size, and use Responses when advertised by the API. Add Flint's reviewed zero display prices while its undated free tier lasts, and refresh the 101-model API and pricing snapshots to 2026-11-17. No model left the API; existing prices, endpoint routing rules and model-specific output limits are unchanged.
 
 ## 0.8.4 - 2026-11-15
 

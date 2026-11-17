@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-11-16T09:22:58.757Z",
+  "fetchedAt": "2026-11-17T08:30:20.471Z",
   "source": "https://api.commandcode.ai/provider/v1/models",
   "modelIds": [
     "claude-sonnet-5-5",
@@ -87,6 +87,7 @@
     "thinkingmachines/inkling",
     "thinkingmachines/inkling-small",
     "thinkingmachines/inkling-2-small:free",
+    "recursive/flint-v1.0:free",
     "stealth/glyph-cluster:free",
     "inclusionai/ling-3.1-flash",
     "inclusionai/ling-3.1-flash-1019",
