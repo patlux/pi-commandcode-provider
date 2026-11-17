@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-11-13T07:12:48.985Z",
+  "fetchedAt": "2026-11-16T09:22:58.757Z",
   "source": "https://api.commandcode.ai/provider/v1/models",
   "modelIds": [
     "claude-sonnet-5-5",
@@ -54,6 +54,7 @@
     "xiaomi/mimo-v2.6-pro",
     "xiaomi/mimo-v2.6-pro-ultraspeed",
     "xiaomi/mimo-v2.6-flash",
+    "Qwen/Qwen4-Max",
     "Qwen/Qwen3.8-Omni-Flash",
     "Qwen/Qwen3.8-Max-Prime",
     "Qwen/Qwen3.8-Max-0902",
@@ -70,6 +71,7 @@
     "stepfun/Step-3.7-Flash",
     "stepfun/Step-3.5-Flash",
     "tencent/hy3-paid",
+    "tencent/hy4-flash",
     "tencent/hy4-preview",
     "google/gemini-4-carbon",
     "google/gemini-4-argon",

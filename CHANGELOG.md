@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add reviewed display pricing for the two Provider API additions published after the previous snapshot: `Qwen/Qwen4-Max` at $1.50 input / $4.50 output / $0.075 cache read / $1.875 cache write per million tokens, and `tencent/hy4-flash` at $0.07 / $0.281 / $0.003 with no cache-write charge. Both values come from the official pricing page rows `qwen-4-max` and `tencent/hy4-flash`, publish no long-context tier, and carry no promotion. No model left the API in this window. Refresh the 100-model API and pricing snapshots to 2026-11-16; the pricing check reports no drift. Static capability metadata stays at `command-code@1.89.1`, which does not list either model, so both remain text-only without reasoning or effort flags until upstream ships them.
+
 ## 0.8.4 - 2026-11-15
 
 - Stop handing revoked or rotated API keys back on refresh. `refreshToken` used to return the stored key unchanged with a new ten-year expiry. On Oh My Pi, that let OMP keep selecting a dead `/login` credential over a valid one, and every request failed with `401 Invalid 'Authorization' header or token`. Refresh now checks the key against `whoami` first, and a `401` there fails the refresh with the message `401 invalid_token`. OMP forces a refresh after a `401`; when the refresh fails with that message, it signs the credential out and uses the next stored one. A network error or 5xx response from `whoami` fails the refresh with its own error, which OMP treats as temporary and does not sign out. pi refreshes only on expiry, so it runs the new check only then. ([#217](https://github.com/patlux/pi-commandcode-provider/pull/217))
