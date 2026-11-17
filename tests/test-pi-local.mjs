@@ -6,7 +6,15 @@
 
 import assert from "node:assert/strict"
 import { spawn, spawnSync } from "node:child_process"
-import { accessSync, constants, mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs"
+import {
+  accessSync,
+  constants,
+  mkdtempSync,
+  rmSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs"
 import { createServer } from "node:http"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, join, resolve } from "node:path"
@@ -1244,6 +1252,53 @@ export default async function (pi) {
     "string",
   )
 
+  const settingsFilePath = join(agentDir, "settings.json")
+  const baseSettings = JSON.parse(readFileSync(settingsFilePath, "utf-8"))
+  const zdrArgs = [
+    "--no-extensions",
+    "-e",
+    EXT_PATH,
+    "-p",
+    "say mock token",
+    "--provider",
+    "commandcode",
+    "--model",
+    TEST_MODEL,
+  ]
+  try {
+    console.log("[pi-local] zero data retention opted in from settings.json")
+    writeFileSync(
+      settingsFilePath,
+      JSON.stringify({ ...baseSettings, commandcode: { enableZDR: true } }),
+    )
+    requestCount = 0
+    lastRequestHeaders = {}
+    const settingsZdr = await runPi(zdrArgs, {
+      timeoutMs: 30_000,
+      env: { CMD_ZDR: undefined, COMMANDCODE_ZDR: undefined },
+    })
+    assert.equal(settingsZdr.code, 0, settingsZdr.stderr)
+    assert.match(settingsZdr.stdout, /mock-pi-ok/)
+    assert.equal(lastRequestHeaders["x-cmd-zdr"], "1")
+
+    console.log("[pi-local] zero data retention stays off without an opt-in")
+    writeFileSync(
+      settingsFilePath,
+      JSON.stringify({ ...baseSettings, commandcode: { enableZDR: false } }),
+    )
+    requestCount = 0
+    lastRequestHeaders = {}
+    const noZdr = await runPi(zdrArgs, {
+      timeoutMs: 30_000,
+      env: { CMD_ZDR: undefined, COMMANDCODE_ZDR: undefined },
+    })
+    assert.equal(noZdr.code, 0, noZdr.stderr)
+    assert.match(noZdr.stdout, /mock-pi-ok/)
+    assert.equal(lastRequestHeaders["x-cmd-zdr"], undefined)
+  } finally {
+    writeFileSync(settingsFilePath, JSON.stringify(baseSettings))
+  }
+
   console.log("[pi-local] denied Provider API access never retries generate")
   requestCount = 0
   providerUpgradeRequired = true
@@ -1470,6 +1525,7 @@ export default async function (pi) {
   const runtimeCommands = await runRpcExtensionCommands()
   assert.ok(runtimeCommands.commandNames.includes("commandcode-refresh"))
   assert.ok(runtimeCommands.commandNames.includes("commandcode-status"))
+  assert.ok(runtimeCommands.commandNames.includes("commandcode-zdr"))
   assert.match(runtimeCommands.statusBefore, /source: live/)
   assert.match(runtimeCommands.refreshNotification, /4 models from live/)
   assert.match(runtimeCommands.statusAfter, /model count: 4/)
