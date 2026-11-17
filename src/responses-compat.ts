@@ -30,7 +30,30 @@
  * would turn a model-specific 400 into a failure for every backend.
  */
 
-/** Model ID -> repairs to apply. Keep it evidence-driven and short. */
+/** Per-model wire behaviour that needs a matching response-side adaptation. */
+export interface ModelWireTraits {
+  /**
+   * The model returns its chain of thought as plaintext `encrypted_content` on
+   * the completed reasoning item and streams no reasoning delta, so the stream
+   * adapter must turn it into reasoning text.
+   */
+  plaintextReasoningContent: boolean
+}
+
+/**
+ * Model gate for the plaintext reasoning-item repair. An entry is only added
+ * once a live request shows the shape, because the same field holds real
+ * ciphertext for other providers and must stay invisible there.
+ */
+export const PLAINTEXT_REASONING_CONTENT_MODELS: Readonly<Set<string>> = new Set([
+  "zai-org/GLM-5.3",
+])
+
+/** Returns the wire traits of a model, defaulting to none. */
+export function modelWireTraits(modelId: string): ModelWireTraits {
+  return { plaintextReasoningContent: PLAINTEXT_REASONING_CONTENT_MODELS.has(modelId) }
+}
+/** Model ID -> request-body repairs to apply. Keep it evidence-driven and short. */
 export interface ResponsesWireRepair {
   /** Needs an explicit `type: "message"` on role-carrying input items. */
   messageItemType?: boolean

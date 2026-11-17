@@ -713,3 +713,93 @@ describe("Command Code Responses stream normalizer", () => {
     await assert.rejects(readWithTimeout(reader), /boom/)
   })
 })
+
+describe("normalizeCommandCodeResponsesResponse plaintext reasoning items", () => {
+  const GLM_TEXT = "Count the r's: s-t-r-a-w-b-e-r-r-y. Three r's."
+  const PLAINTEXT = { plaintextReasoningContent: true }
+
+  function reasoningItem(extra: Record<string, unknown> = {}) {
+    return { id: "rs_glm", type: "reasoning", summary: [], ...extra }
+  }
+
+  function frames(ending = "\n") {
+    const added = {
+      type: "response.output_item.added",
+      output_index: 0,
+      item: reasoningItem(),
+    }
+    const done = {
+      type: "response.output_item.done",
+      output_index: 0,
+      item: reasoningItem({ encrypted_content: GLM_TEXT }),
+    }
+    return {
+      added: `event: response.output_item.added${ending}data: ${JSON.stringify(added)}${ending}${ending}`,
+      done: `event: response.output_item.done${ending}data: ${JSON.stringify(done)}${ending}${ending}`,
+      delta:
+        `event: response.reasoning_text.delta${ending}` +
+        `data: ${JSON.stringify({
+          type: "response.reasoning_text.delta",
+          output_index: 0,
+          content_index: 0,
+          delta: GLM_TEXT,
+          item_id: "rs_glm",
+        })}${ending}${ending}`,
+    }
+  }
+
+  async function normalize(input: string, options?: { plaintextReasoningContent?: boolean }) {
+    return readAll(
+      normalizeCommandCodeResponsesResponse(
+        new Response(input, { headers: sseHeaders() }),
+        undefined,
+        options,
+      ),
+    )
+  }
+
+  it("emits the item text as a reasoning-text delta just before it completes", async () => {
+    const stream = frames()
+    const output = await normalize(stream.added + stream.done, PLAINTEXT)
+    assert.equal(output, stream.added + stream.delta + stream.done)
+  })
+
+  it("keeps the same stream byte-identical without the model trait", async () => {
+    const stream = frames()
+    assert.equal(await normalize(stream.added + stream.done), stream.added + stream.done)
+    assert.equal(
+      await normalize(stream.added + stream.done, { plaintextReasoningContent: false }),
+      stream.added + stream.done,
+    )
+  })
+
+  it("does not repeat text that already arrived as a reasoning delta", async () => {
+    const stream = frames()
+    const earlier =
+      'event: response.reasoning_text.delta\ndata: {"type":"response.reasoning_text.delta","output_index":0,"delta":"already"}\n\n'
+    const output = await normalize(earlier + stream.added + stream.done, PLAINTEXT)
+    assert.equal(output, earlier + stream.added + stream.done)
+    assert.equal(output.split("event: response.reasoning_text.delta").length - 1, 1)
+  })
+
+  it("does not inject when the item carries a canonical summary", async () => {
+    const done = {
+      type: "response.output_item.done",
+      output_index: 0,
+      item: reasoningItem({
+        encrypted_content: GLM_TEXT,
+        summary: [{ type: "summary_text", text: "host renders this" }],
+      }),
+    }
+    const input =
+      'event: response.output_item.added\ndata: {"type":"response.output_item.added","output_index":0,"item":{"id":"rs_glm","type":"reasoning","summary":[]}}\n\n' +
+      `event: response.output_item.done\ndata: ${JSON.stringify(done)}\n\n`
+    assert.equal(await normalize(input, PLAINTEXT), input)
+  })
+
+  it("matches the stream line endings when injecting", async () => {
+    const stream = frames("\r\n")
+    const output = await normalize(stream.added + stream.done, PLAINTEXT)
+    assert.equal(output, stream.added + stream.delta + stream.done)
+  })
+})

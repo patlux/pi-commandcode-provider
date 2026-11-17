@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import {
   RESPONSES_WIRE_REPAIRS,
+  modelWireTraits,
   rewriteResponsesBody,
   withResponsesWireRepairs,
 } from "../src/responses-compat.ts"
@@ -35,6 +36,25 @@ describe("RESPONSES_WIRE_REPAIRS", () => {
     })
     // Mistral answers the shorthand fine; only its effort value is refused.
     assert.deepEqual(RESPONSES_WIRE_REPAIRS["mistral/mistral-large-4"], { dropNoneEffort: true })
+  })
+})
+
+describe("modelWireTraits()", () => {
+  it("enables plaintext reasoning rendering only for the measured model", () => {
+    assert.deepEqual(modelWireTraits("zai-org/GLM-5.3"), { plaintextReasoningContent: true })
+    for (const modelId of [
+      "mistral/mistral-large-4",
+      "z-ai/glm-5.3-flash",
+      "z-ai/glm-5.3-flashx",
+      "gpt-6-sol",
+      "",
+    ]) {
+      assert.deepEqual(
+        modelWireTraits(modelId),
+        { plaintextReasoningContent: false },
+        `${modelId || "<empty>"} stays opt-out until a capture shows the shape`,
+      )
+    }
   })
 })
 

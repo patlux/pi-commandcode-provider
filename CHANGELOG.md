@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Show the `zai-org/GLM-5.3` thinking that the Provider API returns only as plaintext `encrypted_content` on the completed reasoning item. The model streams no reasoning delta, and the host keeps that field solely as a replay signature, so the chain of thought arrived and was never displayed. The Responses stream adapter now turns that content into reasoning text for this model only, and skips it when the item already carries a canonical summary or streamed deltas. Other models keep the field invisible because it holds real ciphertext there. ([#221](https://github.com/patlux/pi-commandcode-provider/issues/221))
+
 ## 0.8.5 - 2026-11-17
 
 - Add reviewed display pricing for the two Provider API additions: `Qwen/Qwen4-Max` at $1.50 input / $4.50 output / $0.075 cache read / $1.875 cache write per million tokens, and `tencent/hy4-flash` at $0.07 / $0.281 / $0.003 with no cache-write charge. Both values come from the official pricing page rows `qwen-4-max` and `tencent/hy4-flash`, publish no long-context tier, and carry no promotion. ([#220](https://github.com/patlux/pi-commandcode-provider/pull/220))
