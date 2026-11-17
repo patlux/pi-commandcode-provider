@@ -319,6 +319,15 @@ describe("pricing rate and context validation", () => {
 
 describe("pricing page id matching", () => {
   it("derives page id candidates from API ids and aliases", () => {
+    assert.deepEqual(pricingPageIdCandidates("Qwen/Qwen4-Max"), ["qwen/qwen4-max", "qwen-4-max"])
+    assert.deepEqual(pricingPageIdCandidates("tencent/hy4-flash"), [
+      "tencent/hy4-flash",
+      "hy4-flash",
+    ])
+    assert.deepEqual(pricingPageIdCandidates("recursive/flint-v1.0:free"), [
+      "recursive/flint-v1.0:free",
+      "flint-v1.0:free",
+    ])
     assert.deepEqual(pricingPageIdCandidates("tencent/hy4-preview"), [
       "tencent/hy4-preview",
       "hy4-preview",
