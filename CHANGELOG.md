@@ -1,8 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.8.6 - 2026-11-17
 
-- Show the `zai-org/GLM-5.3` thinking that the Provider API returns only as plaintext `encrypted_content` on the completed reasoning item. The model streams no reasoning delta, and the host keeps that field solely as a replay signature, so the chain of thought arrived and was never displayed. The Responses stream adapter now turns that content into reasoning text for this model only, and skips it when the item already carries a canonical summary or streamed deltas. Other models keep the field invisible because it holds real ciphertext there. ([#221](https://github.com/patlux/pi-commandcode-provider/issues/221))
+- Show the `zai-org/GLM-5.3` thinking that the Provider API returns only as plaintext `encrypted_content` on the completed reasoning item. The model streams no reasoning delta, and the host keeps that field solely as a replay signature, so the chain of thought arrived and was never displayed. The Responses stream adapter now turns that content into reasoning text for this model only, and skips it when the item already carries a canonical summary or streamed deltas. Other models keep the field invisible because it holds real ciphertext there. ([#221](https://github.com/patlux/pi-commandcode-provider/issues/221), [#225](https://github.com/patlux/pi-commandcode-provider/pull/225))
+
+### Contributors
+
+- @ThomasByr — reported the missing `zai-org/GLM-5.3` thinking with a clear reproduction ([#221](https://github.com/patlux/pi-commandcode-provider/issues/221)).
+- @pierreraby — isolated the wire behaviour with bounded live captures, added the per-model stream repair with regression tests ([#225](https://github.com/patlux/pi-commandcode-provider/pull/225)), and prepared this release.
 
 ## 0.8.5 - 2026-11-17
 
