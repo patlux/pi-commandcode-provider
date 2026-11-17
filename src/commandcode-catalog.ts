@@ -1,4 +1,4 @@
-export const COMMAND_CODE_CLI_VERSION = "1.89.1"
+export const COMMAND_CODE_CLI_VERSION = "1.89.2"
 
 export type CommandCodeInputType = "text" | "image"
 export type CommandCodeReasoningEffort =
@@ -11,7 +11,7 @@ export type CommandCodeReasoningEffort =
   | "max"
 
 /**
- * Generated from command-code@1.89.1 by `npm run sync:commandcode-catalog`.
+ * Generated from command-code@1.89.2 by `npm run sync:commandcode-catalog`.
  * Do not edit manually.
  */
 export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCodeInputType[]>> = {
@@ -79,9 +79,11 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "Qwen/Qwen3.8-Max-0902": ["text", "image"],
   "Qwen/Qwen3.8-Max-Prime": ["text", "image"],
   "Qwen/Qwen3.8-Omni-Flash": ["text", "image"],
+  "Qwen/Qwen4-Max": ["text", "image"],
   "sakana/fugu-ultra": ["text", "image"],
   "stepfun/Step-3.7-Flash": ["text", "image"],
   "stepfun/Step-5-Preview": ["text", "image"],
+  "tencent/hy4-flash": ["text", "image"],
   "thinkingmachines/inkling": ["text", "image"],
   "thinkingmachines/inkling-2-small:free": ["text", "image"],
   "thinkingmachines/inkling-small": ["text", "image"],
@@ -166,12 +168,15 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "Qwen/Qwen3.8-Max-0902": true,
   "Qwen/Qwen3.8-Max-Prime": true,
   "Qwen/Qwen3.8-Omni-Flash": true,
+  "Qwen/Qwen4-Max": true,
+  "recursive/flint-v1.0:free": true,
   "sakana/fugu-ultra": true,
   "stealth/glyph-cluster:free": true,
   "stepfun/Step-3.5-Flash": true,
   "stepfun/Step-3.7-Flash": true,
   "stepfun/Step-5-Preview": true,
   "tencent/hy3-paid": true,
+  "tencent/hy4-flash": true,
   "tencent/hy4-preview": true,
   "thinkingmachines/inkling": true,
   "thinkingmachines/inkling-2-small:free": true,
@@ -246,9 +251,11 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "Qwen/Qwen3.8-Max-0902": ["low", "medium", "xhigh"],
   "Qwen/Qwen3.8-Max-Prime": ["low", "medium", "xhigh"],
   "Qwen/Qwen3.8-Omni-Flash": ["low", "medium", "xhigh"],
+  "Qwen/Qwen4-Max": ["off", "low", "high", "xhigh"],
   "sakana/fugu-ultra": ["high", "xhigh"],
   "stealth/glyph-cluster:free": ["low", "medium", "high", "xhigh"],
   "stepfun/Step-5-Preview": ["low", "medium", "high"],
+  "tencent/hy4-flash": ["off", "high"],
   "tencent/hy4-preview": ["low", "medium", "high"],
   "thinkingmachines/inkling-2-small:free": ["low", "medium", "high", "max"],
   "xai/grok-4.5": ["low", "medium", "high"],

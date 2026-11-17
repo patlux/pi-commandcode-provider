@@ -197,6 +197,63 @@ describe("commandCodeModelsFromApiResponse()", () => {
     }
   })
 
+  for (const { id, name, contextLength, input, efforts } of [
+    {
+      id: "Qwen/Qwen4-Max",
+      name: "Qwen 4 Max",
+      contextLength: 1_000_000,
+      input: ["text", "image"],
+      efforts: ["off", "low", "high", "xhigh"],
+    },
+    {
+      id: "tencent/hy4-flash",
+      name: "Tencent Hy4 Flash",
+      contextLength: 1_024_000,
+      input: ["text", "image"],
+      efforts: ["off", "high"],
+    },
+    {
+      id: "recursive/flint-v1.0:free",
+      name: "Flint",
+      contextLength: 262_144,
+      input: ["text"],
+      efforts: undefined,
+    },
+  ]) {
+    it(`advertises the command-code@1.89.2 capabilities and API routing for ${id}`, () => {
+      assert.deepEqual(inputModalitiesForModel(id), input)
+      assert.equal(MODEL_REASONING[id], true)
+      assert.deepEqual(MODEL_EFFORTS[id], efforts)
+      assert.deepEqual(thinkingMetadataForModel(id)?.thinking?.efforts, efforts)
+      assert.ok(thinkingMetadataForModel(id), "reasoning metadata must be registered")
+      assert.equal(MODEL_MAX_OUTPUT_TOKENS[id], undefined, "use the default output limit")
+      for (const contextWindow of [contextLength, 16_384]) {
+        const models = commandCodeModelsFromApiResponse({
+          object: "list",
+          data: [
+            {
+              ...API_RESPONSE.data[0],
+              id,
+              name,
+              context_length: contextWindow,
+              supported_endpoints: ["/chat/completions", "/responses"],
+            },
+          ],
+        })
+        assert.deepEqual(models, [
+          {
+            id,
+            name: `${name} (CC)`,
+            api: "openai-responses",
+            reasoning: true,
+            contextWindow,
+            maxTokens: Math.min(65_536, contextWindow),
+          },
+        ])
+      }
+    })
+  }
+
   it("advertises Qwen 3.8 Omni Flash capabilities from the CLI catalog", () => {
     const id = "Qwen/Qwen3.8-Omni-Flash"
     assert.deepEqual(inputModalitiesForModel(id), ["text", "image"])
