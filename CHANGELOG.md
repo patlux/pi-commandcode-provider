@@ -1,9 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.8.5 - 2026-11-17
 
 - Add reviewed display pricing for the two Provider API additions: `Qwen/Qwen4-Max` at $1.50 input / $4.50 output / $0.075 cache read / $1.875 cache write per million tokens, and `tencent/hy4-flash` at $0.07 / $0.281 / $0.003 with no cache-write charge. Both values come from the official pricing page rows `qwen-4-max` and `tencent/hy4-flash`, publish no long-context tier, and carry no promotion. ([#220](https://github.com/patlux/pi-commandcode-provider/pull/220))
-- Refresh the capability snapshot to `command-code@1.89.2`: advertise image input, reasoning and selectable efforts for `Qwen/Qwen4-Max` (`off`, `low`, `high`, `xhigh`) and `tencent/hy4-flash` (`off`, `high`). Add text-only reasoning for `recursive/flint-v1.0:free`, with no selectable effort metadata. All three retain the default 65,536-token output limit, capped by context size, and use Responses when advertised by the API. Add Flint's reviewed zero display prices while its undated free tier lasts, and refresh the 101-model API and pricing snapshots to 2026-11-17. No model left the API; existing prices, endpoint routing rules and model-specific output limits are unchanged.
+- Refresh the capability snapshot to `command-code@1.89.2`: advertise image input, reasoning and selectable efforts for `Qwen/Qwen4-Max` (`off`, `low`, `high`, `xhigh`) and `tencent/hy4-flash` (`off`, `high`). Add text-only reasoning for `recursive/flint-v1.0:free`, with no selectable effort metadata. All three retain the default 65,536-token output limit, capped by context size, and use Responses when advertised by the API. Add Flint's reviewed zero display prices while its undated free tier lasts, and refresh the 101-model API and pricing snapshots to 2026-11-17. No model left the API; existing prices, endpoint routing rules and model-specific output limits are unchanged. ([#223](https://github.com/patlux/pi-commandcode-provider/pull/223))
+- Pin the GitHub Actions used by the catalog maintenance and memory-benchmark workflows to immutable commit SHAs. The version comments stay in place, and no trigger, permission, input or script changes. ([#222](https://github.com/patlux/pi-commandcode-provider/pull/222))
+
+### Contributors
+
+- @sandexzx — refreshed the reviewed pricing snapshot for `Qwen/Qwen4-Max` and `tencent/hy4-flash` ([#220](https://github.com/patlux/pi-commandcode-provider/pull/220)).
+- @pierreraby — refreshed the capability catalog and Flint pricing with regression tests ([#223](https://github.com/patlux/pi-commandcode-provider/pull/223)), pinned the maintenance workflow actions ([#222](https://github.com/patlux/pi-commandcode-provider/pull/222)), and prepared this release.
 
 ## 0.8.4 - 2026-11-15
 
