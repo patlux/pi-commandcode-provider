@@ -77,6 +77,27 @@ describe("commandcode-quota command", () => {
     assert.match(ctx.notifications.at(-1)?.message ?? "", /Requests: 2/)
   })
 
+  it("resolves headers at run time so a later change is sent", async () => {
+    const pi = new CommandApiDouble()
+    let headers: Record<string, string> | undefined
+    const seen: Array<Record<string, string> | undefined> = []
+    registerCommandCodeQuota(pi, {
+      apiBase: "https://api.commandcode.ai",
+      headers: () => headers,
+      getConfiguredKey: () => "key",
+      fetchQuota: async (options) => {
+        seen.push(options.extraHeaders)
+        return quotaResult
+      },
+    })
+
+    assert.ok(pi.handler)
+    await pi.handler("", context(undefined).value)
+    headers = { "x-cmd-zdr": "1" }
+    await pi.handler("", context(undefined).value)
+    assert.deepEqual(seen, [undefined, { "x-cmd-zdr": "1" }])
+  })
+
   it("warns without calling the endpoint when no API key is available", async () => {
     const pi = new CommandApiDouble()
     let called = false

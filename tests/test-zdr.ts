@@ -1,5 +1,15 @@
 import assert from "node:assert/strict"
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readlink,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, it } from "node:test"
@@ -126,6 +136,36 @@ describe("saving the settings.json opt-in", () => {
         await assert.rejects(() => saveZdrSetting(path, true), /settings\.json/)
         assert.equal(await readFile(path, "utf8"), content)
       }
+    })
+  })
+
+  it("updates the target of a symlinked settings file and keeps the link", async () => {
+    await isolated(async (path, dir) => {
+      await mkdir(join(dir, "managed"))
+      const target = join(dir, "managed", "settings.json")
+      await writeFile(target, JSON.stringify({ theme: "dark" }), "utf8")
+      await symlink(target, path)
+
+      await saveZdrSetting(path, true)
+
+      assert.equal((await lstat(path)).isSymbolicLink(), true)
+      assert.equal(await readlink(path), target)
+      assert.deepEqual(JSON.parse(await readFile(target, "utf8")), {
+        theme: "dark",
+        commandcode: { enableZDR: true },
+      })
+    })
+  })
+
+  it("refuses to replace a dangling settings symlink", async () => {
+    await isolated(async (path, dir) => {
+      const target = join(dir, "missing.json")
+      await symlink(target, path)
+
+      await assert.rejects(() => saveZdrSetting(path, true), /symlink/)
+
+      assert.equal((await lstat(path)).isSymbolicLink(), true)
+      await assert.rejects(() => stat(target))
     })
   })
 })

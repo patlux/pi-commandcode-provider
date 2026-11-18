@@ -472,6 +472,15 @@ export default async function (pi: ExtensionAPI) {
         ctx.ui.notify("Usage: /commandcode-zdr on|off", "warning")
         return
       }
+      // Only pi reads this settings file back and applies a re-registered header
+      // to the next request; other hosts keep the environment opt-in.
+      if (!compatApiProviderRegistrar()) {
+        ctx.ui.notify(
+          "Saving zero data retention is only supported on pi. Set CMD_ZDR=1 in the environment instead.",
+          "warning",
+        )
+        return
+      }
       // The environment wins at resolution time, so refuse instead of writing a
       // setting that would not take effect.
       if (choice === "off" && zdr.source === "env") {
@@ -509,7 +518,7 @@ export default async function (pi: ExtensionAPI) {
 
   registerCommandCodeQuota(pi, {
     apiBase: quotaApiBase(apiBase),
-    headers: zdrHeaders(zdr),
+    headers: () => zdrHeaders(zdr),
   })
 
   const runtime = createCommandCodeRuntime<ProviderConfig, ExtensionCommandContext>(pi, {

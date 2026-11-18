@@ -816,6 +816,91 @@ async function runRpcExtensionCommands(timeoutMs = 30_000) {
   }
 }
 
+async function runRpcZdrCommand(timeoutMs = 30_000) {
+  const child = spawn(
+    PI_BIN,
+    [
+      "--no-extensions",
+      "--mode",
+      "rpc",
+      "-e",
+      EXT_PATH,
+      "--provider",
+      "commandcode",
+      "--model",
+      TEST_MODEL,
+    ],
+    {
+      cwd: PROJECT_DIR,
+      env: { ...env, CMD_ZDR: undefined, COMMANDCODE_ZDR: undefined },
+      stdio: ["pipe", "pipe", "pipe"],
+    },
+  )
+  const waitForClose = rpcChildCloseWaiter(child)
+  let buffer = ""
+  let stderr = ""
+  const events = []
+  child.stdout.on("data", (chunk) => {
+    buffer += chunk.toString("utf-8")
+    const lines = buffer.split("\n")
+    buffer = lines.pop() ?? ""
+    for (const line of lines) {
+      try {
+        events.push(JSON.parse(line))
+      } catch {
+        // Ignore non-JSON output.
+      }
+    }
+  })
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk.toString("utf-8")
+  })
+  const waitFor = async (predicate, fromIndex = 0) => {
+    const deadline = Date.now() + timeoutMs
+    while (Date.now() < deadline) {
+      const found = events.slice(fromIndex).find(predicate)
+      if (found) return found
+      await new Promise((resolve) => setTimeout(resolve, 25))
+    }
+    throw new Error(`RPC event timeout. stderr: ${stderr.slice(-500)}`)
+  }
+  const send = (value) => child.stdin.write(`${JSON.stringify(value)}\n`)
+  const prompt = async (message, until) => {
+    const start = events.length
+    send({ id: `p-${start}`, type: "prompt", message })
+    await waitFor((event) => event.type === "response" && event.id === `p-${start}`, start)
+    return waitFor(until, start)
+  }
+  // Asserts on the next outgoing HTTP request, not only on the notification.
+  const nextRequestHeader = async () => {
+    lastRequestHeaders = {}
+    await prompt("say mock token", (event) => event.type === "agent_end")
+    return lastRequestHeaders["x-cmd-zdr"]
+  }
+  const command = async (name) =>
+    (
+      await prompt(
+        name,
+        (event) =>
+          event.type === "extension_ui_request" &&
+          event.method === "notify" &&
+          /zero data retention/.test(event.message ?? ""),
+      )
+    ).message
+  try {
+    // Wait for the cached catalog so the command can re-register.
+    await prompt("/commandcode-status", (event) => /model count: 3/.test(event.message ?? ""))
+    assert.equal(await nextRequestHeader(), undefined)
+    assert.match(await command("/commandcode-zdr on"), /on \(settings\.json/)
+    assert.equal(await nextRequestHeader(), "1")
+    assert.match(await command("/commandcode-zdr off"), /off/)
+    assert.equal(await nextRequestHeader(), undefined)
+  } finally {
+    child.kill()
+    await waitForClose()
+  }
+}
+
 async function runRpcCompatCall(timeoutMs = 30_000) {
   const child = spawn(
     PI_BIN,
@@ -1295,6 +1380,9 @@ export default async function (pi) {
     assert.equal(noZdr.code, 0, noZdr.stderr)
     assert.match(noZdr.stdout, /mock-pi-ok/)
     assert.equal(lastRequestHeaders["x-cmd-zdr"], undefined)
+
+    console.log("[pi-local] /commandcode-zdr changes the next outgoing request")
+    await runRpcZdrCommand()
   } finally {
     writeFileSync(settingsFilePath, JSON.stringify(baseSettings))
   }

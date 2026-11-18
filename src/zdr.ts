@@ -2,7 +2,7 @@
 // a process environment variable is inconvenient. Command Code documents the
 // `x-cmd-zdr: 1` request header and the `CMD_ZDR=1` CLI environment variable.
 import { randomUUID } from "node:crypto"
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
+import { lstat, mkdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises"
 import { dirname } from "node:path"
 
 /** Top-level settings.json section owned by this provider. */
@@ -58,6 +58,25 @@ export function describeZdr(state: ZdrState): string {
 }
 
 /**
+ * A symlinked settings.json (e.g. a managed file) is updated through its target
+ * so the link survives; a dangling link is refused rather than replaced.
+ */
+async function resolveSettingsTarget(path: string): Promise<string> {
+  try {
+    return await realpath(path)
+  } catch (error) {
+    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
+      throw new Error("Could not read settings.json in the agent directory; check file permissions")
+    }
+  }
+  const entry = await lstat(path).catch(() => undefined)
+  if (entry?.isSymbolicLink()) {
+    throw new Error("settings.json is a symlink to a missing file; refusing to replace the link")
+  }
+  return path
+}
+
+/**
  * Persist the opt-in into the agent settings file, preserving every other key.
  *
  * Returns the written settings object so the caller resolves the effective
@@ -67,7 +86,8 @@ export function describeZdr(state: ZdrState): string {
  * coordinated. A malformed file is never overwritten, and an unreadable file is
  * reported instead of replaced.
  */
-export async function saveZdrSetting(path: string, enabled: boolean): Promise<unknown> {
+export async function saveZdrSetting(settingsPath: string, enabled: boolean): Promise<unknown> {
+  const path = await resolveSettingsTarget(settingsPath)
   let raw: string | undefined
   try {
     raw = await readFile(path, "utf8")
