@@ -25,6 +25,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
+/**
+ * The host's own settings parser tolerates a leading UTF-8 BOM, so both the
+ * reader and the writer do too: a BOM must not silently drop a saved opt-in.
+ */
+function stripBom(text: string): string {
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text
+}
+
 /** Only a literal `true` enables ZDR, so a typo cannot silently weaken privacy. */
 export function readZdrSetting(settings: unknown): boolean {
   if (!isRecord(settings)) return false
@@ -58,7 +66,7 @@ export function resolveZdr(settings: unknown, env: Environment = process.env): Z
  */
 export async function loadZdrSettings(path: string): Promise<unknown> {
   try {
-    return JSON.parse(await readFile(path, "utf8"))
+    return JSON.parse(stripBom(await readFile(path, "utf8")))
   } catch {
     return undefined
   }
@@ -115,10 +123,11 @@ export async function saveZdrSetting(settingsPath: string, enabled: boolean): Pr
   }
 
   let settings: Record<string, unknown> = {}
-  if (raw !== undefined && raw.trim() !== "") {
+  const text = raw === undefined ? undefined : stripBom(raw)
+  if (text !== undefined && text.trim() !== "") {
     let parsed: unknown
     try {
-      parsed = JSON.parse(raw)
+      parsed = JSON.parse(text)
     } catch {
       throw new Error(
         "Invalid settings.json in the agent directory; refusing to overwrite it. Fix the JSON or set commandcode.enableZDR by hand.",

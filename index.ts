@@ -89,6 +89,15 @@ function compatApiProviderRegistrar(): ((...args: unknown[]) => unknown) | undef
   return typeof register === "function" ? (register as (...args: unknown[]) => unknown) : undefined
 }
 
+/**
+ * The settings.json opt-in is pi-only. pi registers the compat API provider that
+ * applies a re-registered header; Oh My Pi does not, so its contract stays the
+ * environment only. Both paths use the same probe as the write guard.
+ */
+function settingsZdrSupported(): boolean {
+  return compatApiProviderRegistrar() !== undefined
+}
+
 function registerCompatApiProvider(stream: CompatStreamFunction): void {
   compatApiProviderRegistrar()?.(
     { api: COMMAND_CODE_API, stream, streamSimple: stream },
@@ -436,8 +445,11 @@ export default async function (pi: ExtensionAPI) {
   const applyHostZdr = async () => {
     // Read the agent settings file, not the host's merged global+project view:
     // the command writes this file, so a project override must not be able to
-    // invalidate the persisted opt-in at restart.
-    const resolved = resolveZdr(await loadZdrSettings(settingsPath))
+    // invalidate the persisted opt-in at restart. Only pi owns this file; OMP
+    // must not pick up a leftover one, so it keeps the environment opt-in.
+    const resolved = resolveZdr(
+      settingsZdrSupported() ? await loadZdrSettings(settingsPath) : undefined,
+    )
     const changed = resolved.enabled !== zdr.enabled
     zdr = resolved
     // Re-registration is the only way to change a registration header, and it
@@ -471,7 +483,7 @@ export default async function (pi: ExtensionAPI) {
       }
       // Only pi reads this settings file back and applies a re-registered header
       // to the next request; other hosts keep the environment opt-in.
-      if (!compatApiProviderRegistrar()) {
+      if (!settingsZdrSupported()) {
         ctx.ui.notify(
           "Saving zero data retention is only supported on pi. Set CMD_ZDR=1 in the environment instead.",
           "warning",

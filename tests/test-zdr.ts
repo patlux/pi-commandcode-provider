@@ -112,6 +112,17 @@ describe("loading the settings.json opt-in", () => {
       assert.equal(await loadZdrSettings(path), undefined)
     })
   })
+
+  it("tolerates a single leading UTF-8 BOM", async () => {
+    await isolated(async (path) => {
+      await writeFile(path, `\uFEFF${JSON.stringify({ commandcode: { enableZDR: true } })}`, "utf8")
+      assert.equal(resolveZdr(await loadZdrSettings(path), {}).enabled, true)
+
+      // Only one BOM is stripped; anything else remains malformed.
+      await writeFile(path, "\uFEFF\uFEFF{}", "utf8")
+      assert.equal(await loadZdrSettings(path), undefined)
+    })
+  })
 })
 
 describe("saving the settings.json opt-in", () => {
@@ -142,6 +153,35 @@ describe("saving the settings.json opt-in", () => {
       assert.deepEqual(JSON.parse(await readFile(path, "utf8")), {
         ...existing,
         commandcode: { endpoint: "responses", enableZDR: false },
+      })
+    })
+  })
+
+  it("keeps a BOM-prefixed settings file readable when it writes it", async () => {
+    await isolated(async (path) => {
+      const existing = { theme: "matte-black", commandcode: { endpoint: "responses" } }
+      await writeFile(path, `\uFEFF${JSON.stringify(existing)}`, "utf8")
+      const written = await saveZdrSetting(path, true)
+      assert.equal(resolveZdr(written, {}).enabled, true)
+      const text = await readFile(path, "utf8")
+      assert.equal(text.charCodeAt(0), "{".charCodeAt(0), "the rewrite must not keep a BOM")
+      assert.deepEqual(JSON.parse(text), {
+        ...existing,
+        commandcode: { endpoint: "responses", enableZDR: true },
+      })
+
+      // A BOM-prefixed file that is still malformed must be refused, not replaced.
+      const malformed = "\uFEFF{ not json"
+      await writeFile(path, malformed, "utf8")
+      await assert.rejects(() => saveZdrSetting(path, true), /settings\.json/)
+      assert.equal(await readFile(path, "utf8"), malformed)
+
+      // A file holding only a BOM is empty, not malformed.
+      await writeFile(path, "\uFEFF", "utf8")
+      const created = await saveZdrSetting(path, true)
+      assert.equal(resolveZdr(created, {}).enabled, true)
+      assert.deepEqual(JSON.parse(await readFile(path, "utf8")), {
+        commandcode: { enableZDR: true },
       })
     })
   })
