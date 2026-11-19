@@ -49,7 +49,14 @@ import { registerCommandCodeQuota } from "./src/quota-command.ts"
 import { normalizeCommandCodeResponsesResponse } from "./src/responses-stream.ts"
 import { modelWireTraits, withResponsesWireRepairs } from "./src/responses-compat.ts"
 import { createCommandCodeRuntime } from "./src/runtime.ts"
-import { describeZdr, resolveZdr, saveZdrSetting, zdrHeaders, type ZdrState } from "./src/zdr.ts"
+import {
+  describeZdr,
+  loadZdrSettings,
+  resolveZdr,
+  saveZdrSetting,
+  zdrHeaders,
+  type ZdrState,
+} from "./src/zdr.ts"
 import {
   compatForEndpoint,
   endpointChoiceForModel,
@@ -111,20 +118,6 @@ function providerApiKey(): string | undefined {
   const configured = pickCommandCodeApiKey(getConfiguredApiKey(), undefined)
   if (configured) return configured
   return compatApiProviderRegistrar() ? "$COMMAND_CODE_API_KEY" : undefined
-}
-
-/**
- * Settings live on the host. Oh My Pi has no settings accessor, so a missing
- * reader means "no settings section" rather than an error.
- */
-function hostSettings(pi: ExtensionAPI): unknown {
-  const readSettings = (pi as { getSettings?: unknown }).getSettings
-  if (typeof readSettings !== "function") return undefined
-  try {
-    return readSettings.call(pi)
-  } catch {
-    return undefined
-  }
 }
 
 /**
@@ -272,9 +265,9 @@ export default async function (pi: ExtensionAPI) {
   // Hosts may select their built-in Command Code model before loading extensions.
   // Rebind that stale selection to our registered transport before the first turn.
   pi.on("session_start", async (_event, ctx) => {
-    // Completes the ZDR opt-in now that host settings are readable, and picks up
-    // a settings file changed since the last load.
-    applyHostZdr()
+    // Applies the opt-in from the agent settings file and picks up a file
+    // changed since the last load.
+    await applyHostZdr()
     if (ctx.model?.provider !== "commandcode") return
     const registered = ctx.modelRegistry.find("commandcode", ctx.model.id)
     if (registered?.api === COMMAND_CODE_API && ctx.model.api !== COMMAND_CODE_API) {
@@ -292,10 +285,11 @@ export default async function (pi: ExtensionAPI) {
   // the wire each model answers on is resolved here from the catalog that
   // `createProviderConfig` registered. Unknown ids fall back to the id rule.
   const catalogModels = new Map<string, CommandCodeModel>()
-  // The environment is readable while extensions load, host settings are not, so
-  // the opt-in starts from the environment and is completed at session start.
-  // The environment is fixed for the process; settings only reload with the
-  // extension. /commandcode-zdr updates this state after writing the file.
+  // The environment is readable while extensions load; the agent settings file
+  // is read at session start so a change made while the host was stopped applies
+  // before the first request. The environment is fixed for the process, and the
+  // file only reloads with the extension. /commandcode-zdr updates this state
+  // after writing the file.
   const settingsPath = join(getAgentDir(), "settings.json")
   let zdr: ZdrState = resolveZdr(undefined)
   const routingPath = join(getAgentDir(), "commandcode-routing.json")
@@ -439,8 +433,11 @@ export default async function (pi: ExtensionAPI) {
       "commandcode",
       createProviderConfig([...catalogModels.values()], apiBase, measuredStream, zdrHeaders(zdr)),
     )
-  const applyHostZdr = () => {
-    const resolved = resolveZdr(hostSettings(pi))
+  const applyHostZdr = async () => {
+    // Read the agent settings file, not the host's merged global+project view:
+    // the command writes this file, so a project override must not be able to
+    // invalidate the persisted opt-in at restart.
+    const resolved = resolveZdr(await loadZdrSettings(settingsPath))
     const changed = resolved.enabled !== zdr.enabled
     zdr = resolved
     // Re-registration is the only way to change a registration header, and it

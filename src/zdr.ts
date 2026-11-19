@@ -47,6 +47,23 @@ export function resolveZdr(settings: unknown, env: Environment = process.env): Z
   return { enabled: false, source: "off" }
 }
 
+/**
+ * Read the opt-in from the agent settings file itself. Startup uses this instead
+ * of the host's merged global+project view: the opt-in is owned by the agent
+ * file that saveZdrSetting writes, so a project settings override cannot
+ * silently turn it off (or on) after a restart.
+ *
+ * A missing or unreadable file is "off"; a malformed file is left for the write
+ * path to report rather than failing the provider load.
+ */
+export async function loadZdrSettings(path: string): Promise<unknown> {
+  try {
+    return JSON.parse(await readFile(path, "utf8"))
+  } catch {
+    return undefined
+  }
+}
+
 export function zdrHeaders(state: ZdrState): Record<string, string> | undefined {
   return state.enabled ? { "x-cmd-zdr": "1" } : undefined
 }

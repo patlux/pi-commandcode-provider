@@ -431,7 +431,7 @@ function runPi(args, timeoutOrOptions = 30_000) {
   }
   return new Promise((resolve) => {
     const child = spawn(PI_BIN, args, {
-      cwd: PROJECT_DIR,
+      cwd: options.cwd ?? PROJECT_DIR,
       env: childEnv,
       stdio: ["ignore", "pipe", "pipe"],
     })
@@ -1350,6 +1350,7 @@ export default async function (pi) {
     "--model",
     TEST_MODEL,
   ]
+  let zdrProject
   try {
     console.log("[pi-local] zero data retention opted in from settings.json")
     writeFileSync(
@@ -1381,9 +1382,43 @@ export default async function (pi) {
     assert.match(noZdr.stdout, /mock-pi-ok/)
     assert.equal(lastRequestHeaders["x-cmd-zdr"], undefined)
 
+    console.log(
+      "[pi-local] zero data retention follows the agent settings file over a project override",
+    )
+    zdrProject = mkdtempSync(join(tempHome, "zdr-project-"))
+    mkdirSync(join(zdrProject, ".pi"), { recursive: true })
+    writeFileSync(
+      join(zdrProject, ".pi", "settings.json"),
+      JSON.stringify({ commandcode: { enableZDR: false } }),
+    )
+    writeFileSync(
+      settingsFilePath,
+      JSON.stringify({
+        ...baseSettings,
+        defaultProjectTrust: "always",
+        commandcode: { enableZDR: true },
+      }),
+    )
+    requestCount = 0
+    lastRequestHeaders = {}
+    const projectOverride = await runPi(zdrArgs, {
+      timeoutMs: 30_000,
+      cwd: zdrProject,
+      env: { CMD_ZDR: undefined, COMMANDCODE_ZDR: undefined },
+    })
+    assert.equal(projectOverride.code, 0, projectOverride.stderr)
+    assert.match(projectOverride.stdout, /mock-pi-ok/)
+    assert.equal(
+      lastRequestHeaders["x-cmd-zdr"],
+      "1",
+      "a trusted project settings override must not turn off the persisted opt-in",
+    )
+
     console.log("[pi-local] /commandcode-zdr changes the next outgoing request")
+    writeFileSync(settingsFilePath, JSON.stringify(baseSettings))
     await runRpcZdrCommand()
   } finally {
+    if (zdrProject) rmSync(zdrProject, { recursive: true, force: true })
     writeFileSync(settingsFilePath, JSON.stringify(baseSettings))
   }
 

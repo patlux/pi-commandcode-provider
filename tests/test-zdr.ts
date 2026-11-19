@@ -16,6 +16,7 @@ import { describe, it } from "node:test"
 
 import {
   describeZdr,
+  loadZdrSettings,
   readZdrSetting,
   resolveZdr,
   saveZdrSetting,
@@ -84,6 +85,32 @@ describe("zero data retention resolution", () => {
     assert.deepEqual(off, { enabled: false, source: "off" })
     assert.equal(zdrHeaders(off), undefined)
     assert.equal(describeZdr(off), "off")
+  })
+})
+
+describe("loading the settings.json opt-in", () => {
+  it("reads the agent settings file directly and ignores a missing one", async () => {
+    await isolated(async (path) => {
+      assert.equal(await loadZdrSettings(path), undefined)
+
+      await writeFile(path, JSON.stringify({ commandcode: { enableZDR: true } }), "utf8")
+      assert.equal(resolveZdr(await loadZdrSettings(path), {}).enabled, true)
+
+      await writeFile(path, JSON.stringify({ commandcode: { enableZDR: false } }), "utf8")
+      assert.equal(resolveZdr(await loadZdrSettings(path), {}).enabled, false)
+    })
+  })
+
+  it("follows a settings symlink and treats malformed content as off", async () => {
+    await isolated(async (path, dir) => {
+      const target = join(dir, "managed.json")
+      await writeFile(target, JSON.stringify({ commandcode: { enableZDR: true } }), "utf8")
+      await symlink(target, path)
+      assert.equal(resolveZdr(await loadZdrSettings(path), {}).enabled, true)
+
+      await writeFile(target, "{ not json", "utf8")
+      assert.equal(await loadZdrSettings(path), undefined)
+    })
   })
 })
 
