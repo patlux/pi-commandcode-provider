@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-11-17T08:30:20.471Z",
+  "fetchedAt": "2026-11-20T08:54:12.058Z",
   "source": "https://api.commandcode.ai/provider/v1/models",
   "modelIds": [
     "claude-sonnet-5-5",
@@ -102,6 +102,10 @@
     "xai/grok-4.5",
     "xai/grok-4.6",
     "xai/grok-4.7",
-    "mistral/mistral-large-4"
+    "mistral/mistral-large-4",
+    "gpt-6.2-astra",
+    "gpt-6.2-sol",
+    "tencent/hy4",
+    "google/gemini-4-neon"
   ]
 }
