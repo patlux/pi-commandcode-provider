@@ -6,7 +6,15 @@
 
 import assert from "node:assert/strict"
 import { spawn, spawnSync } from "node:child_process"
-import { accessSync, constants, mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs"
+import {
+  accessSync,
+  constants,
+  mkdtempSync,
+  rmSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs"
 import { createServer } from "node:http"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, join, resolve } from "node:path"
@@ -423,7 +431,7 @@ function runPi(args, timeoutOrOptions = 30_000) {
   }
   return new Promise((resolve) => {
     const child = spawn(PI_BIN, args, {
-      cwd: PROJECT_DIR,
+      cwd: options.cwd ?? PROJECT_DIR,
       env: childEnv,
       stdio: ["ignore", "pipe", "pipe"],
     })
@@ -803,6 +811,91 @@ async function runRpcExtensionCommands(timeoutMs = 30_000) {
     providerUpgradeRequired = false
     malformedResponsesReasoning = false
     includeResponsesModel = false
+    child.kill()
+    await waitForClose()
+  }
+}
+
+async function runRpcZdrCommand(timeoutMs = 30_000) {
+  const child = spawn(
+    PI_BIN,
+    [
+      "--no-extensions",
+      "--mode",
+      "rpc",
+      "-e",
+      EXT_PATH,
+      "--provider",
+      "commandcode",
+      "--model",
+      TEST_MODEL,
+    ],
+    {
+      cwd: PROJECT_DIR,
+      env: { ...env, CMD_ZDR: undefined, COMMANDCODE_ZDR: undefined },
+      stdio: ["pipe", "pipe", "pipe"],
+    },
+  )
+  const waitForClose = rpcChildCloseWaiter(child)
+  let buffer = ""
+  let stderr = ""
+  const events = []
+  child.stdout.on("data", (chunk) => {
+    buffer += chunk.toString("utf-8")
+    const lines = buffer.split("\n")
+    buffer = lines.pop() ?? ""
+    for (const line of lines) {
+      try {
+        events.push(JSON.parse(line))
+      } catch {
+        // Ignore non-JSON output.
+      }
+    }
+  })
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk.toString("utf-8")
+  })
+  const waitFor = async (predicate, fromIndex = 0) => {
+    const deadline = Date.now() + timeoutMs
+    while (Date.now() < deadline) {
+      const found = events.slice(fromIndex).find(predicate)
+      if (found) return found
+      await new Promise((resolve) => setTimeout(resolve, 25))
+    }
+    throw new Error(`RPC event timeout. stderr: ${stderr.slice(-500)}`)
+  }
+  const send = (value) => child.stdin.write(`${JSON.stringify(value)}\n`)
+  const prompt = async (message, until) => {
+    const start = events.length
+    send({ id: `p-${start}`, type: "prompt", message })
+    await waitFor((event) => event.type === "response" && event.id === `p-${start}`, start)
+    return waitFor(until, start)
+  }
+  // Asserts on the next outgoing HTTP request, not only on the notification.
+  const nextRequestHeader = async () => {
+    lastRequestHeaders = {}
+    await prompt("say mock token", (event) => event.type === "agent_end")
+    return lastRequestHeaders["x-cmd-zdr"]
+  }
+  const command = async (name) =>
+    (
+      await prompt(
+        name,
+        (event) =>
+          event.type === "extension_ui_request" &&
+          event.method === "notify" &&
+          /zero data retention/.test(event.message ?? ""),
+      )
+    ).message
+  try {
+    // Wait for the cached catalog so the command can re-register.
+    await prompt("/commandcode-status", (event) => /model count: 3/.test(event.message ?? ""))
+    assert.equal(await nextRequestHeader(), undefined)
+    assert.match(await command("/commandcode-zdr on"), /on \(settings\.json/)
+    assert.equal(await nextRequestHeader(), "1")
+    assert.match(await command("/commandcode-zdr off"), /off/)
+    assert.equal(await nextRequestHeader(), undefined)
+  } finally {
     child.kill()
     await waitForClose()
   }
@@ -1244,6 +1337,91 @@ export default async function (pi) {
     "string",
   )
 
+  const settingsFilePath = join(agentDir, "settings.json")
+  const baseSettings = JSON.parse(readFileSync(settingsFilePath, "utf-8"))
+  const zdrArgs = [
+    "--no-extensions",
+    "-e",
+    EXT_PATH,
+    "-p",
+    "say mock token",
+    "--provider",
+    "commandcode",
+    "--model",
+    TEST_MODEL,
+  ]
+  let zdrProject
+  try {
+    console.log("[pi-local] zero data retention opted in from settings.json")
+    writeFileSync(
+      settingsFilePath,
+      JSON.stringify({ ...baseSettings, commandcode: { enableZDR: true } }),
+    )
+    requestCount = 0
+    lastRequestHeaders = {}
+    const settingsZdr = await runPi(zdrArgs, {
+      timeoutMs: 30_000,
+      env: { CMD_ZDR: undefined, COMMANDCODE_ZDR: undefined },
+    })
+    assert.equal(settingsZdr.code, 0, settingsZdr.stderr)
+    assert.match(settingsZdr.stdout, /mock-pi-ok/)
+    assert.equal(lastRequestHeaders["x-cmd-zdr"], "1")
+
+    console.log("[pi-local] zero data retention stays off without an opt-in")
+    writeFileSync(
+      settingsFilePath,
+      JSON.stringify({ ...baseSettings, commandcode: { enableZDR: false } }),
+    )
+    requestCount = 0
+    lastRequestHeaders = {}
+    const noZdr = await runPi(zdrArgs, {
+      timeoutMs: 30_000,
+      env: { CMD_ZDR: undefined, COMMANDCODE_ZDR: undefined },
+    })
+    assert.equal(noZdr.code, 0, noZdr.stderr)
+    assert.match(noZdr.stdout, /mock-pi-ok/)
+    assert.equal(lastRequestHeaders["x-cmd-zdr"], undefined)
+
+    console.log(
+      "[pi-local] zero data retention follows the agent settings file over a project override",
+    )
+    zdrProject = mkdtempSync(join(tempHome, "zdr-project-"))
+    mkdirSync(join(zdrProject, ".pi"), { recursive: true })
+    writeFileSync(
+      join(zdrProject, ".pi", "settings.json"),
+      JSON.stringify({ commandcode: { enableZDR: false } }),
+    )
+    writeFileSync(
+      settingsFilePath,
+      JSON.stringify({
+        ...baseSettings,
+        defaultProjectTrust: "always",
+        commandcode: { enableZDR: true },
+      }),
+    )
+    requestCount = 0
+    lastRequestHeaders = {}
+    const projectOverride = await runPi(zdrArgs, {
+      timeoutMs: 30_000,
+      cwd: zdrProject,
+      env: { CMD_ZDR: undefined, COMMANDCODE_ZDR: undefined },
+    })
+    assert.equal(projectOverride.code, 0, projectOverride.stderr)
+    assert.match(projectOverride.stdout, /mock-pi-ok/)
+    assert.equal(
+      lastRequestHeaders["x-cmd-zdr"],
+      "1",
+      "a trusted project settings override must not turn off the persisted opt-in",
+    )
+
+    console.log("[pi-local] /commandcode-zdr changes the next outgoing request")
+    writeFileSync(settingsFilePath, JSON.stringify(baseSettings))
+    await runRpcZdrCommand()
+  } finally {
+    if (zdrProject) rmSync(zdrProject, { recursive: true, force: true })
+    writeFileSync(settingsFilePath, JSON.stringify(baseSettings))
+  }
+
   console.log("[pi-local] denied Provider API access never retries generate")
   requestCount = 0
   providerUpgradeRequired = true
@@ -1470,6 +1648,7 @@ export default async function (pi) {
   const runtimeCommands = await runRpcExtensionCommands()
   assert.ok(runtimeCommands.commandNames.includes("commandcode-refresh"))
   assert.ok(runtimeCommands.commandNames.includes("commandcode-status"))
+  assert.ok(runtimeCommands.commandNames.includes("commandcode-zdr"))
   assert.match(runtimeCommands.statusBefore, /source: live/)
   assert.match(runtimeCommands.refreshNotification, /4 models from live/)
   assert.match(runtimeCommands.statusAfter, /model count: 4/)

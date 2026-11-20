@@ -25,7 +25,8 @@ interface QuotaCommandApi {
 
 interface RegisterQuotaCommandOptions {
   apiBase: string
-  headers?: Record<string, string>
+  /** A function is resolved per run so a header changed after startup (ZDR) is sent. */
+  headers?: Record<string, string> | (() => Record<string, string> | undefined)
   getConfiguredKey?: () => string | undefined
   fetchQuota?: typeof fetchCommandCodeQuota
 }
@@ -54,7 +55,7 @@ export function registerCommandCodeQuota(
       const result = await fetchQuota({
         apiKey,
         baseUrl: options.apiBase,
-        extraHeaders: options.headers,
+        extraHeaders: typeof options.headers === "function" ? options.headers() : options.headers,
       })
       if (!result.ok) {
         ctx.ui.notify(redactValue(result.error.message), "error")

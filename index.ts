@@ -50,6 +50,14 @@ import { normalizeCommandCodeResponsesResponse } from "./src/responses-stream.ts
 import { modelWireTraits, withResponsesWireRepairs } from "./src/responses-compat.ts"
 import { createCommandCodeRuntime } from "./src/runtime.ts"
 import {
+  describeZdr,
+  loadZdrSettings,
+  resolveZdr,
+  saveZdrSetting,
+  zdrHeaders,
+  type ZdrState,
+} from "./src/zdr.ts"
+import {
   compatForEndpoint,
   endpointChoiceForModel,
   isEndpointChoice,
@@ -81,6 +89,15 @@ function compatApiProviderRegistrar(): ((...args: unknown[]) => unknown) | undef
   return typeof register === "function" ? (register as (...args: unknown[]) => unknown) : undefined
 }
 
+/**
+ * The settings.json opt-in is pi-only. pi registers the compat API provider that
+ * applies a re-registered header; Oh My Pi does not, so its contract stays the
+ * environment only. Both paths use the same probe as the write guard.
+ */
+function settingsZdrSupported(): boolean {
+  return compatApiProviderRegistrar() !== undefined
+}
+
 function registerCompatApiProvider(stream: CompatStreamFunction): void {
   compatApiProviderRegistrar()?.(
     { api: COMMAND_CODE_API, stream, streamSimple: stream },
@@ -110,13 +127,6 @@ function providerApiKey(): string | undefined {
   const configured = pickCommandCodeApiKey(getConfiguredApiKey(), undefined)
   if (configured) return configured
   return compatApiProviderRegistrar() ? "$COMMAND_CODE_API_KEY" : undefined
-}
-
-function commandCodeHeaders(): Record<string, string> | undefined {
-  if (process.env.CMD_ZDR === "1" || process.env.COMMANDCODE_ZDR === "1") {
-    return { "x-cmd-zdr": "1" }
-  }
-  return undefined
 }
 
 /**
@@ -181,19 +191,23 @@ function createProviderConfig(
   models: readonly CommandCodeModel[],
   apiBase: string,
   streamCommandCode: ProviderConfig["streamSimple"],
+  headers: Record<string, string> | undefined,
 ): CommandCodeProviderConfig {
-  const headers = commandCodeHeaders()
+  // The host merges a re-registration over the previous one and preserves
+  // undefined values, so an empty object is what clears a previously sent
+  // header after ZDR is turned off.
+  const registeredHeaders = headers ?? {}
   return {
     name: "Command Code",
     baseUrl: apiBase,
     apiKey: providerApiKey(),
     api: COMMAND_CODE_API,
     streamSimple: streamCommandCode,
-    headers,
+    headers: registeredHeaders,
     // Same alpha endpoints and credentials as the /commandcode-quota command.
     usage: createCommandCodeUsageProvider({
       apiBase: quotaApiBase(apiBase),
-      headers,
+      headers: registeredHeaders,
     }),
     oauth: {
       name: "Command Code",
@@ -216,7 +230,7 @@ function createProviderConfig(
       },
       contextWindow: model.contextWindow,
       maxTokens: model.maxTokens,
-      headers,
+      headers: registeredHeaders,
       compat: { ...compatForModel(model), commandCodeWire: model.api },
     })),
   }
@@ -260,6 +274,9 @@ export default async function (pi: ExtensionAPI) {
   // Hosts may select their built-in Command Code model before loading extensions.
   // Rebind that stale selection to our registered transport before the first turn.
   pi.on("session_start", async (_event, ctx) => {
+    // Applies the opt-in from the agent settings file and picks up a file
+    // changed since the last load.
+    await applyHostZdr()
     if (ctx.model?.provider !== "commandcode") return
     const registered = ctx.modelRegistry.find("commandcode", ctx.model.id)
     if (registered?.api === COMMAND_CODE_API && ctx.model.api !== COMMAND_CODE_API) {
@@ -277,6 +294,13 @@ export default async function (pi: ExtensionAPI) {
   // the wire each model answers on is resolved here from the catalog that
   // `createProviderConfig` registered. Unknown ids fall back to the id rule.
   const catalogModels = new Map<string, CommandCodeModel>()
+  // The environment is readable while extensions load; the agent settings file
+  // is read at session start so a change made while the host was stopped applies
+  // before the first request. The environment is fixed for the process, and the
+  // file only reloads with the extension. /commandcode-zdr updates this state
+  // after writing the file.
+  const settingsPath = join(getAgentDir(), "settings.json")
+  let zdr: ZdrState = resolveZdr(undefined)
   const routingPath = join(getAgentDir(), "commandcode-routing.json")
   let routing: EndpointOverrides = {}
   let routingWarning: string | undefined
@@ -413,15 +437,97 @@ export default async function (pi: ExtensionAPI) {
   const compatStream: CompatStreamFunction = measuredStream
   registerCompatApiProvider(compatStream)
 
+  const registerProvider = () =>
+    pi.registerProvider(
+      "commandcode",
+      createProviderConfig([...catalogModels.values()], apiBase, measuredStream, zdrHeaders(zdr)),
+    )
+  const applyHostZdr = async () => {
+    // Read the agent settings file, not the host's merged global+project view:
+    // the command writes this file, so a project override must not be able to
+    // invalidate the persisted opt-in at restart. Only pi owns this file; OMP
+    // must not pick up a leftover one, so it keeps the environment opt-in.
+    const resolved = resolveZdr(
+      settingsZdrSupported() ? await loadZdrSettings(settingsPath) : undefined,
+    )
+    const changed = resolved.enabled !== zdr.enabled
+    zdr = resolved
+    // Re-registration is the only way to change a registration header, and it
+    // needs a catalog to register.
+    if (changed && catalogModels.size > 0) registerProvider()
+  }
+
   pi.on("message_end", async (event, ctx) => {
     if (event.message.role !== "assistant") return
     const normalized = normalizeCommandCodeMessage(event.message, ctx.model?.provider)
     return normalized ? { message: normalized.message } : undefined
   })
 
+  // The opt-in is only sent as a registration header, so a change needs the
+  // provider re-registered before it reaches the next request. Re-registering
+  // is the same path /commandcode-refresh already uses.
+  pi.registerCommand("commandcode-zdr", {
+    description: "Show or set zero data retention: /commandcode-zdr [on|off]",
+    handler: async (args, ctx) => {
+      const [choice, extra] = args.trim().split(/\s+/)
+      if (!choice) {
+        ctx.ui.notify(
+          `Command Code zero data retention: ${describeZdr(zdr)}. Usage: /commandcode-zdr on|off`,
+          "info",
+        )
+        return
+      }
+      if ((choice !== "on" && choice !== "off") || extra) {
+        ctx.ui.notify("Usage: /commandcode-zdr on|off", "warning")
+        return
+      }
+      // Only pi reads this settings file back and applies a re-registered header
+      // to the next request; other hosts keep the environment opt-in.
+      if (!settingsZdrSupported()) {
+        ctx.ui.notify(
+          "Saving zero data retention is only supported on pi. Set CMD_ZDR=1 in the environment instead.",
+          "warning",
+        )
+        return
+      }
+      // The environment wins at resolution time, so refuse instead of writing a
+      // setting that would not take effect.
+      if (choice === "off" && zdr.source === "env") {
+        ctx.ui.notify(
+          `Zero data retention is forced on by ${zdr.envVar ?? "the environment"}. Unset that variable to disable it.`,
+          "warning",
+        )
+        return
+      }
+      await ctx.waitForIdle?.()
+      let written: unknown
+      try {
+        written = await saveZdrSetting(settingsPath, choice === "on")
+      } catch (error) {
+        ctx.ui.notify(
+          error instanceof Error ? error.message : "Could not save settings.json",
+          "error",
+        )
+        return
+      }
+      zdr = resolveZdr(written)
+      // Without a catalog there is nothing to register; the next successful
+      // load or /commandcode-refresh picks the saved setting up.
+      const applied = catalogModels.size > 0
+      if (applied) registerProvider()
+      ctx.ui.notify(
+        `Command Code zero data retention: ${describeZdr(zdr)}. Saved to settings.json; ` +
+          (applied
+            ? "applies to the next request and survives restart."
+            : "applies after the next catalog load or /commandcode-refresh."),
+        "info",
+      )
+    },
+  })
+
   registerCommandCodeQuota(pi, {
     apiBase: quotaApiBase(apiBase),
-    headers: commandCodeHeaders(),
+    headers: () => zdrHeaders(zdr),
   })
 
   const runtime = createCommandCodeRuntime<ProviderConfig, ExtensionCommandContext>(pi, {
@@ -438,7 +544,7 @@ export default async function (pi: ExtensionAPI) {
     createProviderConfig: (models) => {
       catalogModels.clear()
       for (const model of models) catalogModels.set(model.id, model)
-      return createProviderConfig(models, apiBase, measuredStream)
+      return createProviderConfig(models, apiBase, measuredStream, zdrHeaders(zdr))
     },
     getDiagnostics: (model) => {
       let route = "not selected"
@@ -473,6 +579,7 @@ export default async function (pi: ExtensionAPI) {
           request: diagnostics.snapshot(),
         }),
         endpointStatus,
+        `zdr: ${describeZdr(zdr)}`,
         routingWarning,
       ]
         .filter(Boolean)
