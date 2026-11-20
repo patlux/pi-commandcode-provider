@@ -126,14 +126,20 @@ describe("loading the settings.json opt-in", () => {
 })
 
 describe("saving the settings.json opt-in", () => {
+  it("creates settings.json with private permissions", async () => {
+    await isolated(async (path) => {
+      await saveZdrSetting(path, true)
+      assert.equal((await stat(path)).mode & 0o777, 0o600)
+    })
+  })
+
   it("creates settings.json and keeps every unrelated key", async () => {
-    await isolated(async (path, dir) => {
+    await isolated(async (path) => {
       const written = await saveZdrSetting(path, true)
       assert.equal(resolveZdr(written, {}).enabled, true)
       assert.deepEqual(JSON.parse(await readFile(path, "utf8")), {
         commandcode: { enableZDR: true },
       })
-      assert.equal((await stat(path)).mode & 0o777, 0o600)
 
       const existing = {
         theme: "matte-black",
