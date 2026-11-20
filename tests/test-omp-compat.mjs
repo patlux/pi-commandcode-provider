@@ -10,7 +10,7 @@
 
 import assert from "node:assert/strict"
 import { spawn, spawnSync } from "node:child_process"
-import { accessSync, constants, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { accessSync, constants, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { createServer } from "node:http"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, join, resolve } from "node:path"
@@ -324,13 +324,11 @@ try {
   assert.doesNotMatch(result.stdout + result.stderr, /Failed to load extension/)
 
   console.log("[omp-compat] print mode through real extension and mock API")
+  const chatArgs = ["-e", EXT_PATH, "-p", "say mock token", "--model", `commandcode/${TEST_MODEL}`]
   requestCount = 0
   skillDescriptionRequestCount = 0
   requestBodies = []
-  const print = await runOmp(
-    ["-e", EXT_PATH, "-p", "say mock token", "--model", `commandcode/${TEST_MODEL}`],
-    30_000,
-  )
+  const print = await runOmp(chatArgs, 30_000)
   assert.equal(print.code, 0, print.stderr)
   assert.match(print.stdout, /mock-omp-ok/)
   assert.equal(
@@ -351,6 +349,9 @@ try {
   // CMD_ZDR=1 stays the control that still works.
   console.log("[omp-compat] a leftover settings.json does not enable ZDR")
   const zdrOffEnv = { CMD_ZDR: undefined, COMMANDCODE_ZDR: undefined }
+  // A native OMP config keeps OMP from migrating the legacy settings.json out
+  // of the way, so the leftover file really is there when OMP starts.
+  writeFileSync(join(agentDir, "config.yml"), "{}\n", { flag: "wx" })
   writeFileSync(
     join(agentDir, "settings.json"),
     JSON.stringify({ commandcode: { enableZDR: true } }),
@@ -363,6 +364,11 @@ try {
   assert.equal(leftoverSettings.code, 0, leftoverSettings.stderr)
   assert.match(leftoverSettings.stdout, /mock-omp-ok/)
   assert.equal(requestCount, 1)
+  assert.equal(
+    JSON.parse(readFileSync(join(agentDir, "settings.json"), "utf8")).commandcode.enableZDR,
+    true,
+    "the leftover settings.json must still be present to prove OMP ignored it",
+  )
   assert.equal(lastRequestHeaders["x-cmd-zdr"], undefined)
 
   console.log("[omp-compat] CMD_ZDR=1 still enables ZDR on OMP")
@@ -381,7 +387,6 @@ try {
   // unresolved `$COMMAND_CODE_API_KEY` placeholder, which OMP kept as a
   // literal config override and sent as the Bearer token, so stored
   // credentials never reached the request (401).
-  const chatArgs = ["-e", EXT_PATH, "-p", "say mock token", "--model", `commandcode/${TEST_MODEL}`]
   const noEnvKey = { COMMAND_CODE_API_KEY: undefined, COMMANDCODE_API_KEY: undefined }
 
   console.log("[omp-compat] stored /login OAuth credential is used when no env key exists")
