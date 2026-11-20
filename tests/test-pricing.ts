@@ -492,7 +492,7 @@ describe("MODEL_COSTS pricing overlay", () => {
 
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-11-17")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-11-20")
   })
 
   it("fails once temporary pricing needs review", () => {

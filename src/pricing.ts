@@ -20,7 +20,7 @@ export interface TemporaryPricing {
 }
 
 export const PRICING_SOURCE_URL = "https://commandcode.ai/docs/resources/pricing-limits"
-export const PRICING_LAST_VERIFIED = "2026-11-17"
+export const PRICING_LAST_VERIFIED = "2026-11-20"
 
 export const ZERO_MODEL_COST: CommandCodeModelCost = {
   input: 0,
@@ -57,6 +57,7 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   "inclusionai/ling-3.1-flash": { input: 0.3, output: 0.9, cacheRead: 0.06, cacheWrite: 0 },
   "mistral/mistral-large-4": { input: 1.36, output: 4.18, cacheRead: 0.14, cacheWrite: 0 },
   "tencent/hy3-paid": { input: 0.14, output: 0.58, cacheRead: 0.035, cacheWrite: 0 },
+  "tencent/hy4": { input: 0.834, output: 2.501, cacheRead: 0.042, cacheWrite: 0 },
   "tencent/hy4-flash": { input: 0.07, output: 0.281, cacheRead: 0.003, cacheWrite: 0 },
   "tencent/hy4-preview": { input: 0.834, output: 2.501, cacheRead: 0.042, cacheWrite: 0 },
   "moonshotai/Kimi-K3.1-Pro": { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 0 },
@@ -265,6 +266,20 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   },
 
   // OpenAI
+  "gpt-6.2-astra": {
+    input: 8,
+    output: 40,
+    cacheRead: 0.4,
+    cacheWrite: 10,
+    tiers: [{ inputTokensAbove: 272_000, input: 16, output: 60, cacheRead: 0.8, cacheWrite: 20 }],
+  },
+  "gpt-6.2-sol": {
+    input: 2,
+    output: 10,
+    cacheRead: 0.1,
+    cacheWrite: 2.5,
+    tiers: [{ inputTokensAbove: 272_000, input: 4, output: 15, cacheRead: 0.2, cacheWrite: 5 }],
+  },
   "gpt-6-astra": {
     input: 10,
     output: 50,
@@ -337,6 +352,7 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
     cacheRead: 0.15,
     cacheWrite: 0.08334,
   },
+  "google/gemini-4-neon": { input: 3, output: 15, cacheRead: 0.15, cacheWrite: 0 },
   "google/gemini-4-carbon": { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 0 },
   "google/gemini-4-argon": { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 0 },
   "google/gemini-3.8-flash": {
