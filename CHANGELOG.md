@@ -1,8 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.8.7 - 2026-11-20
 
+- On Pi, use `/commandcode-zdr on` or `/commandcode-zdr off` to change the zero-data-retention opt-in for the next request and persist it in the agent directory's `settings.json`. Project settings cannot override this global setting. `/commandcode-zdr` shows the effective state, which is also included in status and diagnostics; the quota command uses the current opt-in. `CMD_ZDR=1` and its legacy alias `COMMANDCODE_ZDR=1` still take precedence and remain the only opt-in on Oh My Pi. ZDR stays off by default. ([#227](https://github.com/patlux/pi-commandcode-provider/pull/227))
 - Refresh the capability snapshot to `command-code@1.91.1` ([#228](https://github.com/patlux/pi-commandcode-provider/pull/228)) and verify pricing for all 105 advertised models. Add reviewed display pricing for `gpt-6.2-astra` and `gpt-6.2-sol` (including their 272K input tiers), `google/gemini-4-neon`, and `tencent/hy4`. Existing prices and routing defaults are unchanged.
+
+### Contributors
+
+- @Trex-Hub — implemented persistent ZDR controls and added host and settings regression coverage ([#227](https://github.com/patlux/pi-commandcode-provider/pull/227)).
+- @pierreraby — reviewed ZDR on both hosts, verified the new model prices, and prepared this release ([#227](https://github.com/patlux/pi-commandcode-provider/pull/227), [#228](https://github.com/patlux/pi-commandcode-provider/pull/228)).
 
 ## 0.8.6 - 2026-11-17
 
