@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Refresh the capability snapshot to `command-code@1.91.1` ([#228](https://github.com/patlux/pi-commandcode-provider/pull/228)) and verify pricing for all 105 advertised models. Add reviewed display pricing for `gpt-6.2-astra` and `gpt-6.2-sol` (including their 272K input tiers), `google/gemini-4-neon`, and `tencent/hy4`. Existing prices and routing defaults are unchanged.
+
 ## 0.8.6 - 2026-11-17
 
 - Show the `zai-org/GLM-5.3` thinking that the Provider API returns only as plaintext `encrypted_content` on the completed reasoning item. The model streams no reasoning delta, and the host keeps that field solely as a replay signature, so the chain of thought arrived and was never displayed. The Responses stream adapter now turns that content into reasoning text for this model only, and skips it when the item already carries a canonical summary or streamed deltas. Other models keep the field invisible because it holds real ciphertext there. ([#221](https://github.com/patlux/pi-commandcode-provider/issues/221), [#225](https://github.com/patlux/pi-commandcode-provider/pull/225))
