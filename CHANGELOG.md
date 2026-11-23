@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Refresh capabilities to `command-code@1.93.2`: Gemini 4 Neon and Inkling 2 Mini gain image input, reasoning and selectable efforts. Add Inkling 2 Mini display pricing ($0.075 input / $0.30 output / $0.015 cache read per million tokens, no published cache-write rate) and remove pricing and capabilities for the retired Inkling 2 Small free model. The Provider API still advertises 105 models; existing prices and endpoint routing rules are unchanged.
+
 ## 0.8.7 - 2026-11-20
 
 - On Pi, use `/commandcode-zdr on` or `/commandcode-zdr off` to change the zero-data-retention opt-in for the next request and persist it in the agent directory's `settings.json`. Project settings cannot override this global setting. `/commandcode-zdr` shows the effective state, which is also included in status and diagnostics; the quota command uses the current opt-in. `CMD_ZDR=1` and its legacy alias `COMMANDCODE_ZDR=1` still take precedence and remain the only opt-in on Oh My Pi. ZDR stays off by default. ([#227](https://github.com/patlux/pi-commandcode-provider/pull/227))

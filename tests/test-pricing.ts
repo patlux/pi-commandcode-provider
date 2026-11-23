@@ -27,11 +27,7 @@ const fixtureUrl = new URL("./fixtures/commandcode-model-ids.json", import.meta.
 const fixture = JSON.parse(await readFile(fixtureUrl, "utf-8")) as ModelCatalogSnapshot
 const pricingFixtureUrl = new URL("./fixtures/commandcode-pricing.json", import.meta.url)
 const pricingFixture = JSON.parse(await readFile(pricingFixtureUrl, "utf-8")) as PricingSnapshot
-const freeModels = new Set([
-  "recursive/flint-v1.0:free",
-  "stealth/glyph-cluster:free",
-  "thinkingmachines/inkling-2-small:free",
-])
+const freeModels = new Set(["recursive/flint-v1.0:free", "stealth/glyph-cluster:free"])
 
 function assertCost(
   modelId: string,
@@ -299,19 +295,14 @@ describe("MODEL_COSTS pricing overlay", () => {
     )
   })
 
-  it("prices Inkling 2 Small free as free during its undated free tier", () => {
-    assertCost("thinkingmachines/inkling-2-small:free", {
-      input: 0,
-      output: 0,
-      cacheRead: 0,
+  it("uses the official Inkling 2 Mini rates and drops the retired free model", () => {
+    assertCost("thinkingmachines/inkling-2-mini", {
+      input: 0.075,
+      output: 0.3,
+      cacheRead: 0.015,
       cacheWrite: 0,
     })
-    assert.ok(
-      !TEMPORARY_PRICING.some((pricing) =>
-        pricing.models.includes("thinkingmachines/inkling-2-small:free"),
-      ),
-      "the source publishes no fixed expiry for this free tier",
-    )
+    assert.equal(MODEL_COSTS["thinkingmachines/inkling-2-small:free"], undefined)
   })
 
   it("uses the documented base rates for context-dependent models", () => {
@@ -492,7 +483,7 @@ describe("MODEL_COSTS pricing overlay", () => {
 
   it("tracks pricing provenance", () => {
     assert.equal(PRICING_SOURCE_URL, "https://commandcode.ai/docs/resources/pricing-limits")
-    assert.equal(PRICING_LAST_VERIFIED, "2026-11-20")
+    assert.equal(PRICING_LAST_VERIFIED, "2026-11-23")
   })
 
   it("fails once temporary pricing needs review", () => {

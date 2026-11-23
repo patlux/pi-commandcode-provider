@@ -20,7 +20,7 @@ export interface TemporaryPricing {
 }
 
 export const PRICING_SOURCE_URL = "https://commandcode.ai/docs/resources/pricing-limits"
-export const PRICING_LAST_VERIFIED = "2026-11-20"
+export const PRICING_LAST_VERIFIED = "2026-11-23"
 
 export const ZERO_MODEL_COST: CommandCodeModelCost = {
   input: 0,
@@ -43,13 +43,6 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
   "recursive/flint-v1.0:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
   // Free while the stealth preview lasts; no fixed expiry is published.
   "stealth/glyph-cluster:free": { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-  // Free while the free tier lasts; no fixed expiry is published.
-  "thinkingmachines/inkling-2-small:free": {
-    input: 0,
-    output: 0,
-    cacheRead: 0,
-    cacheWrite: 0,
-  },
 
   // Open and open-weight models
   "inclusionai/ling-3.1-flash-1019": { input: 0.3, output: 0.9, cacheRead: 0.06, cacheWrite: 0 },
@@ -206,6 +199,7 @@ export const MODEL_COSTS: Readonly<Record<string, CommandCodeModelCost>> = {
     cacheWrite: 0,
   },
   "sakana/fugu-ultra": { input: 5, output: 30, cacheRead: 0.5, cacheWrite: 0 },
+  "thinkingmachines/inkling-2-mini": { input: 0.075, output: 0.3, cacheRead: 0.015, cacheWrite: 0 },
   "thinkingmachines/inkling": { input: 1, output: 4.05, cacheRead: 0.17, cacheWrite: 0 },
   "thinkingmachines/inkling-small": {
     input: 0.5,
