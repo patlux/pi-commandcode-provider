@@ -1,4 +1,4 @@
-export const COMMAND_CODE_CLI_VERSION = "1.91.1"
+export const COMMAND_CODE_CLI_VERSION = "1.93.2"
 
 export type CommandCodeInputType = "text" | "image"
 export type CommandCodeReasoningEffort =
@@ -11,7 +11,7 @@ export type CommandCodeReasoningEffort =
   | "max"
 
 /**
- * Generated from command-code@1.91.1 by `npm run sync:commandcode-catalog`.
+ * Generated from command-code@1.93.2 by `npm run sync:commandcode-catalog`.
  * Do not edit manually.
  */
 export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCodeInputType[]>> = {
@@ -39,6 +39,7 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "google/gemini-3.8-flash": ["text", "image"],
   "google/gemini-4-argon": ["text", "image"],
   "google/gemini-4-carbon": ["text", "image"],
+  "google/gemini-4-neon": ["text", "image"],
   "gpt-5.3-codex": ["text", "image"],
   "gpt-5.4": ["text", "image"],
   "gpt-5.4-mini": ["text", "image"],
@@ -88,7 +89,7 @@ export const MODEL_INPUT_MODALITIES: Readonly<Record<string, readonly CommandCod
   "tencent/hy4": ["text", "image"],
   "tencent/hy4-flash": ["text", "image"],
   "thinkingmachines/inkling": ["text", "image"],
-  "thinkingmachines/inkling-2-small:free": ["text", "image"],
+  "thinkingmachines/inkling-2-mini": ["text", "image"],
   "thinkingmachines/inkling-small": ["text", "image"],
   "xai/grok-4.5": ["text", "image"],
   "xai/grok-4.6": ["text", "image"],
@@ -127,6 +128,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "google/gemini-3.8-flash": true,
   "google/gemini-4-argon": true,
   "google/gemini-4-carbon": true,
+  "google/gemini-4-neon": true,
   "gpt-5.3-codex": true,
   "gpt-5.4": true,
   "gpt-5.4-mini": true,
@@ -185,7 +187,7 @@ export const MODEL_REASONING: Readonly<Record<string, true>> = {
   "tencent/hy4-flash": true,
   "tencent/hy4-preview": true,
   "thinkingmachines/inkling": true,
-  "thinkingmachines/inkling-2-small:free": true,
+  "thinkingmachines/inkling-2-mini": true,
   "thinkingmachines/inkling-small": true,
   "xai/grok-4.5": true,
   "xai/grok-4.6": true,
@@ -223,6 +225,7 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "google/gemini-3.8-flash": ["low", "medium", "high"],
   "google/gemini-4-argon": ["low", "medium", "high"],
   "google/gemini-4-carbon": ["low", "medium", "high"],
+  "google/gemini-4-neon": ["low", "medium", "high", "xhigh"],
   "gpt-5.3-codex": ["low", "medium", "high", "xhigh"],
   "gpt-5.4": ["low", "medium", "high", "xhigh"],
   "gpt-5.4-mini": ["low", "medium", "high"],
@@ -266,7 +269,7 @@ export const MODEL_EFFORTS: Readonly<Record<string, readonly CommandCodeReasonin
   "tencent/hy4": ["low", "medium", "high"],
   "tencent/hy4-flash": ["off", "high"],
   "tencent/hy4-preview": ["low", "medium", "high"],
-  "thinkingmachines/inkling-2-small:free": ["low", "medium", "high", "max"],
+  "thinkingmachines/inkling-2-mini": ["off", "low", "medium", "high", "max"],
   "xai/grok-4.5": ["low", "medium", "high"],
   "xai/grok-4.6": ["low", "medium", "high", "xhigh"],
   "xai/grok-4.7": ["low", "medium", "high", "xhigh"],
@@ -284,7 +287,6 @@ export const MODEL_MAX_OUTPUT_TOKENS: Readonly<Record<string, number>> = {
   "Qwen/Qwen3.8-Max-Prime": 131_072,
   "Qwen/Qwen3.8-Omni-Flash": 131_072,
   "stealth/glyph-cluster:free": 256_000,
-  "thinkingmachines/inkling-2-small:free": 131_072,
   "z-ai/glm-5.3-flash": 131_072,
   "z-ai/glm-5.3-flashx": 131_072,
 }

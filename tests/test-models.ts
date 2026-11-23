@@ -95,6 +95,14 @@ describe("commandCodeModelsFromApiResponse()", () => {
   })
 
   it("routes each model to the wire its endpoints advertise", () => {
+    assert.equal(
+      apiForModelId("thinkingmachines/inkling-2-mini", ["/chat/completions"]),
+      "openai-completions",
+    )
+    assert.equal(
+      apiForModelId("google/gemini-4-neon", ["/chat/completions", "/responses"]),
+      "openai-responses",
+    )
     assert.equal(apiForModelId("claude-sonnet-4-6"), "anthropic-messages")
     assert.equal(apiForModelId("claude-sonnet-4-6", ["/messages"]), "anthropic-messages")
     // Claude never moves off Messages, even if a catalog lists Responses by mistake.
@@ -174,8 +182,9 @@ describe("commandCodeModelsFromApiResponse()", () => {
     const effortsById = {
       "claude-fable-5-2": ["low", "medium", "high", "xhigh", "max"],
       "google/gemini-4-carbon": ["low", "medium", "high"],
+      "google/gemini-4-neon": ["low", "medium", "high", "xhigh"],
       "meta/muse-ember": ["low", "medium", "high", "xhigh", "max"],
-      "thinkingmachines/inkling-2-small:free": ["low", "medium", "high", "max"],
+      "thinkingmachines/inkling-2-mini": ["off", "low", "medium", "high", "max"],
     }
     for (const [id, efforts] of Object.entries(effortsById)) {
       assert.deepEqual(inputModalitiesForModel(id), ["text", "image"], id)
@@ -185,11 +194,12 @@ describe("commandCodeModelsFromApiResponse()", () => {
       })
       assert.equal(model?.reasoning, true, id)
       assert.deepEqual(thinkingMetadataForModel(id)?.thinking?.efforts, efforts, id)
-      if (id === "thinkingmachines/inkling-2-small:free") {
-        assert.equal(model?.maxTokens, 131_072)
-      }
     }
-    for (const id of ["reflection/beam:free", "stealth/crouton-alpha"]) {
+    for (const id of [
+      "reflection/beam:free",
+      "stealth/crouton-alpha",
+      "thinkingmachines/inkling-2-small:free",
+    ]) {
       assert.equal(MODEL_REASONING[id], undefined, id)
       assert.equal(MODEL_EFFORTS[id], undefined, id)
       assert.equal(MODEL_MAX_OUTPUT_TOKENS[id], undefined, id)

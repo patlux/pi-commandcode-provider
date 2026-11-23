@@ -1,5 +1,5 @@
 {
-  "verifiedAt": "2026-11-20",
+  "verifiedAt": "2026-11-23",
   "source": "https://commandcode.ai/docs/resources/pricing-limits",
   "tierPolicy": "Use request-wide input tiers; the highest threshold exceeded by input plus cache tokens applies to the full request.",
   "tiers": {
@@ -26,7 +26,6 @@
   "costs": {
     "recursive/flint-v1.0:free": [0, 0, 0, 0],
     "stealth/glyph-cluster:free": [0, 0, 0, 0],
-    "thinkingmachines/inkling-2-small:free": [0, 0, 0, 0],
     "inclusionai/ling-3.1-flash-1019": [0.3, 0.9, 0.06, 0],
     "ornith/ornith-1.5-122b": [0.16, 0.64, 0.02, 0],
     "inclusionai/ling-3.1-flash": [0.3, 0.9, 0.06, 0],
@@ -81,6 +80,7 @@
     "nvidia/nemotron-3.5-super-vl": [0.2, 0.5, 0.04, 0],
     "nvidia/nemotron-3-ultra-550b-a55b": [0.6, 2.4, 0.12, 0],
     "sakana/fugu-ultra": [5, 30, 0.5, 0],
+    "thinkingmachines/inkling-2-mini": [0.075, 0.3, 0.015, 0],
     "thinkingmachines/inkling": [1, 4.05, 0.17, 0],
     "thinkingmachines/inkling-small": [0.5, 1.2, 0.1, 0],
     "meta/muse-spark-1.1": [1.25, 4.25, 0.15, 0],
